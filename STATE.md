@@ -18,7 +18,10 @@ Archive: `docs/HISTORY.md`. Queue: GitHub Issues (`gh issue list`). Protocol: `A
 
 ## Run / verify
 
-- None yet. Ticket #1 sets up the Swift project and adds its build and test commands here.
+- Build: `./scripts/build-app.sh` (writes `build/Pauri.app`).
+- Run: `open build/Pauri.app`. Quit: `pkill -x Pauri`.
+- Test: `./scripts/test.sh`.
+- Full check: `./scripts/test.sh && ./scripts/build-app.sh`.
 
 ## Gotchas
 
