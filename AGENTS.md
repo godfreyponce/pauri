@@ -91,8 +91,13 @@ exist, so write it to the right file the moment it's made.
 # Verification scope
 
 - **While iterating, test only what you touched.** The full suite runs once, at the end of
-  `/build-ticket` — not after every change. No test commands exist yet: ticket #1 sets up the
-  Swift project and writes its focused and full test commands here.
+  `/build-ticket` — not after every change.
+- **Focused check:** `./scripts/test.sh --filter <test name>`.
+- **Full check:** `./scripts/test.sh && ./scripts/build-app.sh`. It passed when the test run ends
+  with `✔ Test run with N tests ... passed` and the build prints `build/Pauri.app`.
+- The hotkey, the panel over a fullscreen app, and focus have no automated test: check them by
+  hand on the built app (README `## Build`). Quit a running copy with `pkill -x Pauri` before
+  rebuilding.
 - **At most one dev server and one test run per worktree, on a free port, stopped by whoever
   started it.** The session that builds the ticket may start them (under `/rt`, that is the build
   subagent); helper subagents it spawns may not.
