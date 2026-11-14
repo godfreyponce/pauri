@@ -13,7 +13,7 @@ private func noon(_ year: Int, _ month: Int, _ day: Int, in zone: TimeZone) -> D
 
 private func minutes(_ hours: Double) -> Int { Int((hours * 60).rounded()) }
 
-@Test func mexicoCitySunriseAndSunsetMatchTheAlmanac() {
+@Test func mexicoCitySunriseAndSunsetMatchNOAA() {
     // 2026-11-13: sunrise 06:43, sunset 17:58 (the design page's figures for Mexico City).
     let sun = DaySchedule.sunTimes(at: Place(latitude: 19.4, longitude: -99.15),
                                    on: noon(2026, 11, 13, in: mexicoCity), in: mexicoCity)
@@ -21,15 +21,30 @@ private func minutes(_ hours: Double) -> Int { Int((hours * 60).rounded()) }
     #expect(abs(minutes(sun.set) - (17 * 60 + 58)) <= 5)
 }
 
-@Test func shortWinterDayKeepsTheTenFramesInOrder() {
-    let sun = DaySchedule.sunTimes(at: Place(latitude: 64.15, longitude: -21.85),
-                                   on: noon(2026, 11, 13, in: reykjavik), in: reykjavik)
+private func expectTenFramesInOrder(at place: Place, _ zone: TimeZone, _ year: Int, _ month: Int, _ day: Int) {
+    let sun = DaySchedule.sunTimes(at: place, on: noon(year, month, day, in: zone), in: zone)
     let starts = DaySchedule.starts(sun)
     #expect(starts.map(\.scene) == OrbScene.allCases)
     let first = starts[0].hour
     let offsets = starts.map { DaySchedule.wrap($0.hour - first) }
-    #expect(offsets == offsets.sorted())
+    #expect(offsets == offsets.sorted(), "\(zone.identifier) \(year)-\(month)-\(day): \(starts.map(\.hour))")
     #expect(Set(offsets).count == offsets.count)
+}
+
+private let reykjavikPlace = Place(latitude: 64.15, longitude: -21.85)
+private let longyearbyen = (Place(latitude: 78.0, longitude: 15.6), TimeZone(identifier: "Arctic/Longyearbyen")!)
+
+@Test func shortWinterDayKeepsTheTenFramesInOrder() {
+    expectTenFramesInOrder(at: reykjavikPlace, reykjavik, 2026, 11, 13)
+}
+
+@Test func sunsetAfterMidnightKeepsTheTenFramesInOrder() {
+    expectTenFramesInOrder(at: reykjavikPlace, reykjavik, 2026, 6, 21)
+}
+
+@Test func midnightSunAndPolarNightKeepTheTenFramesInOrder() {
+    expectTenFramesInOrder(at: longyearbyen.0, longyearbyen.1, 2026, 6, 21)
+    expectTenFramesInOrder(at: longyearbyen.0, longyearbyen.1, 2026, 12, 21)
 }
 
 @Test func scenesCrossFadeBeforeTheNextStart() {

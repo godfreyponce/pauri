@@ -10,7 +10,8 @@ struct Place: Equatable, Sendable {
     var longitude: Double
 }
 
-/// Sunrise and sunset in local hours, such as 6.5 for 6:30.
+/// Sunrise and sunset in local hours, such as 6.5 for 6:30. `set` is `rise` plus the day length, so it can pass 24
+/// when the sun sets after midnight.
 struct SunTimes: Equatable, Sendable {
     var rise: Double
     var set: Double
@@ -58,16 +59,17 @@ enum DaySchedule {
         let cosHa = cos(90.833 * .pi / 180) / (cos(lat) * cos(decl)) - tan(lat) * tan(decl)
         let ha = acos(min(1, max(-1, cosHa))) * 180 / .pi
 
-        func localHour(utcMinutes: Double) -> Double {
-            hour(of: midnight.addingTimeInterval(utcMinutes * 60), in: timeZone)
-        }
-        return SunTimes(rise: localHour(utcMinutes: 720 - 4 * (place.longitude + ha) - eqTime),
-                        set: localHour(utcMinutes: 720 - 4 * (place.longitude - ha) - eqTime))
+        let rise = hour(of: midnight.addingTimeInterval((720 - 4 * (place.longitude + ha) - eqTime) * 60), in: timeZone)
+        return SunTimes(rise: rise, set: rise + 2 * ha / 15)
     }
 
     /// When each scene starts. Daytime scenes sit at fractions of the day, so a short winter day keeps them in order.
+    /// The day length is held to 1...20 hours: the night scenes need more than 3.2 hours after sunset (forest at
+    /// +1.25 h, moon at 40% of the night) and the day scenes need a day longer than zero, so midnight sun and polar
+    /// night keep all ten scenes in order.
     static func starts(_ sun: SunTimes) -> [(hour: Double, scene: OrbScene)] {
-        let day = sun.set - sun.rise, night = 24 - day
+        let day = min(max(sun.set - sun.rise, 1), 20), night = 24 - day
+        let set = sun.rise + day
         return [
             (sun.rise - 1.25, .blueHour),
             (sun.rise - 0.25, .dawn),
@@ -76,9 +78,9 @@ enum DaySchedule {
             (sun.rise + 0.45 * day, .sky),
             (sun.rise + 0.70 * day, .golden),
             (sun.rise + 0.88 * day, .harbor),
-            (sun.set + 0.25, .town),
-            (sun.set + 1.25, .forest),
-            (sun.set + 0.4 * night, .moon),
+            (set + 0.25, .town),
+            (set + 1.25, .forest),
+            (set + 0.4 * night, .moon),
         ]
     }
 
