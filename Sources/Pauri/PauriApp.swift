@@ -20,9 +20,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let chat = Chat(client: CodexClient())
         chat.warmUp()
         self.chat = chat
-        let hotKey = HotKey { [weak self] in self?.panel?.toggle() }
+        let hotKey = HotKey { [weak self] in self?.hotKeyPressed() }
         self.hotKey = hotKey
         panel = PanelController(hotKey: hotKey, chat: chat)
+    }
+
+    /// Hides only when the panel has focus; a press while another app has focus brings it back,
+    /// with that app's selection. The only place the selection is read.
+    func hotKeyPressed() {
+        guard let panel, let chat else { return }
+        if panel.isKey {
+            panel.hide()
+        } else {
+            chat.selection = SelectionGrabber.selectedText()
+            panel.show()
+        }
     }
 
     /// Opening Pauri again shows the panel: the way back in when a new shortcut never arrives.

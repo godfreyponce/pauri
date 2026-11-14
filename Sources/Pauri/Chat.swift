@@ -22,10 +22,20 @@ final class Chat {
     private(set) var isStarting = true
     /// The card shows the first; the rest wait their turn.
     private(set) var approvals: [ApprovalRequest] = []
+    /// The text selected in the front app when the hotkey opened the panel; goes with the next question.
+    var selection: String?
+    private(set) var contextUsage: ContextUsage?
+    private(set) var isWritingHandoff = false
+
+    var isContextFull: Bool {
+        guard let contextUsage else { return false }
+        return ContextLimit.isFull(contextUsage, debug: UserDefaults.standard.bool(forKey: ContextLimit.debugKey))
+    }
 
     /// Off during the start at launch, which would set the resumed thread after a new chat
-    /// forgot it, and during an answer, which would stream into the blank chat.
-    var canStartNewChat: Bool { !isAnswering && !isStarting }
+    /// forgot it, during an answer, which would stream into the blank chat, and while the
+    /// handoff note is written, which ends in a new chat of its own.
+    var canStartNewChat: Bool { !isAnswering && !isStarting && !isWritingHandoff }
 
     private let client: CodexClient
     /// Set once the resumed thread's old turns are shown, so a later restart never shows them twice.
@@ -35,6 +45,7 @@ final class Chat {
 
     init(client: CodexClient) {
         self.client = client
+        client.onContextUsage = { [weak self] usage in self?.contextUsage = usage }
     }
 
     func warmUp() {
@@ -62,20 +73,41 @@ final class Chat {
         exchanges = []
         notice = nil
         allowsEverythingInThisChat = false
+        contextUsage = nil
         client.forgetThread()
+    }
+
+    /// On success the chat is already new and the note is for the input box; it is never sent here.
+    /// On failure the old chat stays, with the error as the notice.
+    func writeHandoff() async -> String? {
+        guard canStartNewChat else { return nil }
+        isWritingHandoff = true
+        notice = nil
+        do {
+            let note = try await client.writeHandoff()
+            isWritingHandoff = false
+            newChat()
+            return note
+        } catch {
+            isWritingHandoff = false
+            notice = Self.message(for: error)
+            return nil
+        }
     }
 
     @discardableResult
     func send(_ question: String) -> Bool {
         let question = question.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !question.isEmpty, !isAnswering else { return false }
-        exchanges.append(Exchange(question: question, answer: ""))
+        guard !question.isEmpty, !isAnswering, !isWritingHandoff else { return false }
+        let prompt = Self.prompt(question, selection: selection)
+        selection = nil
+        exchanges.append(Exchange(question: prompt, answer: ""))
         notice = nil
         isAnswering = true
         let sent = ContinuousClock.now
         Task {
             do {
-                for try await event in client.ask(question) {
+                for try await event in client.ask(prompt) {
                     showRestoredTurns()
                     let last = exchanges.count - 1
                     switch event {
@@ -125,6 +157,15 @@ final class Chat {
             }
             approvals = []
         }
+    }
+
+    /// The selection as a Markdown quote above the question. `"\r\n"` is one `Character`, so one line break.
+    nonisolated static func prompt(_ question: String, selection: String?) -> String {
+        guard let selection else { return question }
+        let quote = selection.split(omittingEmptySubsequences: false, whereSeparator: \.isNewline)
+            .map { "> " + $0 }
+            .joined(separator: "\n")
+        return quote + "\n\n" + question
     }
 
     private static func message(for error: Error) -> String {

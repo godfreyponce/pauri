@@ -10,6 +10,7 @@ enum CodexNotification: Equatable, Sendable {
     case agentMessageDelta(String)
     case turnCompleted(errorMessage: String?)
     case error(message: String, willRetry: Bool)
+    case contextUsage(threadID: String, ContextUsage)
     case step(ToolStep)
     case ignored
 }
@@ -119,6 +120,12 @@ enum ApprovalDecision: String, Sendable {
     case accept, decline
 }
 
+/// How full a thread's context is: what its last request held, against the model's window.
+struct ContextUsage: Equatable, Sendable {
+    let tokens: Int
+    let window: Int
+}
+
 struct CodexProtocolError: Error {
     let line: Data
 }
@@ -185,6 +192,14 @@ extension CodexNotification {
             } else {
                 self = .ignored
             }
+        case "thread/tokenUsage/updated":
+            // `last` is the last request, the context as it is now; `total` sums every request.
+            let usage = params["tokenUsage"] as? [String: Any]
+            guard let threadID = params["threadId"] as? String,
+                  let tokens = (usage?["last"] as? [String: Any])?["totalTokens"] as? Int,
+                  let window = usage?["modelContextWindow"] as? Int
+            else { self = .ignored; return }
+            self = .contextUsage(threadID: threadID, ContextUsage(tokens: tokens, window: window))
         default:
             self = .ignored
         }

@@ -48,6 +48,16 @@ struct CodexProtocolTests {
             == .notification(.ignored))
     }
 
+    @Test func tokenUsageReadsLastNotTotal() throws {
+        #expect(try incoming(#"{"method":"thread/tokenUsage/updated","params":{"threadId":"t","turnId":"u","tokenUsage":{"total":{"totalTokens":34249,"inputTokens":34239,"cachedInputTokens":29440,"cacheWriteInputTokens":0,"outputTokens":10,"reasoningOutputTokens":0},"last":{"totalTokens":18006,"inputTokens":18001,"cachedInputTokens":16128,"cacheWriteInputTokens":0,"outputTokens":5,"reasoningOutputTokens":0},"modelContextWindow":475000}},"emittedAtMs":1}"#)
+            == .notification(.contextUsage(threadID: "t", ContextUsage(tokens: 18006, window: 475000))))
+    }
+
+    @Test func tokenUsageWithoutAWindowIsIgnored() throws {
+        #expect(try incoming(#"{"method":"thread/tokenUsage/updated","params":{"threadId":"t","turnId":"u","tokenUsage":{"total":{"totalTokens":5},"last":{"totalTokens":5},"modelContextWindow":null}}}"#)
+            == .notification(.ignored))
+    }
+
     @Test func otherServerRequestsAreRefused() throws {
         #expect(try incoming(#"{"id":7,"method":"item/tool/requestUserInput","params":{}}"#) == .request(id: .int(7), .other))
         #expect(try incoming(#"{"id":"a1","method":"item/permissions/requestApproval","params":{}}"#) == .request(id: .string("a1"), .other))

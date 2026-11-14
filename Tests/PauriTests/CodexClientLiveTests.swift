@@ -85,6 +85,32 @@ import Testing
         try await quit(client)
     }
 
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["PAURI_LIVE"] == "1"))
+    @MainActor func liveHandoffNoteLeavesTheChatAlone() async throws {
+        let defaults = freshDefaults("pauri-live-handoff")
+        let client = CodexClient(defaults: defaults)
+        var usage: ContextUsage?
+        client.onContextUsage = { usage = $0 }
+        _ = try await answer(client, "My favorite color is teal. Reply with just ok.")
+        let seen = try #require(usage)
+        #expect(seen.tokens > 0 && seen.window > seen.tokens)
+
+        let note = try await client.writeHandoff()
+        #expect(note.localizedCaseInsensitiveContains("teal"))
+        #expect(usage == seen)  // the fork's usage carries the fork's id and is dropped
+        try await quit(client)
+
+        let relaunched = CodexClient(defaults: defaults)
+        var resumed: ContextUsage?
+        relaunched.onContextUsage = { resumed = $0 }
+        try await relaunched.start()
+        #expect(relaunched.restoredExchanges.count == 1)  // the fork added no turn
+        let deadline = ContinuousClock.now + .seconds(5)
+        while resumed == nil, ContinuousClock.now < deadline { try await Task.sleep(for: .milliseconds(50)) }
+        #expect(resumed == seen)
+        try await quit(relaunched)
+    }
+
     /// Before #13, the second start hung: its reader waited behind the first app-server's idle one.
     @Test(.enabled(if: ProcessInfo.processInfo.environment["PAURI_LIVE"] == "1"))
     @MainActor func liveTwoClientsAnswerSideBySide() async throws {

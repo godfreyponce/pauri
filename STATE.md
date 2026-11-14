@@ -1,8 +1,8 @@
 ---
 glass: pauri
 status: in-progress
-last_worked_on: 2026-11-13
-next_action: "#8"
+last_worked_on: 2026-11-14
+next_action: "#5"
 blocked_on: ""
 phase: "Bootstrapped 2026-11-13. Tickets #1-#12 cut from docs/spec.md, none green-lit."
 ---
@@ -29,3 +29,4 @@ Archive: `docs/HISTORY.md`. Queue: GitHub Issues (`gh issue list`). Protocol: `A
 - A GUI app does not get the shell's `PATH`. On the owner's Mac `codex` lives under `~/.nvm`.
 - `codex app-server` protocol types: `codex app-server generate-ts --out <dir>`. They change between codex versions.
 - Public repo: no env values, credentials, or owner personal data in commits or issues.
+- The app is ad-hoc signed, so every rebuild loses the Accessibility grant (System Settings still shows it on). Reset: tccutil reset Accessibility io.github.godfreyponce.pauri && defaults delete io.github.godfreyponce.pauri askedForSelectionAccess, then press the shortcut and click Allow.
