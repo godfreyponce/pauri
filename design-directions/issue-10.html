@@ -36,8 +36,6 @@
     font: inherit; color: #E6E6E6; background: #2A2A2A; border: 1px solid #3A3A3A;
     border-radius: 6px; padding: 4px 12px; cursor: pointer;
   }
-  .buttons .finish { display: none; }
-  body.anim-D .buttons .finish { display: inline-block; }
   .state { color: #777; font-size: 11px; margin-top: 8px; min-height: 16px; }
 
   /* The orb. Every length is in pt and multiplied by --s, the drawing scale. */
@@ -126,23 +124,23 @@
   .look-town .body { background: linear-gradient(to bottom, #3B3A7A, #8A6AA8 52%, #E7A0A0 70%); }
   .look-town .town-hill { background: radial-gradient(ellipse 100% 36% at 50% 100%, #1E1C3A 97%, transparent 100%); }
 
-  /* Ambient motion: every scene moves a little all the time. --pace shortens every loop while answering. */
-  .orb { --pace: 1; }
-  .orb.busy, body.busy .orb { --pace: 0.35; }
+  /* Ambient motion: each scene's loop runs only while an answer is coming in, and holds still where it is otherwise. */
+  .orb:not(.busy) * { animation-play-state: paused !important; }
+  body.busy .orb * { animation-play-state: running !important; }
   body.reduce .orb * { animation: none !important; }
   .orb .speck { opacity: var(--o); }
-  .m-twinkle .speck { animation: twinkle calc(3.2s * var(--pace)) ease-in-out infinite; animation-delay: calc(var(--i) * -0.8s); }
-  .m-shimmer .speck { animation: twinkle calc(1.6s * var(--pace)) ease-in-out infinite; animation-delay: calc(var(--i) * -0.45s); }
-  .m-sway .speck { animation: sway calc(2.6s * var(--pace)) ease-in-out infinite; animation-delay: calc(var(--i) * -0.6s); }
-  .m-drift .speck { animation: drift calc(4.5s * var(--pace)) ease-in-out infinite; animation-delay: calc(var(--i) * -1.1s); }
-  .m-float .speck { animation: float calc(5s * var(--pace)) linear infinite; animation-delay: calc(var(--i) * -1.25s); }
-  .m-flicker .speck { animation: flicker calc(3.8s * var(--pace)) steps(1) infinite; animation-delay: calc(var(--i) * -0.9s); }
-  .look-sky .cloud, .look-sky .cloud-shade { animation: cloud-drift calc(9s * var(--pace)) ease-in-out infinite; }
-  .look-dawn .dawn-sun { animation: rise calc(10s * var(--pace)) ease-in-out infinite; }
-  .look-dawn .mist { animation: cloud-drift calc(8s * var(--pace)) ease-in-out infinite; }
-  .look-seaside .sail, .look-seaside .hull { transform-origin: 79% 66%; animation: bob calc(3s * var(--pace)) ease-in-out infinite; }
-  .look-golden .golden-sun, .look-moon .moon { animation: breathe calc(5s * var(--pace)) ease-in-out infinite; }
-  .look-harbor .sun-path { animation: breathe calc(2.4s * var(--pace)) ease-in-out infinite; }
+  .m-twinkle .speck { animation: twinkle 3.2s ease-in-out infinite; animation-delay: calc(var(--i) * -0.8s); }
+  .m-shimmer .speck { animation: twinkle 1.6s ease-in-out infinite; animation-delay: calc(var(--i) * -0.45s); }
+  .m-sway .speck { animation: sway 2.6s ease-in-out infinite; animation-delay: calc(var(--i) * -0.6s); }
+  .m-drift .speck { animation: drift 4.5s ease-in-out infinite; animation-delay: calc(var(--i) * -1.1s); }
+  .m-float .speck { animation: float 5s linear infinite; animation-delay: calc(var(--i) * -1.25s); }
+  .m-flicker .speck { animation: flicker 3.8s steps(1) infinite; animation-delay: calc(var(--i) * -0.9s); }
+  .look-sky .cloud, .look-sky .cloud-shade { animation: cloud-drift 9s ease-in-out infinite; }
+  .look-dawn .dawn-sun { animation: rise 10s ease-in-out infinite; }
+  .look-dawn .mist { animation: cloud-drift 8s ease-in-out infinite; }
+  .look-seaside .sail, .look-seaside .hull { transform-origin: 79% 66%; animation: bob 3s ease-in-out infinite; }
+  .look-golden .golden-sun, .look-moon .moon { animation: breathe 5s ease-in-out infinite; }
+  .look-harbor .sun-path { animation: breathe 2.4s ease-in-out infinite; }
   @keyframes twinkle { 0%, 100% { opacity: var(--o); } 50% { opacity: calc(var(--o) * 0.2); } }
   @keyframes sway { 0%, 100% { transform: translateX(calc(-0.5px * var(--s))); } 50% { transform: translateX(calc(0.5px * var(--s))); } }
   @keyframes drift {
@@ -195,14 +193,15 @@
   a flower meadow, a seaside town at sunset, and a forest at dusk. Original motifs only, no characters.
   Pick the send animation at the top: it applies to every column. Each column shows the orb in a dark and a
   light input row at 1x (32 pt), then at 3x. Click <b>Send</b> or any orb to play a send.
-  Every scene also moves a little all the time (clouds drift, the boat bobs, fireflies wander); <b>Answering</b>
-  speeds that up, and <b>Reduce Motion</b> stops it.
+  Each scene holds still until you send. While the answer comes in (until <b>Finish answer</b>) the scene moves:
+  clouds drift, the boat bobs, fireflies wander. <b>Answering</b> shows every orb moving at once, and
+  <b>Reduce Motion</b> keeps every scene still.
 </p>
 <div class="controls">
   <label>Animation <select id="anim"></select></label>
   <label><input type="checkbox" id="reduce"> Reduce Motion</label>
   <label><input type="checkbox" id="disabled"> Disabled (blank draft)</label>
-  <label><input type="checkbox" id="busy"> Answering (scenes move faster)</label>
+  <label><input type="checkbox" id="busy"> Answering, every orb (scenes move)</label>
 </div>
 <p id="anim-text"></p>
 <section class="day" id="day">
@@ -310,7 +309,7 @@ const ANIMATIONS = [
   { id: "C", name: "C. Speck spin",
     text: "The specks (sparkles, flowers, glints, fireflies) turn a quarter turn around the center while the glow brightens. The orb does not move." },
   { id: "D", name: "D. Breathing while answering",
-    text: "Sending starts a slow glow pulse that runs until the answer finishes (Finish answer). Then the orb goes still. The orb is dimmed while answering (decision 6)." },
+    text: "Sending adds a slow glow pulse on top of the moving scene, until the answer finishes (Finish answer)." },
 ];
 
 // ---- Drawing ----
@@ -418,14 +417,12 @@ function stopPulse(col) {
   }
 }
 
-// A send is refused while disabled (blank draft) or while an answer is streaming (D only).
+// A send is refused while disabled (blank draft) or while an answer is streaming.
 function send(col) {
   if (disabledBox.checked || col.answering) return;
   for (const { orb, scale } of col.orbs) PLAY[anim()](orb, scale);
-  if (anim() === "D") {
-    col.answering = true;
-    col.state.textContent = "Answering... (orb dimmed)";
-  }
+  col.answering = true;
+  col.state.textContent = "Answering... (scene moving, sends refused)";
   render();
 }
 
@@ -440,7 +437,8 @@ function render() {
   document.body.className = `anim-${anim()}${reduced() ? " reduce" : ""}${busyBox.checked ? " busy" : ""}`;
   document.getElementById("anim-text").textContent = ANIMATIONS.find(a => a.id === anim()).text;
   for (const col of columns) {
-    const dim = disabledBox.checked || col.answering;
+    // Not dimmed while answering: a dimmed orb would hide the moving scene (overrides plan decision 6).
+    const dim = disabledBox.checked;
     for (const { orb } of col.orbs) {
       orb.classList.toggle("dimmed", dim);
       orb.classList.toggle("busy", col.answering);
