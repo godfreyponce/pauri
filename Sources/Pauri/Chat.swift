@@ -29,10 +29,11 @@ final class Chat {
     private(set) var screenshot: URL?
     private(set) var contextUsage: ContextUsage?
     private(set) var isWritingHandoff = false
-    /// Read when a question is sent, so a pick applies from the next message on.
-    var model: ModelChoice = .quick
+    /// Read when a question is sent, so a pick applies from the next message on. nil sends no
+    /// model, so Codex uses its own default.
+    var model: ModelChoice?
     var searchesWeb = true
-    private(set) var modelChoices: [ModelChoice] = [.quick]
+    private(set) var modelChoices: [ModelChoice] = []
 
     var isContextFull: Bool {
         guard let contextUsage else { return false }
@@ -74,7 +75,8 @@ final class Chat {
         guard !didRestore else { return }
         didRestore = true
         exchanges.insert(contentsOf: client.restoredExchanges, at: 0)
-        modelChoices = client.models.map(ModelChoice.menu) ?? [.quick]
+        modelChoices = client.models.map(ModelChoice.menu) ?? []
+        if !modelChoices.contains(where: { $0 == model }) { model = modelChoices.first }
     }
 
     func newChat() {
@@ -83,7 +85,7 @@ final class Chat {
         notice = nil
         allowsEverythingInThisChat = false
         contextUsage = nil
-        model = .quick
+        model = modelChoices.first
         searchesWeb = true
         client.forgetThread()
     }

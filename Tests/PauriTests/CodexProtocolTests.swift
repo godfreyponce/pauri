@@ -14,6 +14,21 @@ private func step(_ line: String) throws -> ToolStep {
     return step
 }
 
+/// One `model/list` entry with the field names codex-cli 0.169.0 sends; default effort is "medium".
+private func modelJSON(
+    _ id: String, efforts: [String], tiers: [String], hidden: Bool = false, isDefault: Bool = false
+) -> String {
+    let name = id.prefix(1).uppercased() + id.dropFirst()
+    let effortList = efforts.map { #"{"reasoningEffort":"\#($0)","description":""}"# }.joined(separator: ",")
+    let tierList = tiers.map { #"{"id":"\#($0)","name":"\#($0)","description":""}"# }.joined(separator: ",")
+    return #"{"id":"\#(id)","model":"\#(id)","displayName":"\#(name)","description":"\#(name) model.","hidden":\#(hidden),"supportedReasoningEfforts":[\#(effortList)],"defaultReasoningEffort":"medium","serviceTiers":[\#(tierList)],"isDefault":\#(isDefault)}"#
+}
+
+private func modelList(_ entries: [String]) throws -> ModelListResult {
+    let reply = #"{"data":[\#(entries.joined(separator: ","))],"nextCursor":null}"#
+    return try JSONDecoder().decode(ModelListResult.self, from: Data(reply.utf8))
+}
+
 private func commandStep(_ actions: String, status: String = "completed", output: String = "null") throws -> ToolStep {
     try step(#"{"method":"item/completed","params":{"item":{"type":"commandExecution","id":"c","command":"/bin/zsh -lc x","cwd":"/Users/u","status":"\#(status)","commandActions":\#(actions),"aggregatedOutput":\#(output),"exitCode":0},"threadId":"t","turnId":"u"}}"#)
 }
@@ -184,16 +199,53 @@ struct CodexProtocolTests {
         #expect(result.exchanges == [Exchange(question: "hi", answer: "")])
     }
 
-    @Test func modelListGivesTheFastEntryThenEachModel() throws {
-        let reply = #"{"data":[{"id":"gpt-6.1-sol","model":"gpt-6.1-sol","displayName":"GPT-6.1-Sol","description":"Latest workhorse model for coding and everyday work.","hidden":false,"supportedReasoningEfforts":[],"defaultReasoningEffort":"low","serviceTiers":[{"id":"priority","name":"Fast","description":"2x speed, increased usage"}],"isDefault":true},{"id":"gpt-6-luna","model":"gpt-6-luna","displayName":"GPT-6-Luna","description":"Fast and affordable model for easier tasks.","hidden":false,"supportedReasoningEfforts":[],"defaultReasoningEffort":"medium","serviceTiers":[],"isDefault":false}],"nextCursor":null}"#
-        let models = try JSONDecoder().decode(ModelListResult.self, from: Data(reply.utf8))
-        #expect(ModelChoice.menu(models) == [
-            .quick,
-            ModelChoice(model: "gpt-6.1-sol", name: "GPT-6.1-Sol", effort: "low", serviceTier: "default",
-                        help: "Latest workhorse model for coding and everyday work."),
-            ModelChoice(model: "gpt-6-luna", name: "GPT-6-Luna", effort: "medium", serviceTier: "default",
-                        help: "Fast and affordable model for easier tasks."),
+    @Test func modelListBuildsTheFastEntryFromTheDefaultModel() throws {
+        let models = try modelList([
+            modelJSON("beta", efforts: ["low", "medium"], tiers: ["priority"]),
+            modelJSON("alpha", efforts: ["low", "medium", "high"], tiers: ["priority"], isDefault: true),
+            modelJSON("gamma", efforts: ["low"], tiers: ["priority"], hidden: true),
         ])
+        #expect(ModelChoice.menu(models) == [
+            ModelChoice(model: "alpha", name: "Alpha Fast", effort: "low", serviceTier: "priority",
+                        help: "Fast answers at low reasoning effort."),
+            ModelChoice(model: "beta", name: "Beta", effort: "medium", serviceTier: "default", help: "Beta model."),
+            ModelChoice(model: "alpha", name: "Alpha", effort: "medium", serviceTier: "default", help: "Alpha model."),
+        ])
+    }
+
+    @Test func defaultModelWithoutFastTierSendsNoTier() throws {
+        let models = try modelList([
+            modelJSON("alpha", efforts: ["medium", "high"], tiers: [], isDefault: true),
+            modelJSON("beta", efforts: ["low", "medium"], tiers: ["priority"]),
+        ])
+        let menu = ModelChoice.menu(models)
+        #expect(menu == [
+            ModelChoice(model: "alpha", name: "Alpha", effort: "medium", serviceTier: nil, help: "Alpha model."),
+            ModelChoice(model: "beta", name: "Beta", effort: "medium", serviceTier: "default", help: "Beta model."),
+        ])
+        let params = CodexClient.turnStartParams("hi", image: nil, model: menu[0], threadID: "t")
+        #expect(params["model"] as? String == "alpha")
+        #expect(params["effort"] as? String == "medium")
+        #expect(params["serviceTierForTurn"] == nil)
+    }
+
+    @Test func modelListWithNoUsableDefaultGivesNoFastEntry() throws {
+        let models = try modelList([
+            modelJSON("gamma", efforts: ["low"], tiers: ["priority"], hidden: true, isDefault: true),
+            modelJSON("beta", efforts: ["low", "medium"], tiers: ["priority"]),
+        ])
+        #expect(ModelChoice.menu(models) == [
+            ModelChoice(model: "beta", name: "Beta", effort: "medium", serviceTier: "default", help: "Beta model."),
+        ])
+        #expect(ModelChoice.menu(try modelList([])).isEmpty)
+    }
+
+    @Test func turnWithNoModelSendsNoModelFields() throws {
+        let params = CodexClient.turnStartParams("hi", image: nil, model: nil, threadID: "t")
+        #expect(params["threadId"] as? String == "t")
+        #expect(params["model"] == nil)
+        #expect(params["effort"] == nil)
+        #expect(params["serviceTierForTurn"] == nil)
     }
 
     @Test func webSearchItemIsAStep() throws {

@@ -143,11 +143,12 @@ struct PanelView: View {
                                 .help(choice.help)
                         }
                     } label: {
-                        Label(chat.model.name, systemImage: "cpu")
+                        Label(chat.model?.name ?? "Codex default", systemImage: "cpu")
                     }
                     .menuStyle(.borderlessButton)
                     .fixedSize()
                     .help("Model")
+                    .disabled(chat.modelChoices.isEmpty)
                     Button { chat.searchesWeb.toggle() } label: {
                         Image(systemName: "globe").foregroundStyle(chat.searchesWeb ? Color.accentColor : .secondary)
                     }

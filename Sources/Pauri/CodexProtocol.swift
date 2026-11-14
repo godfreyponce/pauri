@@ -237,10 +237,22 @@ struct ThreadStartResult: Decodable {
 /// One page of `model/list`; Codex sends every model in one page (codex-cli 0.169.0).
 struct ModelListResult: Decodable {
     struct Model: Decodable {
+        struct EffortOption: Decodable {
+            let reasoningEffort: String
+        }
+
+        struct ServiceTier: Decodable {
+            let id: String
+        }
+
         let id: String
         let displayName: String
         let description: String
+        let hidden: Bool
+        let isDefault: Bool
+        let supportedReasoningEfforts: [EffortOption]
         let defaultReasoningEffort: String
+        let serviceTiers: [ServiceTier]
     }
 
     let data: [Model]
@@ -251,21 +263,29 @@ struct ModelChoice: Equatable, Sendable, Identifiable {
     let model: String
     let name: String
     let effort: String
-    /// "priority" is Codex's Fast tier; "default" is standard speed.
-    let serviceTier: String
+    /// "priority" is Codex's Fast tier; "default" is standard speed; nil sends no tier.
+    let serviceTier: String?
     let help: String
 
-    var id: String { model + "/" + serviceTier }
+    var id: String { model + "/" + (serviceTier ?? "") }
 
-    static let quick = ModelChoice(model: "gpt-6.1-sol", name: "GPT-6.1-Sol Fast", effort: "low",
-                                   serviceTier: "priority", help: "Fast answers at low reasoning effort.")
-
-    /// `[.quick]` followed by each model at its default effort and standard speed.
+    /// The default entry, built from the visible model marked `isDefault`, followed by each visible
+    /// model at its default effort and standard speed. A default entry without the Fast tier takes
+    /// the place of its model's line, so no name shows twice.
     static func menu(_ models: ModelListResult) -> [ModelChoice] {
-        [.quick] + models.data.map {
+        let visible = models.data.filter { !$0.hidden }
+        let standard = visible.map {
             ModelChoice(model: $0.id, name: $0.displayName, effort: $0.defaultReasoningEffort,
                         serviceTier: "default", help: $0.description)
         }
+        guard let model = visible.first(where: \.isDefault) else { return standard }
+        let low = model.supportedReasoningEfforts.contains { $0.reasoningEffort == "low" }
+        let fast = model.serviceTiers.contains { $0.id == "priority" }
+        let entry = ModelChoice(
+            model: model.id, name: fast ? model.displayName + " Fast" : model.displayName,
+            effort: low ? "low" : model.defaultReasoningEffort, serviceTier: fast ? "priority" : nil,
+            help: low && fast ? "Fast answers at low reasoning effort." : model.description)
+        return [entry] + (fast ? standard : standard.filter { $0.model != model.id })
     }
 }
 

@@ -96,7 +96,7 @@ final class CodexClient {
     }
 
     func ask(
-        _ question: String, image: URL? = nil, model: ModelChoice, searchesWeb: Bool
+        _ question: String, image: URL? = nil, model: ModelChoice?, searchesWeb: Bool
     ) -> AsyncThrowingStream<TurnEvent, Error> {
         let (stream, continuation) = AsyncThrowingStream<TurnEvent, Error>.makeStream()
         turn = nil
@@ -167,23 +167,30 @@ final class CodexClient {
         return input
     }
 
-    /// `model` nil keeps the thread's own model, as a handoff fork does. Effort is always sent with
-    /// a model, because the user's Codex config can set a higher one.
-    private func startTurn(
-        _ text: String, image: URL? = nil, model: ModelChoice?, on threadID: String,
-        into continuation: AsyncThrowingStream<TurnEvent, Error>.Continuation
-    ) async throws {
-        active = continuation
+    /// `model` nil sends no model, so the thread keeps its own model or Codex uses its default.
+    /// Effort is always sent with a model, because the user's Codex config can set a higher one.
+    nonisolated static func turnStartParams(
+        _ text: String, image: URL?, model: ModelChoice?, threadID: String
+    ) -> [String: Any] {
         var params: [String: Any] = [
             "threadId": threadID,
-            "input": Self.turnInput(text, image: image),
+            "input": turnInput(text, image: image),
         ]
         if let model {
             params["model"] = model.model
             params["effort"] = model.effort
             // Applies to this turn only, so a later standard-speed pick really runs at standard speed.
-            params["serviceTierForTurn"] = model.serviceTier
+            if let tier = model.serviceTier { params["serviceTierForTurn"] = tier }
         }
+        return params
+    }
+
+    private func startTurn(
+        _ text: String, image: URL? = nil, model: ModelChoice?, on threadID: String,
+        into continuation: AsyncThrowingStream<TurnEvent, Error>.Continuation
+    ) async throws {
+        active = continuation
+        let params = Self.turnStartParams(text, image: image, model: model, threadID: threadID)
         do {
             _ = try await send("turn/start", params)
         } catch {
