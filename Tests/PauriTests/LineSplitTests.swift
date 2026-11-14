@@ -1,4 +1,4 @@
-import Foundation
+import AppKit
 import Testing
 @testable import Pauri
 
