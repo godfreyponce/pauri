@@ -3,6 +3,29 @@
 Accepted-work archive. One section per accepted ticket, appended at the accept-time docs commit.
 Newest first.
 
+## #4 Model picker, fast default, web search toggle (2026-11-14)
+
+- The input bar has a model picker and a globe, between the text field and the mic. The picker
+  uses `codex app-server`'s `model/list` (codex-cli 0.169.0): first "GPT-6.1-Sol Fast"
+  (`gpt-6.1-sol`, effort `low`, service tier `priority`), then each listed model at its default
+  effort, standard speed. Every `turn/start` sends `model`, `effort`, and `serviceTierForTurn`,
+  because the user's own Codex config can set a higher effort. Both controls reset with each
+  new chat and are disabled while an answer streams.
+- Web search is the `web_search` config key, not a per-turn flag: `live` when the globe is on,
+  `disabled` when off, set on `thread/start` and `thread/resume`. A change mid-chat reloads
+  the thread (`thread/unsubscribe`, `thread/resume`) before the next message; a thread with
+  no turn yet is replaced by a new one. A search shows as a gray "Searched the web for ..."
+  step; `item/started` has no query yet, so it reads "Searched the web" until it completes.
+- Off turns off only the search tool: in the live test Codex then tried `curl` through the
+  shell, which the read-only sandbox blocked and which then asked for approval.
+- Merged main into `issue-4` after #7 landed: `ask` and `turn/start` carry both the screenshot
+  and the model; the screenshot button sits after the globe.
+- At the low-effort default, #7's live image test failed 2 of 4 runs (the follow-up named the
+  wrong color); main passed 4 of 4, and the branch at medium effort passed 4 of 4.
+- Spec decisions 7 and 8 updated. Tests 76/76, thirteen live tests skipped
+  (`./scripts/test.sh && ./scripts/build-app.sh`); the live suite passed 12/13 with
+  `PAURI_LIVE=1`, the image test being the miss. Commits 6cb3a44, 3a271b5, merge ebbe4d4.
+
 ## #7 Screenshot button (2026-11-14)
 
 - A camera button left of the mic takes one ScreenCaptureKit screenshot of the screen the panel
