@@ -33,7 +33,7 @@ struct ToolStep: Equatable, Sendable, Identifiable {
 }
 
 extension ToolStep {
-    /// Nil for every item type except `commandExecution` and `fileChange`.
+    /// Nil for every item type except `commandExecution`, `fileChange`, and `webSearch`.
     init?(item: [String: Any]) {
         guard let id = item["id"] as? String else { return nil }
         // A status this enum lacks reads as completed, so a newer codex never leaves a line spinning.
@@ -51,6 +51,12 @@ extension ToolStep {
             label = Self.fileLabel(changes: changes)
             detail = paths.joined(separator: "\n")
             output = changes.map { $0["diff"] as? String ?? "" }.joined(separator: "\n")
+        case "webSearch":
+            let query = item["query"] as? String ?? ""
+            // `item/started` comes before Codex knows the query (codex-cli 0.169.0).
+            label = query.isEmpty ? "Searched the web" : "Searched the web for “\(query)”"
+            detail = query
+            output = ""
         default:
             return nil
         }
@@ -226,6 +232,41 @@ struct AccountReadResult: Decodable {
 
 struct ThreadStartResult: Decodable {
     let thread: ThreadRef
+}
+
+/// One page of `model/list`; Codex sends every model in one page (codex-cli 0.169.0).
+struct ModelListResult: Decodable {
+    struct Model: Decodable {
+        let id: String
+        let displayName: String
+        let description: String
+        let defaultReasoningEffort: String
+    }
+
+    let data: [Model]
+}
+
+/// What a turn runs on: sent as `model`, `effort`, and `serviceTierForTurn` on `turn/start`.
+struct ModelChoice: Equatable, Sendable, Identifiable {
+    let model: String
+    let name: String
+    let effort: String
+    /// "priority" is Codex's Fast tier; "default" is standard speed.
+    let serviceTier: String
+    let help: String
+
+    var id: String { model + "/" + serviceTier }
+
+    static let quick = ModelChoice(model: "gpt-6.1-sol", name: "GPT-6.1-Sol Fast", effort: "low",
+                                   serviceTier: "priority", help: "Fast answers at low reasoning effort.")
+
+    /// `[.quick]` followed by each model at its default effort and standard speed.
+    static func menu(_ models: ModelListResult) -> [ModelChoice] {
+        [.quick] + models.data.map {
+            ModelChoice(model: $0.id, name: $0.displayName, effort: $0.defaultReasoningEffort,
+                        serviceTier: "default", help: $0.description)
+        }
+    }
 }
 
 /// Reads only the question and answer text of each old turn; every other item type is skipped.

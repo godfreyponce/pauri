@@ -16,8 +16,28 @@ import Testing
 
 @MainActor private func answer(_ client: CodexClient, _ question: String) async throws -> String {
     var answer = ""
-    for try await case .text(let delta) in client.ask(question) { answer += delta }
+    for try await case .text(let delta) in client.ask(question, model: .quick, searchesWeb: true) { answer += delta }
     return answer
+}
+
+/// The text and steps of one answer. Declines every approval, so no card can leave a test waiting.
+@MainActor private func run(
+    _ client: CodexClient, _ question: String, model: ModelChoice = .quick, searchesWeb: Bool
+) async throws -> (text: String, steps: [ToolStep]) {
+    var text = ""
+    var steps: [ToolStep] = []
+    for try await event in client.ask(question, model: model, searchesWeb: searchesWeb) {
+        switch event {
+        case .text(let delta): text += delta
+        case .step(let step): steps.append(step)
+        case .approval(let request): client.decide(request, .decline)
+        }
+    }
+    return (text, steps)
+}
+
+private func searched(_ steps: [ToolStep]) -> Bool {
+    steps.contains { $0.label.hasPrefix("Searched the web") }
 }
 
 @MainActor private func waitUntil(_ condition: () -> Bool) async throws {
@@ -36,7 +56,7 @@ import Testing
         for question in ["Reply with just the word hi.", "Reply with just the word bye."] {
             let sent = ContinuousClock.now
             var answer = ""
-            for try await case .text(let delta) in client.ask(question) {
+            for try await case .text(let delta) in client.ask(question, model: .quick, searchesWeb: true) {
                 if answer.isEmpty { print("first token after \(ContinuousClock.now - sent)") }
                 answer += delta
             }
@@ -111,6 +131,32 @@ import Testing
         try await quit(relaunched)
     }
 
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["PAURI_LIVE"] == "1"), .timeLimit(.minutes(3)))
+    @MainActor func liveModelListAndFastDefaultAnswer() async throws {
+        let client = CodexClient(defaults: freshDefaults("pauri-live-model-list"))
+        try await client.start()
+        let models = try #require(client.models)
+        #expect(models.data.map(\.id).contains(ModelChoice.quick.model))
+        #expect(!(try await run(client, "Reply with just the word hi.", searchesWeb: false)).text.isEmpty)
+        try await quit(client)
+    }
+
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["PAURI_LIVE"] == "1"), .timeLimit(.minutes(3)))
+    @MainActor func liveWebSearchFollowsTheGlobe() async throws {
+        let client = CodexClient(defaults: freshDefaults("pauri-live-web-search"))
+        let question = "Look up today's top headline on bbc.com/news and give it in one line."
+        let off = try await run(client, question, searchesWeb: false)
+        print("globe off:", off.steps.map(\.label), off.text)
+        #expect(!searched(off.steps))
+        let on = try await run(client, question, searchesWeb: true)
+        print("globe on:", on.steps.map(\.label), on.text)
+        #expect(searched(on.steps))
+        let offAgain = try await run(client, question, searchesWeb: false)
+        print("globe off again:", offAgain.steps.map(\.label), offAgain.text)
+        #expect(!searched(offAgain.steps))
+        try await quit(client)
+    }
+
     /// Before #13, the second start hung: its reader waited behind the first app-server's idle one.
     @Test(.enabled(if: ProcessInfo.processInfo.environment["PAURI_LIVE"] == "1"))
     @MainActor func liveTwoClientsAnswerSideBySide() async throws {
@@ -129,7 +175,7 @@ import Testing
     @MainActor func liveStopKeepsTheTextAndTheNextQuestionAnswers() async throws {
         let client = CodexClient(defaults: freshDefaults("pauri-live-stop"))
         var text = ""
-        for try await case .text(let delta) in client.ask("Count from 1 to 300, one number per line, nothing else.") {
+        for try await case .text(let delta) in client.ask("Count from 1 to 300, one number per line, nothing else.", model: .quick, searchesWeb: true) {
             if text.isEmpty { client.stopAnswer() }
             text += delta
         }
@@ -143,7 +189,7 @@ import Testing
     @Test(.enabled(if: ProcessInfo.processInfo.environment["PAURI_LIVE"] == "1"))
     @MainActor func liveStopBeforeTheTurnStartsEndsTheAnswer() async throws {
         let client = CodexClient(defaults: freshDefaults("pauri-live-stop-early"))
-        let stream = client.ask("Count from 1 to 300, one number per line, nothing else.")
+        let stream = client.ask("Count from 1 to 300, one number per line, nothing else.", model: .quick, searchesWeb: true)
         client.stopAnswer()
         var text = ""
         for try await case .text(let delta) in stream { text += delta }
@@ -155,7 +201,7 @@ import Testing
     @MainActor func liveHandoffAfterAStopWritesTheNote() async throws {
         let client = CodexClient(defaults: freshDefaults("pauri-live-stop-handoff"))
         var text = ""
-        for try await case .text(let delta) in client.ask("My favorite color is teal. Then count from 1 to 300, one number per line.") {
+        for try await case .text(let delta) in client.ask("My favorite color is teal. Then count from 1 to 300, one number per line.", model: .quick, searchesWeb: true) {
             if text.isEmpty { client.stopAnswer() }
             text += delta
         }
@@ -168,7 +214,7 @@ import Testing
         let client = CodexClient(defaults: freshDefaults("pauri-live-read"))
         let repo = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
         var events: [TurnEvent] = []
-        for try await event in client.ask("How many Swift files are in \(repo.path)? Use a shell command to count them.") {
+        for try await event in client.ask("How many Swift files are in \(repo.path)? Use a shell command to count them.", model: .quick, searchesWeb: true) {
             events.append(event)
         }
         #expect(!events.contains { if case .approval = $0 { true } else { false } })

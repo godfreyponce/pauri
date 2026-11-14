@@ -107,7 +107,7 @@ final class Chat {
         let sent = ContinuousClock.now
         Task {
             do {
-                for try await event in client.ask(prompt) {
+                for try await event in client.ask(prompt, model: .quick, searchesWeb: true) {
                     showRestoredTurns()
                     let last = exchanges.count - 1
                     switch event {
