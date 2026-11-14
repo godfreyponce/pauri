@@ -32,7 +32,7 @@
   .big { display: flex; flex-direction: column; align-items: center; gap: 6px; margin: 20px 0 16px; }
   .big span { color: #777; font-size: 11px; }
   .buttons { display: flex; gap: 8px; }
-  .buttons button, .day-controls button {
+  .buttons button, .day-controls .line button {
     font: inherit; color: #E6E6E6; background: #2A2A2A; border: 1px solid #3A3A3A;
     border-radius: 6px; padding: 4px 12px; cursor: pointer;
   }
@@ -99,6 +99,33 @@
   .look-dawn .dawn-sun { background: radial-gradient(circle calc(6px * var(--s)) at 62% 88%, #FFF0C2 80%, transparent 100%); }
   .look-dawn .mist { background: linear-gradient(to bottom, transparent 70%, rgba(255, 245, 240, 0.75) 86%, rgba(255, 245, 240, 0.9)); }
 
+  /* Midnight moon: the first indigo orb's night, with a crescent moon over dark hills. */
+  .look-moon .body { background: radial-gradient(circle at 60% 30%, #2A2F7A, #121440 60%, #0B0C2E); }
+  .look-moon .moon { background: radial-gradient(circle calc(5px * var(--s)) at 72% 28%, #FFF4CF 88%, transparent 100%); }
+  .look-moon .moon-bite { background: radial-gradient(circle calc(4.6px * var(--s)) at 78% 23%, #1C2062 90%, transparent 100%); }
+  .look-moon .night-hills { background: radial-gradient(ellipse 80% 26% at 30% 100%, #090A24 97%, transparent 100%),
+                                        radial-gradient(ellipse 70% 22% at 90% 100%, #0E1033 97%, transparent 100%); }
+
+  /* Blue hour: deep blue going teal at a thin bright horizon. */
+  .look-bluehour .body { background: linear-gradient(to bottom, #1B2A5C, #2D5C8A 62%, #8CC3CF 80%); }
+  .look-bluehour .night-hills { background: radial-gradient(ellipse 90% 24% at 40% 100%, #0F1B33 97%, transparent 100%); }
+
+  /* Seaside morning: bright sky, blue sea, one white sail on a red hull. */
+  .look-seaside .body { background: linear-gradient(to bottom, #4FA6E2, #BDE3F4 60%); }
+  .look-seaside .sea { background: linear-gradient(to bottom, transparent 64%, #2F86C6 64%, #1F5E9C 100%); }
+  .look-seaside .sail { background: #FFFFFF; clip-path: polygon(74% 42%, 74% 63%, 86% 63%); }
+  .look-seaside .hull { background: #C9473A; clip-path: polygon(69% 64%, 89% 64%, 86% 69%, 72% 69%); }
+
+  /* Golden afternoon: amber light over wheat hills. */
+  .look-golden .body { background: linear-gradient(to bottom, #FFD98A, #F6B85A 60%); }
+  .look-golden .golden-sun { background: radial-gradient(circle calc(5px * var(--s)) at 80% 50%, #FFF6D2 80%, transparent 100%); }
+  .look-golden .wheat-back { background: radial-gradient(ellipse 85% 40% at 85% 100%, #C98F35 97%, transparent 100%); }
+  .look-golden .wheat-front { background: radial-gradient(ellipse 95% 34% at 20% 100%, #E5B44E 97%, transparent 100%); }
+
+  /* Evening town: violet sky over a dark hill with warm lit windows. */
+  .look-town .body { background: linear-gradient(to bottom, #3B3A7A, #8A6AA8 52%, #E7A0A0 70%); }
+  .look-town .town-hill { background: radial-gradient(ellipse 100% 36% at 50% 100%, #1E1C3A 97%, transparent 100%); }
+
   /* 5. Through the day: the scene orbs stacked, cross-faded by the clock. */
   .day { background: #161616; border: 1px solid #262626; border-radius: 12px; padding: 16px; margin-bottom: 16px; }
   .day h2 { font-size: 14px; margin: 0 0 4px; }
@@ -143,8 +170,9 @@
 <section class="day" id="day">
   <h2>5. Through the day (dynamic)</h2>
   <p>
-    One orb whose scene follows the clock: night forest, dawn, morning meadow, afternoon sky, harbor sunset,
-    then night again. Neighbouring scenes cross-fade over 40 minutes. The place sets sunrise and sunset, so
+    One orb whose scene follows the clock through ten frames: midnight moon, blue hour, dawn, morning meadow,
+    seaside morning, summer sky, golden afternoon, harbor sunset, evening town, fireflies. Neighbouring scenes
+    cross-fade over 40 minutes (less when a frame is short). Daytime frames are spaced by the length of the day. The place sets sunrise and sunset, so
     the dawn and sunset scenes land at the real times there ("Clock only" uses fixed 6:30 and 19:00).
     Drag the time, press <b>Now</b>, or <b>Play a day</b> to see 24 hours in 12 seconds.
   </p>
@@ -409,7 +437,30 @@ const DAWN = { id: "dawn", name: "Dawn", layers: ["dawn-sun", "mist"],
     { x: 0.70, y: 0.22, r: 0.5, color: "#FFFFFF", opacity: 0.40 },
     { x: 0.50, y: 0.10, r: 0.4, color: "#FFFFFF", opacity: 0.45 },
   ] };
-const SCENES = { forest: LOOKS[3], dawn: DAWN, meadow: LOOKS[1], sky: LOOKS[0], harbor: LOOKS[2] };
+const scene = (id, name, layers, arrowShadow, glow, glowBright, specks) =>
+  ({ id, name, layers, arrow: "#FFFFFF", arrowShadow, glow, glowBright, specks });
+const white = (x, y, r, opacity) => ({ x, y, r, color: "#FFFFFF", opacity });
+const MOON = scene("moon", "Midnight moon", ["moon", "moon-bite", "night-hills"], "rgba(0, 0, 0, 0.5)",
+  "rgba(70, 60, 146, 0.55)", "rgba(110, 100, 220, 0.85)",
+  [white(0.24, 0.24, 0.5, 0.6), white(0.44, 0.12, 0.5, 0.45), white(0.18, 0.50, 0.5, 0.4),
+   white(0.86, 0.52, 0.6, 0.7), white(0.34, 0.36, 0.4, 0.4), white(0.58, 0.16, 0.4, 0.5)]);
+const BLUEHOUR = scene("bluehour", "Blue hour", ["night-hills"], "rgba(0, 10, 40, 0.5)",
+  "rgba(90, 150, 200, 0.45)", "rgba(150, 210, 240, 0.85)",
+  [white(0.30, 0.16, 0.5, 0.5), white(0.70, 0.22, 0.4, 0.35), white(0.52, 0.10, 0.4, 0.4)]);
+const SEASIDE = scene("seaside", "Seaside morning", ["sea", "sail", "hull"], "rgba(30, 80, 140, 0.55)",
+  "rgba(110, 185, 240, 0.50)", "rgba(170, 220, 255, 0.90)",
+  [white(0.20, 0.76, 0.5, 0.85), white(0.44, 0.84, 0.4, 0.7), white(0.58, 0.74, 0.5, 0.8), white(0.30, 0.90, 0.4, 0.6)]);
+const GOLDEN = scene("golden", "Golden afternoon", ["golden-sun", "wheat-back", "wheat-front"], "rgba(130, 80, 20, 0.55)",
+  "rgba(246, 190, 90, 0.50)", "rgba(255, 225, 140, 0.90)",
+  [{ x: 0.22, y: 0.40, r: 0.5, color: "#FFF2C0", opacity: 0.8 }, { x: 0.70, y: 0.30, r: 0.4, color: "#FFF2C0", opacity: 0.7 },
+   { x: 0.30, y: 0.80, r: 0.6, color: "#F9E3A0", opacity: 0.9 }, { x: 0.62, y: 0.86, r: 0.5, color: "#F9E3A0", opacity: 0.9 }]);
+const TOWN = scene("town", "Evening town", ["town-hill"], "rgba(30, 20, 60, 0.6)",
+  "rgba(200, 140, 190, 0.45)", "rgba(240, 190, 220, 0.85)",
+  [white(0.30, 0.14, 0.4, 0.6),
+   ...[[0.16, 0.80], [0.26, 0.86], [0.40, 0.78], [0.58, 0.84], [0.70, 0.79], [0.84, 0.82], [0.48, 0.90]]
+     .map(([x, y]) => ({ x, y, r: 0.5, color: "#FFC96B", opacity: 1, glow: true }))]);
+const SCENES = { moon: MOON, bluehour: BLUEHOUR, dawn: DAWN, meadow: LOOKS[1], seaside: SEASIDE, sky: LOOKS[0],
+  golden: GOLDEN, harbor: LOOKS[2], town: TOWN, forest: LOOKS[3] };
 const FADE_HOURS = 40 / 60;
 
 // Sample places for the page only; the app would read the Mac's own location.
@@ -449,13 +500,20 @@ function sunTimes(place) {
 }
 
 // When each scene starts, in local hours, from sunrise and sunset.
+// Daytime frames sit at fractions of the day, so a short winter day keeps them in order.
 function schedule({ rise, set }) {
+  const day = set - rise, night = 24 - day;
   return [
-    { at: rise - 1, scene: "dawn" },
-    { at: rise + 1.5, scene: "meadow" },
-    { at: (rise + set) / 2, scene: "sky" },
-    { at: set - 1.5, scene: "harbor" },
-    { at: set + 0.75, scene: "forest" },
+    { at: rise - 1.25, scene: "bluehour" },
+    { at: rise - 0.25, scene: "dawn" },
+    { at: rise + 0.08 * day, scene: "meadow" },
+    { at: rise + 0.25 * day, scene: "seaside" },
+    { at: rise + 0.45 * day, scene: "sky" },
+    { at: rise + 0.70 * day, scene: "golden" },
+    { at: rise + 0.88 * day, scene: "harbor" },
+    { at: set + 0.25, scene: "town" },
+    { at: set + 1.25, scene: "forest" },
+    { at: set + 0.4 * night, scene: "moon" },
   ];
 }
 
@@ -467,7 +525,8 @@ function weights(t, plan) {
   for (let k = 0; k < plan.length; k++) if (mod(t - plan[k].at) < mod(t - plan[i].at)) i = k;
   const next = plan[(i + 1) % plan.length];
   const untilNext = mod(next.at - t);
-  const mix = untilNext < FADE_HOURS ? 1 - untilNext / FADE_HOURS : 0;
+  const fade = Math.min(FADE_HOURS, 0.6 * mod(next.at - plan[i].at));
+  const mix = untilNext < fade ? 1 - untilNext / fade : 0;
   w[plan[i].scene] = 1 - mix;
   w[next.scene] += mix;
   return w;
