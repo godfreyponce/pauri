@@ -61,6 +61,21 @@ struct CodexProtocolTests {
         #expect(try JSONDecoder().decode(AccountReadResult.self, from: inn).isLoggedIn == true)
     }
 
+    @Test func resumeReplyGivesOneExchangePerTurn() throws {
+        let reply = #"{"thread":{"id":"t","turns":[{"id":"u1","status":"completed","items":[{"type":"userMessage","id":"a","content":[{"type":"text","text":"what is 2+2","text_elements":[]}]},{"type":"reasoning","id":"b","summary":[],"content":[]},{"type":"agentMessage","id":"c","text":"4"}]},{"id":"u2","status":"completed","items":[{"type":"userMessage","id":"d","content":[{"type":"text","text":"times 3","text_elements":[]}]},{"type":"agentMessage","id":"e","text":"1"},{"type":"agentMessage","id":"f","text":"2"}]}]},"model":"m"}"#
+        let result = try JSONDecoder().decode(ThreadResumeResult.self, from: Data(reply.utf8))
+        #expect(result.exchanges == [
+            Exchange(question: "what is 2+2", answer: "4"),
+            Exchange(question: "times 3", answer: "12"),
+        ])
+    }
+
+    @Test func resumeReplyKeepsAFailedTurnWithNoAnswer() throws {
+        let reply = #"{"thread":{"id":"t","turns":[{"id":"u","status":"failed","items":[{"type":"userMessage","id":"a","content":[{"type":"text","text":"hi","text_elements":[]},{"type":"localImage","path":"/x.png"}]}]}]}}"#
+        let result = try JSONDecoder().decode(ThreadResumeResult.self, from: Data(reply.utf8))
+        #expect(result.exchanges == [Exchange(question: "hi", answer: "")])
+    }
+
     @Test func lookupSkipsShellNoise() {
         let output = "Welcome back!\n__PAURI__\n/Users/u/.nvm/versions/node/v24/bin/codex\n/Users/u/.nvm/versions/node/v24/bin:/usr/bin:/bin\n"
         #expect(parseCodexLookup(output) == CodexLocation(

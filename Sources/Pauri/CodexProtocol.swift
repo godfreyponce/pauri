@@ -93,6 +93,42 @@ struct ThreadStartResult: Decodable {
     let thread: ThreadRef
 }
 
+/// Reads only the question and answer text of each old turn; every other item type is skipped.
+struct ThreadResumeResult: Decodable {
+    private struct Thread: Decodable {
+        let turns: [Turn]
+    }
+
+    private struct Turn: Decodable {
+        let items: [Item]
+    }
+
+    private struct Item: Decodable {
+        let type: String
+        let text: String?
+        let content: [Part]?
+    }
+
+    private struct Part: Decodable {
+        let type: String
+        let text: String?
+    }
+
+    private let thread: Thread
+
+    var exchanges: [Exchange] {
+        thread.turns.map { turn in
+            let question = turn.items.filter { $0.type == "userMessage" }
+                .flatMap { $0.content ?? [] }
+                .filter { $0.type == "text" }
+                .compactMap(\.text)
+                .joined()
+            let answer = turn.items.filter { $0.type == "agentMessage" }.compactMap(\.text).joined()
+            return Exchange(question: question, answer: answer)
+        }
+    }
+}
+
 struct ThreadRef: Decodable {
     let id: String
 }

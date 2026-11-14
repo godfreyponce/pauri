@@ -1,6 +1,11 @@
 import Foundation
 import Observation
 
+struct Exchange: Equatable, Sendable {
+    let question: String
+    var answer: String
+}
+
 /// The one question in flight and its answer, for `PanelView`.
 @Observable
 @MainActor
