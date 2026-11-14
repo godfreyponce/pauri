@@ -3,6 +3,29 @@
 Accepted-work archive. One section per accepted ticket, appended at the accept-time docs commit.
 Newest first.
 
+## #15 Default model from Codex's model list (2026-11-14)
+
+- No model id is written into Pauri any more. The picker's first entry comes from the model
+  that `model/list` marks `isDefault` (codex-cli 0.169.0): low effort only if the model lists
+  `low` in `supportedReasoningEfforts`, else its default effort; the `priority` tier and the
+  word "Fast" only if it lists `priority` in `serviceTiers`, else no `serviceTierForTurn` is
+  sent. A default entry without the Fast tier takes the place of its model's standard line.
+  `hidden` models are left out. No usable default: the picker lists the visible models and a
+  new chat takes the first.
+- `Chat.model` is optional. When `model/list` fails or lists nothing, `turn/start` carries no
+  `model`, `effort`, or tier, so Codex uses its own default; the picker reads "Codex default"
+  and is disabled. A pick no longer in the list falls back to the first entry; New chat goes
+  back to it. `turn/start` params are built in `CodexClient.turnStartParams`, which has unit
+  tests.
+- Known gap (plan decision 6): a question sent before `model/list` returns runs on Codex's own
+  default.
+- Live tests now send no model, so they run on the user's own Codex config;
+  `liveModelListGivesADefaultThatAnswers` runs the real default entry, and
+  `liveAnswerWithNoModelSent` is the turn sent after a failed `model/list`.
+- Spec decision 7 rewritten. Tests 80/80, fourteen live tests skipped
+  (`./scripts/test.sh && ./scripts/build-app.sh`); the two new live tests passed with
+  `PAURI_LIVE=1`. Commit 70a2798.
+
 ## #4 Model picker, fast default, web search toggle (2026-11-14)
 
 - The input bar has a model picker and a globe, between the text field and the mic. The picker
