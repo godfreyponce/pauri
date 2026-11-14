@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Pauri #10: send orb, four send animations</title>
+<title>Pauri #10: send orb, four looks and four send animations</title>
 <style>
   :root { color-scheme: dark; }
   body {
@@ -10,9 +10,11 @@
     font: 13px/1.45 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
   }
   h1 { font-size: 17px; font-weight: 600; margin: 0 0 4px; }
-  .lede { color: #9A9A9A; margin: 0 0 20px; max-width: 900px; }
-  .controls { display: flex; gap: 24px; margin-bottom: 24px; }
+  .lede { color: #9A9A9A; margin: 0 0 20px; max-width: 960px; }
+  .controls { display: flex; flex-wrap: wrap; gap: 24px; align-items: center; margin-bottom: 8px; }
   .controls label { display: flex; gap: 6px; align-items: center; cursor: pointer; }
+  select { font: inherit; color: #E6E6E6; background: #2A2A2A; border: 1px solid #3A3A3A; border-radius: 6px; padding: 3px 6px; }
+  #anim-text { color: #9A9A9A; margin: 0 0 24px; min-height: 19px; }
   .grid { display: grid; grid-template-columns: repeat(4, minmax(300px, 1fr)); gap: 16px; }
   .col { background: #161616; border: 1px solid #262626; border-radius: 12px; padding: 16px; }
   .col h2 { font-size: 14px; margin: 0 0 4px; }
@@ -33,6 +35,8 @@
     font: inherit; color: #E6E6E6; background: #2A2A2A; border: 1px solid #3A3A3A;
     border-radius: 6px; padding: 4px 12px; cursor: pointer;
   }
+  .buttons .finish { display: none; }
+  body.anim-D .buttons .finish { display: inline-block; }
   .state { color: #777; font-size: 11px; margin-top: 8px; min-height: 16px; }
 
   /* The orb. Every length is in pt and multiplied by --s, the drawing scale. */
@@ -46,30 +50,64 @@
   .orb .glow { box-shadow: 0 0 calc(var(--glow-radius) * var(--s) * 1px) var(--glow); }
   .orb .boost { box-shadow: 0 0 calc(var(--glow-radius) * 2 * var(--s) * 1px) var(--glow-bright); opacity: 0; }
   .orb .ring { border: calc(1.5px * var(--s)) solid var(--glow-bright); opacity: 0; }
-  .orb .body { background: radial-gradient(circle at 70% 25%, var(--rim), var(--body) 70%); overflow: hidden; }
-  .orb .crescent {
+  .orb .body, .orb .stars, .orb .arrow { overflow: hidden; }
+  .orb .body > * { position: absolute; inset: 0; border-radius: 50%; }
+  .orb .star { position: absolute; border-radius: 50%; background: #fff; }
+  .orb .arrow { display: flex; align-items: center; justify-content: center; }
+  .orb .arrow svg { width: calc(var(--arrow-size) * var(--s) * 1px); height: calc(var(--arrow-size) * var(--s) * 1px); }
+
+  /* 1. Nebula: close to send-orb.png. */
+  .look-nebula .body { background: radial-gradient(circle at 70% 25%, var(--rim), var(--body) 70%); }
+  .look-nebula .crescent {
     background: linear-gradient(to right, var(--crescent-left), var(--crescent-right));
     -webkit-mask-image: radial-gradient(circle at 50% 15%, transparent 52%, #000 80%);
             mask-image: radial-gradient(circle at 50% 15%, transparent 52%, #000 80%);
   }
-  .orb .notch { background: radial-gradient(ellipse 14% 38% at 50% 100%, var(--body), transparent); }
-  .orb .stars { overflow: hidden; }
-  .orb .star { position: absolute; border-radius: 50%; background: #fff; }
-  .orb .arrow { display: flex; align-items: center; justify-content: center; overflow: hidden; }
-  .orb .arrow svg { width: calc(var(--arrow-size) * var(--s) * 1px); height: calc(var(--arrow-size) * var(--s) * 1px); }
+  .look-nebula .notch { background: radial-gradient(ellipse 14% 38% at 50% 100%, var(--body), transparent); }
+
+  /* 2. Galaxy: the same colors, turned into a soft swirl around a lit core. */
+  .look-galaxy .body { background: var(--body); }
+  .look-galaxy .swirl {
+    inset: -15%;
+    background: conic-gradient(from 210deg, var(--body), var(--crescent-left), var(--body) 30%,
+      var(--crescent-right) 55%, var(--body) 70%, var(--rim) 85%, var(--body));
+    filter: blur(calc(2.5px * var(--s)));
+  }
+  .look-galaxy .core { background: radial-gradient(circle at 50% 50%, rgba(170, 160, 255, 0.35), transparent 45%); }
+  .look-galaxy .vignette { background: radial-gradient(circle, transparent 55%, rgba(8, 9, 32, 0.85) 100%); }
+
+  /* 3. Marble: a glossy glass ball, lit from the upper left. */
+  .look-marble .body { background: radial-gradient(circle at 35% 30%, #4A45B0, var(--body) 62%, #0A0B2A); }
+  .look-marble .rimlight {
+    box-shadow: inset 0 calc(-2.5px * var(--s)) calc(4px * var(--s)) rgba(65, 82, 166, 0.9),
+                inset 0 0 0 calc(0.5px * var(--s)) rgba(255, 255, 255, 0.12);
+  }
+  .look-marble .shine { background: radial-gradient(ellipse 30% 18% at 36% 20%, rgba(255, 255, 255, 0.55), transparent 100%); }
+
+  /* 4. Eclipse: a near-black disc with a violet corona leaking out below. */
+  .look-eclipse .corona {
+    inset: calc(-1.5px * var(--s));
+    background: linear-gradient(to right, var(--crescent-left), var(--crescent-right));
+    transform: translateY(calc(2.5px * var(--s)));
+    filter: blur(calc(1.5px * var(--s)));
+  }
+  .look-eclipse .body { background: radial-gradient(circle at 50% 35%, #15163F, #07081C 75%); }
 </style>
 </head>
 <body>
-<h1>Pauri #10: the send orb, four send animations</h1>
+<h1>Pauri #10: the send orb, four looks and four send animations</h1>
 <p class="lede">
-  All four columns draw the same orb. Only the send animation differs. Each column shows the orb in a
-  fake input row at 1x (32 pt), then at 3x next to <code>docs/reference/send-orb.png</code>
-  (a 2x screenshot, shown at its natural size). Click <b>Send</b> or the orb to play a send.
+  Each column is one look, taken from <code>docs/reference/send-orb.png</code> but not copied from it.
+  Look 1 stays close to the reference; looks 2 to 4 go further. Pick the send animation at the top: it
+  applies to every column. Each column shows the orb in a fake input row at 1x (32 pt), then at 3x next to
+  the reference (a 2x screenshot, shown at its natural size). Click <b>Send</b> or the orb to play a send.
 </p>
 <div class="controls">
+  <label>Animation <select id="anim"></select></label>
   <label><input type="checkbox" id="reduce"> Reduce Motion</label>
   <label><input type="checkbox" id="disabled"> Disabled (blank draft)</label>
 </div>
+<p id="anim-text"></p>
 <div class="grid" id="grid"></div>
 
 <script>
@@ -105,24 +143,36 @@ const DRAFT = "what does max(d, key=d.get) return?";
 // ms. Starting guesses; judge them here.
 const DURATIONS = { A: 350, B: 450, C: 500, D: 1600 /* pulse period */ };
 
-const VARIANTS = [
-  { id: "A", name: "Press and ring",
+// Each look lists the layers drawn inside the body, bottom to top, and any layer behind the body.
+const LOOKS = [
+  { id: "nebula", name: "1. Nebula", behind: [], inside: ["crescent", "notch"],
+    text: "Close to the reference: an indigo sphere, lit at the upper right, with a blue-to-violet crescent at the bottom." },
+  { id: "galaxy", name: "2. Galaxy", behind: [], inside: ["swirl", "core", "vignette"],
+    text: "The same colors as a soft spiral around a lit center, dark at the edge. Reads as a small galaxy." },
+  { id: "marble", name: "3. Marble", behind: [], inside: ["rimlight", "shine"],
+    text: "A glossy glass ball: lit from the upper left, with a white highlight and a blue rim at the bottom." },
+  { id: "eclipse", name: "4. Eclipse", behind: ["corona"], inside: [],
+    text: "A near-black disc with a violet corona leaking out below it. The reference's crescent, moved outside the disc." },
+];
+
+const ANIMATIONS = [
+  { id: "A", name: "A. Press and ring",
     text: "The orb shrinks a little, springs back, and one glow ring grows out from it and fades." },
-  { id: "B", name: "Arrow launch",
+  { id: "B", name: "B. Arrow launch",
     text: "The arrow flies up out of the orb and fades. A new arrow rises in from below, and the stars streak upward once." },
-  { id: "C", name: "Star spin",
+  { id: "C", name: "C. Star spin",
     text: "The star layer turns a quarter turn around the center while the glow brightens and then settles. The orb does not move." },
-  { id: "D", name: "Breathing while answering",
-    text: "Sending starts a slow glow pulse that runs until the answer finishes. Then the orb goes still. The orb is dimmed while answering (decision 6)." },
+  { id: "D", name: "D. Breathing while answering",
+    text: "Sending starts a slow glow pulse that runs until the answer finishes (Finish answer). Then the orb goes still. The orb is dimmed while answering (decision 6)." },
 ];
 
 // ---- Drawing ----
 const ARROW_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="${ORB.arrow}" stroke-width="2.8"
   stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V4.5M5 11.5l7-7 7 7"/></svg>`;
 
-function makeOrb(scale) {
+function makeOrb(look, scale) {
   const orb = document.createElement("button");
-  orb.className = "orb";
+  orb.className = `orb look-${look.id}`;
   orb.setAttribute("aria-label", "Send");
   const vars = {
     "--s": scale, "--size": ORB.size, "--body": ORB.body, "--rim": ORB.rim,
@@ -136,18 +186,22 @@ function makeOrb(scale) {
     return `<i class="star" style="width:${d}px;height:${d}px;opacity:${s.opacity};` +
       `left:${s.x * ORB.size * scale - d / 2}px;top:${s.y * ORB.size * scale - d / 2}px"></i>`;
   }).join("");
+  const layers = names => names.map(n => `<span class="${n}"></span>`).join("");
   orb.innerHTML = `<span class="glow"></span><span class="boost"></span><span class="ring"></span>
-    <span class="body"></span><span class="crescent"></span><span class="notch"></span>
+    ${layers(look.behind)}<span class="body">${layers(look.inside)}</span>
     <span class="stars">${stars}</span><span class="arrow">${ARROW_SVG}</span>`;
   return orb;
 }
 
 // ---- State ----
+const animSelect = document.getElementById("anim");
 const reduceBox = document.getElementById("reduce");
 const disabledBox = document.getElementById("disabled");
+for (const a of ANIMATIONS) animSelect.add(new Option(a.name, a.id));
 reduceBox.checked = matchMedia("(prefers-reduced-motion: reduce)").matches;
 const reduced = () => reduceBox.checked;
-const columns = {};
+const anim = () => animSelect.value;
+const columns = [];
 
 // ---- Animations (Web Animations API, so DURATIONS drive them) ----
 const SPRING = "cubic-bezier(0.34, 1.56, 0.64, 1)";
@@ -201,7 +255,7 @@ const PLAY = {
   },
 };
 
-function stopD(col) {
+function stopPulse(col) {
   for (const { orb } of col.orbs) {
     orb._pulse?.cancel();
     orb._pulse = null;
@@ -209,11 +263,11 @@ function stopD(col) {
   }
 }
 
-// A send is refused while disabled (blank draft) or, in D, while an answer is streaming.
+// A send is refused while disabled (blank draft) or while an answer is streaming (D only).
 function send(col) {
   if (disabledBox.checked || col.answering) return;
-  for (const { orb, scale } of col.orbs) PLAY[col.id](orb, scale);
-  if (col.id === "D") {
+  for (const { orb, scale } of col.orbs) PLAY[anim()](orb, scale);
+  if (anim() === "D") {
     col.answering = true;
     col.state.textContent = "Answering... (orb dimmed)";
   }
@@ -221,14 +275,16 @@ function send(col) {
 }
 
 function finish(col) {
-  stopD(col);
+  stopPulse(col);
   col.answering = false;
   col.state.textContent = "";
   render();
 }
 
 function render() {
-  for (const col of Object.values(columns)) {
+  document.body.className = `anim-${anim()}`;
+  document.getElementById("anim-text").textContent = ANIMATIONS.find(a => a.id === anim()).text;
+  for (const col of columns) {
     const dim = disabledBox.checked || col.answering;
     for (const { orb } of col.orbs) orb.classList.toggle("dimmed", dim);
   }
@@ -236,36 +292,32 @@ function render() {
 
 // ---- Layout ----
 const grid = document.getElementById("grid");
-for (const v of VARIANTS) {
+for (const look of LOOKS) {
   const el = document.createElement("section");
   el.className = "col";
-  el.innerHTML = `<h2>${v.id}. ${v.name}</h2><p>${v.text}</p>
+  el.innerHTML = `<h2>${look.name}</h2><p>${look.text}</p>
     <div class="row"><div class="field"></div></div>
     <div class="compare">
       <figure class="big"><figcaption>orb at 3x</figcaption></figure>
       <figure><img src="../docs/reference/send-orb.png" alt="Reference orb"><figcaption>reference</figcaption></figure>
     </div>
-    <div class="buttons"><button class="send">Send</button></div>
+    <div class="buttons"><button class="send">Send</button><button class="finish">Finish answer</button></div>
     <div class="state"></div>`;
   el.querySelector(".field").textContent = DRAFT;
-  const col = { id: v.id, orbs: [], answering: false, state: el.querySelector(".state") };
-  const small = makeOrb(1), big = makeOrb(3);
+  const col = { orbs: [], answering: false, state: el.querySelector(".state") };
+  const small = makeOrb(look, 1), big = makeOrb(look, 3);
   el.querySelector(".row").append(small);
   el.querySelector(".big").prepend(big);
   col.orbs.push({ orb: small, scale: 1 }, { orb: big, scale: 3 });
   for (const target of [small, big, el.querySelector(".send")]) target.onclick = () => send(col);
-  if (v.id === "D") {
-    const fin = document.createElement("button");
-    fin.textContent = "Finish answer";
-    fin.onclick = () => finish(col);
-    el.querySelector(".buttons").append(fin);
-  }
-  columns[v.id] = col;
+  el.querySelector(".finish").onclick = () => finish(col);
+  columns.push(col);
   grid.append(el);
 }
 
+// Switching animation or Reduce Motion ends any answer in progress, so no pulse is left over.
+animSelect.onchange = reduceBox.onchange = () => { columns.forEach(finish); };
 disabledBox.onchange = render;
-reduceBox.onchange = () => { if (columns.D.answering) { stopD(columns.D); PLAY.D(columns.D.orbs[0].orb); PLAY.D(columns.D.orbs[1].orb); } };
 render();
 </script>
 </body>
