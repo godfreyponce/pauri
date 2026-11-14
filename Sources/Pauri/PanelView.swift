@@ -12,16 +12,29 @@ struct PanelView: View {
         VStack {
             HStack {
                 Spacer()
+                Button { chat.newChat() } label: { Image(systemName: "square.and.pencil") }
+                    .buttonStyle(.borderless)
+                    .help("New chat")
+                    .keyboardShortcut("n", modifiers: .command)
+                    .disabled(!chat.canStartNewChat)
                 Button { showsSettings = true } label: { Image(systemName: "gearshape") }
                     .buttonStyle(.borderless)
                     .help("Settings")
                     .popover(isPresented: $showsSettings) { SettingsView(hotKey: hotKey) }
             }
             ScrollView {
-                Text(chat.answer)
-                    .textSelection(.enabled)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                VStack(alignment: .leading, spacing: 12) {
+                    ForEach(chat.exchanges.indices, id: \.self) { index in
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(chat.exchanges[index].question).bold()
+                            Text(chat.exchanges[index].answer)
+                        }
+                    }
+                }
+                .textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
+            .defaultScrollAnchor(.bottom)
             .frame(maxHeight: .infinity)
             if let notice = chat.notice {
                 Text(notice)
