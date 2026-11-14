@@ -3,6 +3,25 @@
 Accepted-work archive. One section per accepted ticket, appended at the accept-time docs commit.
 Newest first.
 
+## #6 Send the selected text (2026-11-13)
+
+- The hotkey reads the selection of the front app before it shows the panel (Accessibility API:
+  focused element, `AXSelectedText`, in `SelectionGrabber`). The panel shows it as a chip above
+  the input (`SelectionBar`), and the x removes it. Each press that shows the panel replaces the
+  chip, with nothing too. The press that hides the panel reads nothing.
+- Sending puts the selection above the question as a Markdown quote (`> ` on each line, a blank
+  line, then the question). The transcript shows that full text, so a resumed chat looks the same.
+- First use shows one line in the panel ("To attach the text you select, Pauri needs Accessibility
+  access.") with Allow and Not now. Either sets `UserDefaults` key `askedForSelectionAccess`, so
+  the row shows once. Without access Pauri works as before. `SelectionBar` reads `chat.selection`
+  in every branch, so a grant made in System Settings while the row shows still brings the chip.
+- Known gaps: a hung front app holds the hotkey for up to twice the system Accessibility timeout;
+  reopening with `open build/Pauri.app` keeps an earlier chip.
+- Merged main (#8) into the branch before landing: `Chat.send` keeps #8's handoff check and adds
+  the quote. The selection stays attached across a handoff's new chat, where its chip still shows.
+- Tests 47/47 on main after the merge, five live tests skipped (`./scripts/test.sh &&
+  ./scripts/build-app.sh`). Commits 6dc2cc1..33fb77a, merge a1002fa.
+
 ## #8 Context-full banner and handoff (2026-11-13)
 
 - Pauri reads Codex's `thread/tokenUsage/updated` (sent after each turn and right after
