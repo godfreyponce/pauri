@@ -9,8 +9,6 @@ import Testing
 }
 
 /// Ends the client's app-server, as quitting Pauri does, and waits until the client sees it end.
-/// A live app-server's stdout reader holds a Swift concurrency thread in a blocking read, and with
-/// two of them in one test process the second reader stalls.
 @MainActor private func quit(_ client: CodexClient) async throws {
     kill(try #require(client.processIdentifier), SIGTERM)
     while client.processIdentifier != nil { try await Task.sleep(for: .milliseconds(50)) }
@@ -22,8 +20,7 @@ import Testing
     return answer
 }
 
-/// Serialized: two live app-servers at once stall the second reader (see `quit`).
-@Suite(.serialized) struct CodexClientLiveTests {
+@Suite struct CodexClientLiveTests {
     @Test(.enabled(if: ProcessInfo.processInfo.environment["PAURI_LIVE"] == "1"))
     @MainActor func liveTwoQuestionsOneProcess() async throws {
         let client = CodexClient(defaults: freshDefaults("pauri-live-two-questions"))
@@ -82,5 +79,19 @@ import Testing
         #expect(chat.exchanges.map(\.question) == ["what is 2+2", "times 3"])
         #expect(chat.notice == nil)
         try await quit(client)
+    }
+
+    /// Before #13, the second start hung: its reader waited behind the first app-server's idle one.
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["PAURI_LIVE"] == "1"))
+    @MainActor func liveTwoClientsAnswerSideBySide() async throws {
+        let first = CodexClient(defaults: freshDefaults("pauri-live-two-clients-first"))
+        let second = CodexClient(defaults: freshDefaults("pauri-live-two-clients-second"))
+        try await first.start()
+        try await second.start()
+        #expect(first.processIdentifier != second.processIdentifier)
+        #expect(!(try await answer(first, "Reply with just the word hi.")).isEmpty)
+        #expect(!(try await answer(second, "Reply with just the word bye.")).isEmpty)
+        try await quit(first)
+        try await quit(second)
     }
 }
