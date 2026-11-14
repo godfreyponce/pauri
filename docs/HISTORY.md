@@ -3,6 +3,25 @@
 Accepted-work archive. One section per accepted ticket, appended at the accept-time docs commit.
 Newest first.
 
+## #11 Dictation button (2026-11-14)
+
+- A mic button between the input and the send orb. Press to start, press again to stop. Each
+  partial result sets the draft to what was typed before the press plus the spoken text
+  (`Dictation.joined`). On-device only: `requiresOnDeviceRecognition = true`, no server
+  fallback, and Pauri does not start when the Mac has no on-device model for its language.
+  Punctuation on; the Mac's language.
+- Stops on: the mic, a send, typing, or the panel losing key. A result after a stop writes
+  nothing (run token). While the access dialogs are up, a send drops the pending start, and
+  listening never starts behind a hidden panel.
+- First use asks macOS for Microphone and Speech Recognition (usage strings in
+  Support/Info.plist). After a no, the mic shows mic.slash and a row names the Privacy pane,
+  with a button that opens it.
+- Swift 6: the tap block, the authorization handler, and the recognition handler are made in
+  nonisolated static functions; made on the main actor, they crash at runtime off the main
+  thread.
+- Tests 63/63, seven live tests skipped (`./scripts/test.sh && ./scripts/build-app.sh`).
+  Commits 379df81..fb7e9a7, merge 1a66510.
+
 ## #5 Tool steps and approval cards (2026-11-14)
 
 - Threads start and resume with `sandbox: "read-only"` and `approvalPolicy: "on-request"`.
