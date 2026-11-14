@@ -199,6 +199,13 @@ struct CodexProtocolTests {
         ])
     }
 
+    /// One entry without the levels, or a level without its description, must not empty the whole picker.
+    @Test func modelListWithoutLevelsStillDecodes() throws {
+        let reply = #"{"data":[{"id":"a","displayName":"A","description":"d","defaultReasoningEffort":"low"},{"id":"b","displayName":"B","description":"d","defaultReasoningEffort":"low","supportedReasoningEfforts":[{"reasoningEffort":"low"}]}]}"#
+        let models = try JSONDecoder().decode(ModelListResult.self, from: Data(reply.utf8))
+        #expect(models.data.map(\.supportedReasoningEfforts) == [[], [ReasoningEffortOption(reasoningEffort: "low", description: "")]])
+    }
+
     private func choice(_ effort: String, levels: [String]) -> ModelChoice {
         ModelChoice(model: "m", name: "M", effort: effort,
                     efforts: levels.map { ReasoningEffortOption(reasoningEffort: $0, description: $0 + " text") },

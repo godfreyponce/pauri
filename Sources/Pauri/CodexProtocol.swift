@@ -240,6 +240,16 @@ struct ReasoningEffortOption: Decodable, Equatable, Sendable {
     let description: String
 }
 
+extension ReasoningEffortOption {
+    private enum CodingKeys: String, CodingKey { case reasoningEffort, description }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        reasoningEffort = try container.decode(String.self, forKey: .reasoningEffort)
+        description = try container.decodeIfPresent(String.self, forKey: .description) ?? ""
+    }
+}
+
 /// One page of `model/list`; Codex sends every model in one page (codex-cli 0.169.0).
 struct ModelListResult: Decodable {
     struct Model: Decodable {
@@ -252,6 +262,22 @@ struct ModelListResult: Decodable {
     }
 
     let data: [Model]
+}
+
+/// The levels are optional, so one entry without them never fails the decode, which would drop every model.
+extension ModelListResult.Model {
+    private enum CodingKeys: String, CodingKey {
+        case id, displayName, description, defaultReasoningEffort, supportedReasoningEfforts
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        displayName = try container.decode(String.self, forKey: .displayName)
+        description = try container.decode(String.self, forKey: .description)
+        defaultReasoningEffort = try container.decode(String.self, forKey: .defaultReasoningEffort)
+        supportedReasoningEfforts = try container.decodeIfPresent([ReasoningEffortOption].self, forKey: .supportedReasoningEfforts) ?? []
+    }
 }
 
 /// What a turn runs on: sent as `model`, `effort`, and `serviceTierForTurn` on `turn/start`.
