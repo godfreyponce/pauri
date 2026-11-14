@@ -45,9 +45,10 @@ struct PanelView: View {
             }
             .defaultScrollAnchor(.bottom)
             .frame(maxHeight: .infinity)
-            .overlay(alignment: .top) {
+            // An inset, not an overlay: the first exchange can still scroll out from under the card.
+            .safeAreaInset(edge: .top) {
                 if chat.isContextFull {
-                    ContextBanner(isWriting: chat.isWritingHandoff) {
+                    ContextBanner(isWriting: chat.isWritingHandoff, isEnabled: chat.canStartNewChat) {
                         Task {
                             if let note = await chat.writeHandoff() {
                                 draft = note

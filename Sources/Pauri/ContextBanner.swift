@@ -18,6 +18,8 @@ enum ContextLimit {
 /// Variant A of `design-directions/issue-8.html`, in variant B's yellow.
 struct ContextBanner: View {
     let isWriting: Bool
+    /// Off whenever a new chat can't start, as the pencil is: both buttons end in one.
+    let isEnabled: Bool
     let writeHandoff: () -> Void
     let newChat: () -> Void
 
@@ -41,7 +43,7 @@ struct ContextBanner: View {
                 .buttonStyle(.borderedProminent)
                 Button("New chat", action: newChat)
             }
-            .disabled(isWriting)
+            .disabled(!isEnabled)
         }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)

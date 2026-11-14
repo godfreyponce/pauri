@@ -96,9 +96,16 @@ final class CodexClient {
         ]))
         let (stream, continuation) = AsyncThrowingStream<String, Error>.makeStream()
         try await startTurn(Self.handoffPrompt, on: fork.thread.id, into: continuation)
-        var note = ""
-        for try await delta in stream { note += delta }
-        return note.trimmingCharacters(in: .whitespacesAndNewlines)
+        var answer = ""
+        for try await delta in stream { answer += delta }
+        return try Self.handoffNote(from: answer)
+    }
+
+    /// An empty note is an error: on success the old chat ends.
+    nonisolated static func handoffNote(from answer: String) throws -> String {
+        let note = answer.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !note.isEmpty else { throw CodexProblem.failed("Codex wrote an empty handoff draft. Try again.") }
+        return note
     }
 
     private func startTurn(

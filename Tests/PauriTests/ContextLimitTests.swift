@@ -13,3 +13,12 @@ struct ContextLimitTests {
         #expect(ContextLimit.isFull(ContextUsage(tokens: 332_500, window: 475_000), debug: false))
     }
 }
+
+struct HandoffNoteTests {
+    @Test func noteIsTrimmed() throws { #expect(try CodexClient.handoffNote(from: "\n  We fixed the list.  \n") == "We fixed the list.") }
+
+    /// An empty note would end the old chat and leave an empty box.
+    @Test func emptyAnswerIsAnError() {
+        #expect(throws: CodexProblem.self) { try CodexClient.handoffNote(from: " \n") }
+    }
+}
