@@ -6,6 +6,8 @@ struct SelectionBar: View {
     @AppStorage("askedForSelectionAccess") private var asked = false
 
     var body: some View {
+        // Read in every branch, so a selection set while the access row shows still re-renders this view.
+        let selection = chat.selection
         if !asked && !SelectionGrabber.isAllowed {
             HStack {
                 Text("To attach the text you select, Pauri needs Accessibility access.")
@@ -19,7 +21,7 @@ struct SelectionBar: View {
                 Button("Not now") { asked = true }
                     .buttonStyle(.borderless)
             }
-        } else if let text = chat.selection {
+        } else if let text = selection {
             HStack(spacing: 6) {
                 Image(systemName: "text.quote")
                 Text(text.split(whereSeparator: \.isNewline).first.map(String.init) ?? text)
