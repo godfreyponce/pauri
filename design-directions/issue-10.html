@@ -1,0 +1,672 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Pauri #10: send orb, four Ghibli-feeling looks and four send animations</title>
+<style>
+  :root { color-scheme: dark; }
+  body {
+    margin: 0; padding: 32px; background: #0D0D0D; color: #E6E6E6;
+    font: 13px/1.45 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+  }
+  h1 { font-size: 17px; font-weight: 600; margin: 0 0 4px; }
+  .lede { color: #9A9A9A; margin: 0 0 20px; max-width: 960px; }
+  .controls { display: flex; flex-wrap: wrap; gap: 24px; align-items: center; margin-bottom: 8px; }
+  .controls label { display: flex; gap: 6px; align-items: center; cursor: pointer; }
+  select { font: inherit; color: #E6E6E6; background: #2A2A2A; border: 1px solid #3A3A3A; border-radius: 6px; padding: 3px 6px; }
+  #anim-text { color: #9A9A9A; margin: 0 0 24px; min-height: 19px; }
+  .grid { display: grid; grid-template-columns: repeat(4, minmax(300px, 1fr)); gap: 16px; }
+  .col { background: #161616; border: 1px solid #262626; border-radius: 12px; padding: 16px; }
+  .col h2 { font-size: 14px; margin: 0 0 4px; }
+  .col p { color: #9A9A9A; margin: 0 0 16px; min-height: 58px; }
+  .row {
+    display: flex; align-items: center; gap: 8px; padding: 8px;
+    background: #1E1E1E; border: 1px solid #333; border-radius: 10px; margin-bottom: 12px;
+  }
+  .field {
+    flex: 1; min-width: 0; padding: 5px 8px; border-radius: 6px; background: #2A2A2A;
+    border: 1px solid #3A3A3A; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .row.light { background: #ECECEC; border-color: #D0D0D0; color: #1D1D1F; }
+  .row.light .field { background: #FFFFFF; border-color: #CFCFCF; }
+  .big { display: flex; flex-direction: column; align-items: center; gap: 6px; margin: 20px 0 16px; }
+  .big span { color: #777; font-size: 11px; }
+  .buttons { display: flex; gap: 8px; }
+  .buttons button, .day-controls .line button {
+    font: inherit; color: #E6E6E6; background: #2A2A2A; border: 1px solid #3A3A3A;
+    border-radius: 6px; padding: 4px 12px; cursor: pointer;
+  }
+  .state { color: #777; font-size: 11px; margin-top: 8px; min-height: 16px; }
+
+  /* The orb. Every length is in pt and multiplied by --s, the drawing scale. */
+  .orb {
+    position: relative; flex: none; border: 0; padding: 0; cursor: pointer; background: none;
+    width: calc(var(--size) * var(--s) * 1px); height: calc(var(--size) * var(--s) * 1px);
+    border-radius: 50%;
+  }
+  .orb.dimmed { opacity: var(--disabled-opacity); cursor: default; }
+  .orb > * { position: absolute; inset: 0; border-radius: 50%; pointer-events: none; }
+  .orb .glow { box-shadow: 0 0 calc(var(--glow-radius) * var(--s) * 1px) var(--glow); }
+  .orb .boost { box-shadow: 0 0 calc(var(--glow-radius) * 2 * var(--s) * 1px) var(--glow-bright); opacity: 0; }
+  .orb .ring { border: calc(1.5px * var(--s)) solid var(--glow-bright); opacity: 0; }
+  .orb .body, .orb .specks, .orb .arrow { overflow: hidden; }
+  .orb .body > * { position: absolute; inset: 0; }
+  .orb .speck { position: absolute; border-radius: 50%; }
+  .orb .arrow { display: flex; align-items: center; justify-content: center; }
+  .orb .arrow svg {
+    width: calc(var(--arrow-size) * var(--s) * 1px); height: calc(var(--arrow-size) * var(--s) * 1px);
+    filter: drop-shadow(0 calc(0.5px * var(--s)) calc(1px * var(--s)) var(--arrow-shadow));
+  }
+  /* Shared hand-painted finish: a soft round shade, a gloss, and a thin ink line, as in cel animation. */
+  .orb .finish-shade { background: radial-gradient(circle at 35% 28%, transparent 55%, rgba(10, 20, 50, 0.28) 100%); }
+  .orb .finish-gloss { background: radial-gradient(ellipse 34% 20% at 34% 20%, rgba(255, 255, 255, 0.45), transparent); }
+  .orb .finish-ink { box-shadow: inset 0 0 0 calc(0.6px * var(--s)) rgba(20, 30, 50, 0.35); }
+
+  /* 1. Summer sky: deep blue above, piled white clouds below. */
+  .look-sky .body { background: linear-gradient(to bottom, #2F7FC8, #6DB6E8 55%, #BFE3F5); }
+  .look-sky .cloud-shade, .look-sky .cloud { filter: blur(calc(0.35px * var(--s))); }
+  .look-sky .cloud-shade {
+    background:
+      radial-gradient(circle calc(8px * var(--s)) at 20% 102%, #B9CBE2 90%, transparent 100%),
+      radial-gradient(circle calc(9px * var(--s)) at 46% 92%, #B9CBE2 90%, transparent 100%),
+      radial-gradient(circle calc(8px * var(--s)) at 74% 98%, #B9CBE2 90%, transparent 100%);
+  }
+  .look-sky .cloud {
+    background:
+      radial-gradient(circle calc(7px * var(--s)) at 18% 94%, #FFFFFF 85%, transparent 100%),
+      radial-gradient(circle calc(8px * var(--s)) at 42% 82%, #FFFFFF 85%, transparent 100%),
+      radial-gradient(circle calc(6px * var(--s)) at 62% 86%, #FFFFFF 85%, transparent 100%),
+      radial-gradient(circle calc(7px * var(--s)) at 84% 94%, #FFFFFF 85%, transparent 100%);
+  }
+
+  /* 2. Flower meadow: pale sky over two green hills dotted with flowers. */
+  .look-meadow .body { background: linear-gradient(to bottom, #7FC3EC, #D9EFF6 60%); }
+  .look-meadow .hill-back { background: radial-gradient(ellipse 85% 42% at 85% 100%, #4FA83A 97%, transparent 100%); }
+  .look-meadow .hill-front { background: radial-gradient(ellipse 95% 38% at 22% 100%, #7CCB4E 97%, transparent 100%); }
+
+  /* 3. Harbor sunset: peach sky, a low sun, and a blue sea with glints. */
+  .look-harbor .body { background: linear-gradient(to bottom, #F9D79A, #F4A86E 50%, #EC8A6A 64%); }
+  .look-harbor .sun { background: radial-gradient(circle calc(5px * var(--s)) at 28% 62%, #FFF1B8 80%, transparent 100%); }
+  .look-harbor .sea { background: linear-gradient(to bottom, transparent 64%, #3B86C4 64%, #1F5E9C 100%); }
+  .look-harbor .sun-path { background: linear-gradient(to bottom, transparent 64%, rgba(255, 233, 168, 0.55) 66%, transparent 90%);
+    -webkit-mask-image: linear-gradient(to right, transparent 20%, #000 24%, #000 32%, transparent 36%);
+            mask-image: linear-gradient(to right, transparent 20%, #000 24%, #000 32%, transparent 36%); }
+
+  /* Dawn (only in "Through the day"): lavender into peach, a sun just rising through low mist. */
+  .look-dawn .body { background: linear-gradient(to bottom, #9C8FD0, #E9A9B8 55%, #FBD3A8); }
+  .look-dawn .dawn-sun { background: radial-gradient(circle calc(6px * var(--s)) at 62% 88%, #FFF0C2 80%, transparent 100%); }
+  .look-dawn .mist { background: linear-gradient(to bottom, transparent 70%, rgba(255, 245, 240, 0.75) 86%, rgba(255, 245, 240, 0.9)); }
+
+  /* Midnight moon: the first indigo orb's night, with a crescent moon over dark hills. */
+  .look-moon .body { background: radial-gradient(circle at 60% 30%, #2A2F7A, #121440 60%, #0B0C2E); }
+  .look-moon .moon { background: radial-gradient(circle calc(5px * var(--s)) at 72% 28%, #FFF4CF 88%, transparent 100%); }
+  .look-moon .moon-bite { background: radial-gradient(circle calc(4.6px * var(--s)) at 78% 23%, #1C2062 90%, transparent 100%); }
+  .look-moon .night-hills { background: radial-gradient(ellipse 80% 26% at 30% 100%, #090A24 97%, transparent 100%),
+                                        radial-gradient(ellipse 70% 22% at 90% 100%, #0E1033 97%, transparent 100%); }
+
+  /* Blue hour: deep blue going teal at a thin bright horizon. */
+  .look-bluehour .body { background: linear-gradient(to bottom, #1B2A5C, #2D5C8A 62%, #8CC3CF 80%); }
+  .look-bluehour .night-hills { background: radial-gradient(ellipse 90% 24% at 40% 100%, #0F1B33 97%, transparent 100%); }
+
+  /* Seaside morning: bright sky, blue sea, one white sail on a red hull. */
+  .look-seaside .body { background: linear-gradient(to bottom, #4FA6E2, #BDE3F4 60%); }
+  .look-seaside .sea { background: linear-gradient(to bottom, transparent 64%, #2F86C6 64%, #1F5E9C 100%); }
+  .look-seaside .sail { background: #FFFFFF; clip-path: polygon(74% 42%, 74% 63%, 86% 63%); }
+  .look-seaside .hull { background: #C9473A; clip-path: polygon(69% 64%, 89% 64%, 86% 69%, 72% 69%); }
+
+  /* Golden afternoon: amber light over wheat hills. */
+  .look-golden .body { background: linear-gradient(to bottom, #FFD98A, #F6B85A 60%); }
+  .look-golden .golden-sun { background: radial-gradient(circle calc(5px * var(--s)) at 80% 50%, #FFF6D2 80%, transparent 100%); }
+  .look-golden .wheat-back { background: radial-gradient(ellipse 85% 40% at 85% 100%, #C98F35 97%, transparent 100%); }
+  .look-golden .wheat-front { background: radial-gradient(ellipse 95% 34% at 20% 100%, #E5B44E 97%, transparent 100%); }
+
+  /* Evening town: violet sky over a dark hill with warm lit windows. */
+  .look-town .body { background: linear-gradient(to bottom, #3B3A7A, #8A6AA8 52%, #E7A0A0 70%); }
+  .look-town .town-hill { background: radial-gradient(ellipse 100% 36% at 50% 100%, #1E1C3A 97%, transparent 100%); }
+
+  /* While answering, the arrow turns into a square. */
+  .orb .arrow, .orb .stop { transition: opacity 0.15s ease-out, transform 0.15s ease-out; }
+  .orb .stop { display: flex; align-items: center; justify-content: center; opacity: 0; transform: scale(0.6); }
+  .orb .stop i {
+    width: calc(var(--stop-size) * var(--s) * 1px); height: calc(var(--stop-size) * var(--s) * 1px);
+    border-radius: calc(2px * var(--s)); background: var(--arrow-color);
+    filter: drop-shadow(0 calc(0.5px * var(--s)) calc(1px * var(--s)) var(--arrow-shadow));
+  }
+  .orb.busy .arrow, body.busy .orb .arrow { opacity: 0; transform: scale(0.6); }
+  .orb.busy .stop, body.busy .orb .stop { opacity: 1; transform: scale(1); }
+  body.reduce .orb .arrow, body.reduce .orb .stop { transform: none !important; }
+
+  /* Ambient motion: each scene's loop runs only while an answer is coming in, and holds still where it is otherwise. */
+  .orb:not(.busy) * { animation-play-state: paused !important; }
+  body.busy .orb * { animation-play-state: running !important; }
+  body.reduce .orb * { animation: none !important; }
+  .orb .speck { opacity: var(--o); }
+  .m-twinkle .speck { animation: twinkle 3.2s ease-in-out infinite; animation-delay: calc(var(--i) * -0.8s); }
+  .m-shimmer .speck { animation: twinkle 1.6s ease-in-out infinite; animation-delay: calc(var(--i) * -0.45s); }
+  .m-sway .speck { animation: sway 2.6s ease-in-out infinite; animation-delay: calc(var(--i) * -0.6s); }
+  .m-drift .speck { animation: drift 4.5s ease-in-out infinite; animation-delay: calc(var(--i) * -1.1s); }
+  .m-float .speck { animation: float 5s linear infinite; animation-delay: calc(var(--i) * -1.25s); }
+  .m-flicker .speck { animation: flicker 3.8s steps(1) infinite; animation-delay: calc(var(--i) * -0.9s); }
+  .look-sky .cloud, .look-sky .cloud-shade { animation: cloud-drift 9s ease-in-out infinite; }
+  .look-dawn .dawn-sun { animation: rise 10s ease-in-out infinite; }
+  .look-dawn .mist { animation: cloud-drift 8s ease-in-out infinite; }
+  .look-seaside .sail, .look-seaside .hull { transform-origin: 79% 66%; animation: bob 3s ease-in-out infinite; }
+  .look-golden .golden-sun, .look-moon .moon { animation: breathe 5s ease-in-out infinite; }
+  .look-harbor .sun-path { animation: breathe 2.4s ease-in-out infinite; }
+  @keyframes twinkle { 0%, 100% { opacity: var(--o); } 50% { opacity: calc(var(--o) * 0.2); } }
+  @keyframes sway { 0%, 100% { transform: translateX(calc(-0.5px * var(--s))); } 50% { transform: translateX(calc(0.5px * var(--s))); } }
+  @keyframes drift {
+    0%, 100% { transform: translate(0, 0); opacity: var(--o); }
+    30% { transform: translate(calc(1.4px * var(--s)), calc(-1px * var(--s))); opacity: calc(var(--o) * 0.2); }
+    65% { transform: translate(calc(-1px * var(--s)), calc(-2px * var(--s))); opacity: var(--o); }
+  }
+  @keyframes float {
+    0% { transform: translateY(0); opacity: 0; }
+    20% { opacity: var(--o); }
+    100% { transform: translateY(calc(-7px * var(--s))); opacity: 0; }
+  }
+  @keyframes flicker { 0% { opacity: var(--o); } 70% { opacity: calc(var(--o) * 0.35); } 78% { opacity: var(--o); } }
+  @keyframes cloud-drift { 0%, 100% { transform: translateX(calc(-1.5px * var(--s))); } 50% { transform: translateX(calc(1.5px * var(--s))); } }
+  @keyframes rise { 0%, 100% { transform: translateY(calc(1px * var(--s))); } 50% { transform: translateY(calc(-1px * var(--s))); } }
+  @keyframes bob { 0%, 100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(calc(0.7px * var(--s))) rotate(3deg); } }
+  @keyframes breathe { 0%, 100% { opacity: 1; } 50% { opacity: 0.65; } }
+
+  /* 5. Through the day: the scene orbs stacked, cross-faded by the clock. */
+  .day { background: #161616; border: 1px solid #262626; border-radius: 12px; padding: 16px; margin-bottom: 16px; }
+  .day h2 { font-size: 14px; margin: 0 0 4px; }
+  .day p { color: #9A9A9A; margin: 0 0 16px; max-width: 900px; }
+  .day-body { display: grid; grid-template-columns: 340px 1fr; gap: 32px; align-items: start; }
+  .stack { position: relative; flex: none; }
+  .stack .orb { position: absolute; left: 0; top: 0; transition: opacity 0.25s linear; }
+  .day-controls { display: flex; flex-direction: column; gap: 12px; }
+  .day-controls .line { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  .day-controls input[type=range] { width: 420px; }
+  #clock { font-variant-numeric: tabular-nums; font-size: 15px; min-width: 210px; }
+  #sun { color: #9A9A9A; }
+  .strip { display: flex; gap: 14px; flex-wrap: wrap; }
+  .strip figure { margin: 0; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .strip figcaption { color: #777; font-size: 11px; text-align: center; }
+  .strip .orb { cursor: default; }
+
+  /* 4. Dusk forest: teal night, dark treeline, fireflies. */
+  .look-forest .body { background: radial-gradient(circle at 50% 28%, #2E6672, #183E44 55%, #0D2422); }
+  .look-forest .treeline {
+    background:
+      radial-gradient(ellipse 34% 30% at 14% 100%, #08160F 97%, transparent 100%),
+      radial-gradient(ellipse 30% 36% at 46% 104%, #08160F 97%, transparent 100%),
+      radial-gradient(ellipse 36% 28% at 84% 100%, #08160F 97%, transparent 100%);
+  }
+</style>
+</head>
+<body>
+<h1>Pauri #10: the send orb, four Ghibli-feeling looks and four send animations</h1>
+<p class="lede">
+  Each column is one look, painted in the mood of the owner's three Studio Ghibli references: a summer sky,
+  a flower meadow, a seaside town at sunset, and a forest at dusk. Original motifs only, no characters.
+  Pick the send animation at the top: it applies to every column. Each column shows the orb in a dark and a
+  light input row at 1x (32 pt), then at 3x. Click <b>Send</b> or any orb to play a send.
+  Each scene holds still until you send. While the answer comes in (until <b>Finish answer</b>) the scene moves
+  (clouds drift, the boat bobs, fireflies wander) and the arrow turns into a square. <b>Answering</b> shows every orb moving at once, and
+  <b>Reduce Motion</b> keeps every scene still.
+</p>
+<div class="controls">
+  <label>Animation <select id="anim"></select></label>
+  <label><input type="checkbox" id="reduce"> Reduce Motion</label>
+  <label><input type="checkbox" id="disabled"> Disabled (blank draft)</label>
+  <label><input type="checkbox" id="busy"> Answering, every orb (scenes move)</label>
+</div>
+<p id="anim-text"></p>
+<section class="day" id="day">
+  <h2>5. Through the day (dynamic)</h2>
+  <p>
+    One orb whose scene follows the clock through ten frames: midnight moon, blue hour, dawn, morning meadow,
+    seaside morning, summer sky, golden afternoon, harbor sunset, evening town, fireflies. Neighbouring scenes
+    cross-fade over 40 minutes (less when a frame is short). Daytime frames are spaced by the length of the day. The place sets sunrise and sunset, so
+    the dawn and sunset scenes land at the real times there ("Clock only" uses fixed 6:30 and 19:00).
+    Drag the time, press <b>Now</b>, or <b>Play a day</b> to see 24 hours in 12 seconds.
+  </p>
+  <div class="day-body">
+    <div>
+      <div class="row dark"><div class="field"></div></div>
+      <div class="row light"><div class="field"></div></div>
+      <div class="big"><span>orb at 3x</span></div>
+      <div class="buttons"><button class="send">Send</button><button class="finish">Finish answer</button></div>
+      <div class="state"></div>
+    </div>
+    <div class="day-controls">
+      <div class="line"><span id="clock"></span><input type="range" id="time" min="0" max="1439" step="5"></div>
+      <div class="line">
+        <label>Place <select id="place"></select></label>
+        <button id="now">Now</button><button id="play">Play a day</button>
+        <span id="sun"></span>
+      </div>
+      <div class="strip" id="strip"></div>
+    </div>
+  </div>
+</section>
+<div class="grid" id="grid"></div>
+
+<script>
+// ---- Shared data: Task 2 copies the winner's values from here. ----
+const ORB = {
+  size: 32,                      // pt
+  arrowSize: 14,                 // pt, matches .font(.system(size: 14, weight: .bold))
+  stopSize: 10,                  // pt, the square shown while answering; guess
+  glowRadius: 6,                 // pt, guess
+  disabledOpacity: 0.4,          // guess (gate 1 decision 6)
+};
+
+const DRAFT = "what does max(d, key=d.get) return?";
+
+// ms. Starting guesses; judge them here.
+const DURATIONS = { A: 350, B: 450, C: 500, D: 1600 /* pulse period */ };
+
+// Each look: its colors, the layers painted inside the body (bottom to top), and its specks.
+// Speck x, y in 0...1 of the orb's box; r in pt. No random numbers at render time.
+const LOOKS = [
+  { id: "sky", name: "1. Summer sky", layers: ["cloud-shade", "cloud"],
+    text: "Deep blue above, a pile of white clouds below, a few sparkles of sun. Light and open.",
+    arrow: "#FFFFFF", arrowShadow: "rgba(30, 80, 140, 0.55)",
+    glow: "rgba(120, 190, 240, 0.50)", glowBright: "rgba(170, 220, 255, 0.90)",
+    specks: [
+      { x: 0.26, y: 0.20, r: 0.6, color: "#FFFFFF", opacity: 0.85 },
+      { x: 0.70, y: 0.16, r: 0.5, color: "#FFFFFF", opacity: 0.70 },
+      { x: 0.80, y: 0.40, r: 0.5, color: "#FFFFFF", opacity: 0.60 },
+      { x: 0.18, y: 0.46, r: 0.5, color: "#FFFFFF", opacity: 0.55 },
+      { x: 0.60, y: 0.10, r: 0.4, color: "#FFFFFF", opacity: 0.60 },
+    ] },
+  { id: "meadow", name: "2. Flower meadow", layers: ["hill-back", "hill-front"],
+    text: "Pale sky over two green hills, dotted with pink, yellow and white flowers. Warm and bright.",
+    arrow: "#FFFFFF", arrowShadow: "rgba(40, 90, 40, 0.60)",
+    glow: "rgba(150, 215, 110, 0.45)", glowBright: "rgba(200, 240, 150, 0.90)",
+    specks: [
+      { x: 0.16, y: 0.78, r: 0.7, color: "#F49AC1", opacity: 1 },
+      { x: 0.28, y: 0.86, r: 0.6, color: "#F8E36B", opacity: 1 },
+      { x: 0.40, y: 0.80, r: 0.6, color: "#FFFFFF", opacity: 0.95 },
+      { x: 0.60, y: 0.88, r: 0.7, color: "#F49AC1", opacity: 1 },
+      { x: 0.72, y: 0.79, r: 0.6, color: "#F8E36B", opacity: 1 },
+      { x: 0.84, y: 0.74, r: 0.6, color: "#E86A8E", opacity: 1 },
+      { x: 0.50, y: 0.93, r: 0.6, color: "#F8E36B", opacity: 1 },
+      { x: 0.24, y: 0.70, r: 0.5, color: "#FFFFFF", opacity: 0.9 },
+    ] },
+  { id: "harbor", name: "3. Harbor sunset", layers: ["sun", "sea", "sun-path"],
+    text: "Peach and coral sky, a low sun, a blue sea with white glints. The seaside town at the end of the day.",
+    arrow: "#FFFFFF", arrowShadow: "rgba(130, 50, 30, 0.55)",
+    glow: "rgba(244, 168, 110, 0.50)", glowBright: "rgba(255, 210, 150, 0.90)",
+    specks: [
+      { x: 0.62, y: 0.74, r: 0.5, color: "#FFFFFF", opacity: 0.85 },
+      { x: 0.76, y: 0.80, r: 0.5, color: "#FFFFFF", opacity: 0.75 },
+      { x: 0.20, y: 0.84, r: 0.5, color: "#FFFFFF", opacity: 0.70 },
+      { x: 0.52, y: 0.88, r: 0.4, color: "#FFFFFF", opacity: 0.70 },
+      { x: 0.86, y: 0.70, r: 0.4, color: "#FFFFFF", opacity: 0.70 },
+    ] },
+  { id: "forest", name: "4. Dusk forest", layers: ["treeline"],
+    text: "Teal night over a dark treeline, with yellow-green fireflies. Quiet, a little magical.",
+    arrow: "#FFF8E0", arrowShadow: "rgba(0, 0, 0, 0.6)",
+    glow: "rgba(190, 230, 110, 0.40)", glowBright: "rgba(225, 245, 140, 0.85)",
+    specks: [
+      { x: 0.24, y: 0.30, r: 0.7, color: "#E9F57A", opacity: 0.95, glow: true },
+      { x: 0.74, y: 0.24, r: 0.6, color: "#E9F57A", opacity: 0.80, glow: true },
+      { x: 0.82, y: 0.56, r: 0.8, color: "#E9F57A", opacity: 1, glow: true },
+      { x: 0.16, y: 0.60, r: 0.6, color: "#E9F57A", opacity: 0.85, glow: true },
+      { x: 0.62, y: 0.78, r: 0.6, color: "#E9F57A", opacity: 0.90, glow: true },
+      { x: 0.36, y: 0.80, r: 0.5, color: "#E9F57A", opacity: 0.75, glow: true },
+    ] },
+];
+
+const ANIMATIONS = [
+  { id: "A", name: "A. Press and ring",
+    text: "The orb shrinks a little, springs back, and one glow ring grows out from it and fades." },
+  { id: "B", name: "B. Arrow launch",
+    text: "The arrow flies up out of the orb and fades. A new arrow rises in from below, and the specks streak upward once." },
+  { id: "C", name: "C. Speck spin",
+    text: "The specks (sparkles, flowers, glints, fireflies) turn a quarter turn around the center while the glow brightens. The orb does not move." },
+  { id: "D", name: "D. Breathing while answering",
+    text: "Sending adds a slow glow pulse on top of the moving scene, until the answer finishes (Finish answer)." },
+];
+
+// ---- Drawing ----
+function arrowSvg(color) {
+  return `<svg viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2.8"
+    stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V4.5M5 11.5l7-7 7 7"/></svg>`;
+}
+
+// How each scene's specks move when idle.
+const MOTION = { sky: "twinkle", meadow: "sway", harbor: "shimmer", forest: "drift", dawn: "twinkle",
+  moon: "twinkle", bluehour: "twinkle", seaside: "shimmer", golden: "float", town: "flicker" };
+
+function makeOrb(look, scale) {
+  const orb = document.createElement("button");
+  orb.className = `orb look-${look.id} m-${MOTION[look.id]}`;
+  orb.setAttribute("aria-label", "Send");
+  const vars = {
+    "--s": scale, "--size": ORB.size, "--arrow-size": ORB.arrowSize, "--arrow-shadow": look.arrowShadow,
+    "--arrow-color": look.arrow, "--stop-size": ORB.stopSize,
+    "--glow": look.glow, "--glow-bright": look.glowBright, "--glow-radius": ORB.glowRadius,
+    "--disabled-opacity": ORB.disabledOpacity,
+  };
+  for (const [k, v] of Object.entries(vars)) orb.style.setProperty(k, v);
+  const specks = look.specks.map((p, i) => {
+    const d = p.r * 2 * scale;
+    const glow = p.glow ? `box-shadow:0 0 ${2.5 * scale}px ${p.color};` : "";
+    return `<i class="speck" style="width:${d}px;height:${d}px;background:${p.color};--o:${p.opacity};--i:${i};${glow}` +
+      `left:${p.x * ORB.size * scale - d / 2}px;top:${p.y * ORB.size * scale - d / 2}px"></i>`;
+  }).join("");
+  const layers = look.layers.map(n => `<span class="${n}"></span>`).join("");
+  orb.innerHTML = `<span class="glow"></span><span class="boost"></span><span class="ring"></span>
+    <span class="body">${layers}</span><span class="specks">${specks}</span>
+    <span class="finish-shade"></span><span class="finish-gloss"></span><span class="finish-ink"></span>
+    <span class="arrow">${arrowSvg(look.arrow)}</span><span class="stop"><i></i></span>`;
+  return orb;
+}
+
+// ---- State ----
+const animSelect = document.getElementById("anim");
+const reduceBox = document.getElementById("reduce");
+const disabledBox = document.getElementById("disabled");
+const busyBox = document.getElementById("busy");
+for (const a of ANIMATIONS) animSelect.add(new Option(a.name, a.id));
+reduceBox.checked = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const reduced = () => reduceBox.checked;
+const anim = () => animSelect.value;
+const columns = [];
+
+// ---- Animations (Web Animations API, so DURATIONS drive them) ----
+const SPRING = "cubic-bezier(0.34, 1.56, 0.64, 1)";
+
+function glowFlash(orb, ms) {
+  orb.querySelector(".boost").animate(
+    [{ opacity: 0 }, { opacity: 1, offset: 0.3 }, { opacity: 0 }], { duration: ms, easing: "ease-out" });
+}
+
+const PLAY = {
+  A(orb) {
+    const ms = DURATIONS.A;
+    if (reduced()) return glowFlash(orb, ms);
+    orb.animate([{ transform: "scale(1)" }, { transform: "scale(0.88)", offset: 0.3 }, { transform: "scale(1)" }],
+      { duration: ms, easing: SPRING });
+    orb.querySelector(".ring").animate(
+      [{ transform: "scale(1)", opacity: 0.8 }, { transform: "scale(1.6)", opacity: 0 }],
+      { duration: ms * 1.6, easing: "ease-out" });
+  },
+  B(orb, scale) {
+    const ms = DURATIONS.B;
+    if (reduced()) return glowFlash(orb, ms);
+    const h = ORB.size * scale;
+    orb.querySelector(".arrow svg").animate([
+      { transform: "translateY(0)", opacity: 1, easing: "ease-in" },
+      { transform: `translateY(${-0.7 * h}px)`, opacity: 0, offset: 0.45 },
+      { transform: `translateY(${0.6 * h}px)`, opacity: 0, offset: 0.46, easing: "ease-out" },
+      { transform: "translateY(0)", opacity: 1 },
+    ], { duration: ms });
+    orb.querySelectorAll(".speck").forEach(speck => speck.animate([
+      { transform: "translateY(0) scaleY(1)" },
+      { transform: `translateY(${-0.12 * h}px) scaleY(3)`, opacity: 0.2, offset: 0.4 },
+      { transform: "translateY(0) scaleY(1)" },
+    ], { duration: ms, easing: "ease-in-out" }));
+  },
+  C(orb) {
+    const ms = DURATIONS.C;
+    if (reduced()) return glowFlash(orb, ms);
+    orb.querySelector(".specks").animate([{ transform: "rotate(0deg)" }, { transform: "rotate(90deg)" }],
+      { duration: ms, easing: "cubic-bezier(0.2, 0, 0, 1)" });
+    glowFlash(orb, ms);
+  },
+  D(orb) {
+    const boost = orb.querySelector(".boost");
+    if (reduced()) {
+      boost.style.opacity = 0.7; // steady brighter glow, no pulse
+      return;
+    }
+    orb._pulse = boost.animate([{ opacity: 0 }, { opacity: 1 }, { opacity: 0 }],
+      { duration: DURATIONS.D, iterations: Infinity, easing: "ease-in-out" });
+  },
+};
+
+function stopPulse(col) {
+  for (const { orb } of col.orbs) {
+    orb._pulse?.cancel();
+    orb._pulse = null;
+    orb.querySelector(".boost").style.opacity = "";
+  }
+}
+
+// A send is refused while disabled (blank draft) or while an answer is streaming.
+function send(col) {
+  if (disabledBox.checked || col.answering) return;
+  for (const { orb, scale } of col.orbs) PLAY[anim()](orb, scale);
+  col.answering = true;
+  col.state.textContent = "Answering... (scene moving, square shown, sends refused)";
+  render();
+}
+
+function finish(col) {
+  stopPulse(col);
+  col.answering = false;
+  col.state.textContent = "";
+  render();
+}
+
+function render() {
+  document.body.className = `anim-${anim()}${reduced() ? " reduce" : ""}${busyBox.checked ? " busy" : ""}`;
+  document.getElementById("anim-text").textContent = ANIMATIONS.find(a => a.id === anim()).text;
+  for (const col of columns) {
+    // Not dimmed while answering: a dimmed orb would hide the moving scene (overrides plan decision 6).
+    const dim = disabledBox.checked;
+    for (const { orb } of col.orbs) {
+      orb.classList.toggle("dimmed", dim);
+      orb.classList.toggle("busy", col.answering);
+    }
+    // The dynamic orb's scenes carry their own opacity, so it dims as a whole stack.
+    col.stackEls?.forEach(el => el.style.opacity = dim ? ORB.disabledOpacity : 1);
+  }
+}
+
+// ---- Layout ----
+const grid = document.getElementById("grid");
+for (const look of LOOKS) {
+  const el = document.createElement("section");
+  el.className = "col";
+  el.innerHTML = `<h2>${look.name}</h2><p>${look.text}</p>
+    <div class="row dark"><div class="field"></div></div>
+    <div class="row light"><div class="field"></div></div>
+    <div class="big"><span>orb at 3x</span></div>
+    <div class="buttons"><button class="send">Send</button><button class="finish">Finish answer</button></div>
+    <div class="state"></div>`;
+  el.querySelectorAll(".field").forEach(f => f.textContent = DRAFT);
+  const col = { orbs: [], answering: false, state: el.querySelector(".state") };
+  const dark = makeOrb(look, 1), light = makeOrb(look, 1), big = makeOrb(look, 3);
+  el.querySelector(".row.dark").append(dark);
+  el.querySelector(".row.light").append(light);
+  el.querySelector(".big").prepend(big);
+  col.orbs.push({ orb: dark, scale: 1 }, { orb: light, scale: 1 }, { orb: big, scale: 3 });
+  for (const target of [dark, light, big, el.querySelector(".send")]) target.onclick = () => send(col);
+  el.querySelector(".finish").onclick = () => finish(col);
+  columns.push(col);
+  grid.append(el);
+}
+
+// ---- 5. Through the day ----
+const DAWN = { id: "dawn", name: "Dawn", layers: ["dawn-sun", "mist"],
+  arrow: "#FFFFFF", arrowShadow: "rgba(120, 60, 110, 0.55)",
+  glow: "rgba(240, 170, 190, 0.50)", glowBright: "rgba(255, 210, 220, 0.90)",
+  specks: [
+    { x: 0.28, y: 0.16, r: 0.5, color: "#FFFFFF", opacity: 0.55 },
+    { x: 0.70, y: 0.22, r: 0.5, color: "#FFFFFF", opacity: 0.40 },
+    { x: 0.50, y: 0.10, r: 0.4, color: "#FFFFFF", opacity: 0.45 },
+  ] };
+const scene = (id, name, layers, arrowShadow, glow, glowBright, specks) =>
+  ({ id, name, layers, arrow: "#FFFFFF", arrowShadow, glow, glowBright, specks });
+const white = (x, y, r, opacity) => ({ x, y, r, color: "#FFFFFF", opacity });
+const MOON = scene("moon", "Midnight moon", ["moon", "moon-bite", "night-hills"], "rgba(0, 0, 0, 0.5)",
+  "rgba(70, 60, 146, 0.55)", "rgba(110, 100, 220, 0.85)",
+  [white(0.24, 0.24, 0.5, 0.6), white(0.44, 0.12, 0.5, 0.45), white(0.18, 0.50, 0.5, 0.4),
+   white(0.86, 0.52, 0.6, 0.7), white(0.34, 0.36, 0.4, 0.4), white(0.58, 0.16, 0.4, 0.5)]);
+const BLUEHOUR = scene("bluehour", "Blue hour", ["night-hills"], "rgba(0, 10, 40, 0.5)",
+  "rgba(90, 150, 200, 0.45)", "rgba(150, 210, 240, 0.85)",
+  [white(0.30, 0.16, 0.5, 0.5), white(0.70, 0.22, 0.4, 0.35), white(0.52, 0.10, 0.4, 0.4)]);
+const SEASIDE = scene("seaside", "Seaside morning", ["sea", "sail", "hull"], "rgba(30, 80, 140, 0.55)",
+  "rgba(110, 185, 240, 0.50)", "rgba(170, 220, 255, 0.90)",
+  [white(0.20, 0.76, 0.5, 0.85), white(0.44, 0.84, 0.4, 0.7), white(0.58, 0.74, 0.5, 0.8), white(0.30, 0.90, 0.4, 0.6)]);
+const GOLDEN = scene("golden", "Golden afternoon", ["golden-sun", "wheat-back", "wheat-front"], "rgba(130, 80, 20, 0.55)",
+  "rgba(246, 190, 90, 0.50)", "rgba(255, 225, 140, 0.90)",
+  [{ x: 0.22, y: 0.40, r: 0.5, color: "#FFF2C0", opacity: 0.8 }, { x: 0.70, y: 0.30, r: 0.4, color: "#FFF2C0", opacity: 0.7 },
+   { x: 0.30, y: 0.80, r: 0.6, color: "#F9E3A0", opacity: 0.9 }, { x: 0.62, y: 0.86, r: 0.5, color: "#F9E3A0", opacity: 0.9 }]);
+const TOWN = scene("town", "Evening town", ["town-hill"], "rgba(30, 20, 60, 0.6)",
+  "rgba(200, 140, 190, 0.45)", "rgba(240, 190, 220, 0.85)",
+  [white(0.30, 0.14, 0.4, 0.6),
+   ...[[0.16, 0.80], [0.26, 0.86], [0.40, 0.78], [0.58, 0.84], [0.70, 0.79], [0.84, 0.82], [0.48, 0.90]]
+     .map(([x, y]) => ({ x, y, r: 0.5, color: "#FFC96B", opacity: 1, glow: true }))]);
+const SCENES = { moon: MOON, bluehour: BLUEHOUR, dawn: DAWN, meadow: LOOKS[1], seaside: SEASIDE, sky: LOOKS[0],
+  golden: GOLDEN, harbor: LOOKS[2], town: TOWN, forest: LOOKS[3] };
+const FADE_HOURS = 40 / 60;
+
+// Sample places for the page only; the app would read the Mac's own location.
+const PLACES = [
+  { name: "Clock only (no location)" },
+  { name: "Mexico City", lat: 19.43, lon: -99.13, tz: "America/Mexico_City" },
+  { name: "New York", lat: 40.71, lon: -74.01, tz: "America/New_York" },
+  { name: "London", lat: 51.51, lon: -0.13, tz: "Europe/London" },
+  { name: "Reykjavik", lat: 64.15, lon: -21.94, tz: "Atlantic/Reykjavik" },
+  { name: "Tokyo", lat: 35.68, lon: 139.69, tz: "Asia/Tokyo" },
+];
+
+// Local hours at `tz` for a UTC instant.
+function hoursIn(tz, date) {
+  const [h, m] = new Intl.DateTimeFormat("en-GB", { timeZone: tz, hour: "2-digit", minute: "2-digit", hourCycle: "h23" })
+    .format(date).split(":").map(Number);
+  return h + m / 60;
+}
+
+// NOAA's approximate sunrise and sunset, in local hours at the place, for today.
+function sunTimes(place) {
+  if (!place.lat) return { rise: 6.5, set: 19 };
+  const now = new Date();
+  const start = Date.UTC(now.getUTCFullYear(), 0, 1);
+  const day = Math.floor((Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()) - start) / 864e5);
+  const g = 2 * Math.PI / 365 * day;
+  const eqTime = 229.18 * (0.000075 + 0.001868 * Math.cos(g) - 0.032077 * Math.sin(g)
+    - 0.014615 * Math.cos(2 * g) - 0.040849 * Math.sin(2 * g));
+  const decl = 0.006918 - 0.399912 * Math.cos(g) + 0.070257 * Math.sin(g) - 0.006758 * Math.cos(2 * g)
+    + 0.000907 * Math.sin(2 * g) - 0.002697 * Math.cos(3 * g) + 0.00148 * Math.sin(3 * g);
+  const lat = place.lat * Math.PI / 180;
+  const cosHa = Math.cos(90.833 * Math.PI / 180) / (Math.cos(lat) * Math.cos(decl)) - Math.tan(lat) * Math.tan(decl);
+  const ha = Math.acos(Math.min(1, Math.max(-1, cosHa))) * 180 / Math.PI;
+  const midnight = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+  const at = minutesUtc => hoursIn(place.tz, new Date(midnight + minutesUtc * 6e4));
+  return { rise: at(720 - 4 * (place.lon + ha) - eqTime), set: at(720 - 4 * (place.lon - ha) - eqTime) };
+}
+
+// When each scene starts, in local hours, from sunrise and sunset.
+// Daytime frames sit at fractions of the day, so a short winter day keeps them in order.
+function schedule({ rise, set }) {
+  const day = set - rise, night = 24 - day;
+  return [
+    { at: rise - 1.25, scene: "bluehour" },
+    { at: rise - 0.25, scene: "dawn" },
+    { at: rise + 0.08 * day, scene: "meadow" },
+    { at: rise + 0.25 * day, scene: "seaside" },
+    { at: rise + 0.45 * day, scene: "sky" },
+    { at: rise + 0.70 * day, scene: "golden" },
+    { at: rise + 0.88 * day, scene: "harbor" },
+    { at: set + 0.25, scene: "town" },
+    { at: set + 1.25, scene: "forest" },
+    { at: set + 0.4 * night, scene: "moon" },
+  ];
+}
+
+// Opacity per scene at hour t: the current scene, cross-fading into the next one before its start.
+function weights(t, plan) {
+  const w = Object.fromEntries(Object.keys(SCENES).map(k => [k, 0]));
+  const mod = x => ((x % 24) + 24) % 24;
+  let i = plan.length - 1;
+  for (let k = 0; k < plan.length; k++) if (mod(t - plan[k].at) < mod(t - plan[i].at)) i = k;
+  const next = plan[(i + 1) % plan.length];
+  const untilNext = mod(next.at - t);
+  const fade = Math.min(FADE_HOURS, 0.6 * mod(next.at - plan[i].at));
+  const mix = untilNext < fade ? 1 - untilNext / fade : 0;
+  w[plan[i].scene] = 1 - mix;
+  w[next.scene] += mix;
+  return w;
+}
+
+const fmt = h => { const m = Math.round(((h % 24) + 24) % 24 * 60) % 1440; return `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`; };
+
+const daySection = document.getElementById("day");
+const timeInput = document.getElementById("time");
+const placeSelect = document.getElementById("place");
+PLACES.forEach((p, i) => placeSelect.add(new Option(p.name, i)));
+daySection.querySelectorAll(".field").forEach(f => f.textContent = DRAFT);
+
+function makeStack(scale) {
+  const stack = document.createElement("div");
+  stack.className = "stack";
+  stack.style.width = stack.style.height = `${ORB.size * scale}px`;
+  const orbs = {};
+  for (const [key, look] of Object.entries(SCENES)) stack.append(orbs[key] = makeOrb(look, scale));
+  return { stack, orbs };
+}
+
+const dayCol = { orbs: [], answering: false, state: daySection.querySelector(".state"), stacks: [], stackEls: [] };
+for (const [where, scale] of [[".row.dark", 1], [".row.light", 1], [".big", 3]]) {
+  const { stack, orbs } = makeStack(scale);
+  if (where === ".big") daySection.querySelector(where).prepend(stack); else daySection.querySelector(where).append(stack);
+  dayCol.stacks.push(orbs);
+  dayCol.stackEls.push(stack);
+  for (const orb of Object.values(orbs)) { dayCol.orbs.push({ orb, scale }); orb.onclick = () => send(dayCol); }
+}
+daySection.querySelector(".send").onclick = () => send(dayCol);
+daySection.querySelector(".finish").onclick = () => finish(dayCol);
+columns.push(dayCol);
+
+function renderDay() {
+  const place = PLACES[placeSelect.value];
+  const sun = sunTimes(place);
+  const plan = schedule(sun);
+  const t = timeInput.value / 60;
+  const w = weights(t, plan);
+  for (const orbs of dayCol.stacks) for (const [k, orb] of Object.entries(orbs)) orb.style.opacity = w[k];
+  const shown = Object.entries(w).filter(([, v]) => v > 0.01).map(([k, v]) => `${SCENES[k].name.replace(/^\d\. /, "")}${v < 0.99 ? ` ${Math.round(v * 100)}%` : ""}`);
+  document.getElementById("clock").textContent = `${fmt(t)}  ${shown.join(" + ")}`;
+  document.getElementById("sun").textContent = `sunrise ${fmt(sun.rise)}, sunset ${fmt(sun.set)}`;
+  const strip = document.getElementById("strip");
+  strip.replaceChildren(...plan.map(({ at, scene }) => {
+    const fig = document.createElement("figure");
+    fig.append(makeOrb(SCENES[scene], 1.5));
+    fig.insertAdjacentHTML("beforeend", `<figcaption>${SCENES[scene].name.replace(/^\d\. /, "")}<br>from ${fmt(at)}</figcaption>`);
+    return fig;
+  }));
+}
+
+function setNow() {
+  const place = PLACES[placeSelect.value];
+  const now = new Date();
+  const h = place.tz ? hoursIn(place.tz, now) : now.getHours() + now.getMinutes() / 60;
+  timeInput.value = Math.round(h * 60 / 5) * 5;
+  renderDay();
+}
+
+let playing = null;
+document.getElementById("play").onclick = () => {
+  cancelAnimationFrame(playing);
+  const start = performance.now();
+  const step = now => {
+    const f = Math.min(1, (now - start) / 12000);
+    timeInput.value = Math.round(f * 1439);
+    renderDay();
+    if (f < 1) playing = requestAnimationFrame(step);
+  };
+  playing = requestAnimationFrame(step);
+};
+document.getElementById("now").onclick = setNow;
+timeInput.oninput = renderDay;
+placeSelect.onchange = setNow;
+setNow();
+
+// Switching animation or Reduce Motion ends any answer in progress, so no pulse is left over.
+animSelect.onchange = reduceBox.onchange = () => { columns.forEach(finish); };
+disabledBox.onchange = busyBox.onchange = render;
+render();
+</script>
+</body>
+</html>
