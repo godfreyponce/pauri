@@ -1,0 +1,367 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Pauri #5: tool step lines and approval cards, four shapes</title>
+<style>
+  body {
+    margin: 0; padding: 32px; background: #0D0D0D; color: #E6E6E6;
+    font: 13px/1.45 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+  }
+  body.light-page { background: #F2F2F2; color: #1D1D1F; }
+  h1 { font-size: 17px; font-weight: 600; margin: 0 0 4px; }
+  .lede { color: #9A9A9A; margin: 0 0 16px; max-width: 1080px; }
+  .controls { display: flex; gap: 8px; margin-bottom: 24px; }
+  .controls button {
+    font: inherit; color: inherit; background: #2A2A2A; border: 1px solid #3A3A3A;
+    border-radius: 6px; padding: 4px 12px; cursor: pointer;
+  }
+  body.light-page .controls button { background: #FFFFFF; border-color: #CFCFCF; }
+  .grid { display: grid; grid-template-columns: repeat(2, max-content); gap: 24px; }
+  .variant h2 { font-size: 14px; margin: 0 0 2px; }
+  .variant p { color: #9A9A9A; margin: 0 0 10px; width: var(--panel-width); }
+
+  /* The panel. 1 CSS px = 1 pt. Colors come from PANEL in the script. */
+  .panel {
+    position: relative; display: flex; flex-direction: column; box-sizing: border-box;
+    width: var(--panel-width); height: var(--panel-height); padding: 16px;
+    background: var(--bg); color: var(--label); border: 1px solid var(--separator); border-radius: 12px;
+    font-family: var(--font); font-size: var(--font-size);
+  }
+  .bar { display: flex; justify-content: flex-end; gap: 10px; color: var(--secondary); margin-bottom: 8px; }
+  .transcript { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
+  .exchange { display: flex; flex-direction: column; gap: 4px; }
+  .question { font-weight: 700; }
+  .inputrow { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+  .field {
+    flex: 1; padding: 4px 7px; border-radius: 6px; background: var(--field); border: 1px solid var(--separator);
+    color: var(--placeholder);
+  }
+  .orb { width: 32px; height: 32px; border-radius: 50%; flex: none; opacity: 0.45;
+    background: linear-gradient(to bottom, #2F7FC8, #6DB6E8 55%, #BFE3F5); }
+
+  /* Step line, shared by every shape. */
+  .step {
+    display: flex; align-items: center; gap: 5px; min-width: 0; cursor: pointer; user-select: none;
+    color: var(--secondary); font-size: var(--step-font-size); line-height: 18px;
+  }
+  .step:hover { color: var(--label); }
+  .step .label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .chev { flex: none; width: 10px; font-size: 9px; transition: transform 0.12s ease-out; }
+  .open > .chev, .step.open .chev { transform: rotate(90deg); }
+  .spinner {
+    flex: none; width: 9px; height: 9px; border-radius: 50%;
+    border: 1.5px solid var(--separator); border-top-color: var(--secondary); animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  code { font-family: var(--mono); font-size: 0.95em; }
+  .detail {
+    margin: 2px 0 4px 15px; padding: 6px 8px; border-radius: 6px; background: var(--detail-bg);
+    font-family: var(--mono); font-size: var(--mono-size); color: var(--label);
+  }
+  .detail pre { margin: 0; white-space: pre-wrap; word-break: break-all; font: inherit; }
+  .detail .out {
+    margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--separator); color: var(--secondary);
+    max-height: var(--output-max-height); overflow-y: auto;
+  }
+
+  /* Approval card, shared parts. */
+  .card { display: flex; flex-direction: column; gap: 6px; }
+  .card .title { font-weight: 600; }
+  .card .reason { color: var(--secondary); }
+  .card pre {
+    margin: 0; padding: 6px 8px; border-radius: 6px; background: var(--detail-bg);
+    font-family: var(--mono); font-size: var(--mono-size); white-space: pre-wrap; word-break: break-all;
+  }
+  .card .diff { color: var(--secondary); }
+  .card .add { color: var(--add); } .card .del { color: var(--del); }
+  .buttons { display: flex; justify-content: flex-end; gap: 6px; margin-top: 2px; }
+  .buttons button {
+    font: inherit; font-size: 12px; color: var(--label); background: var(--button); border: 1px solid var(--separator);
+    border-radius: 6px; padding: 2px 10px; cursor: pointer;
+  }
+  .buttons button.allow { background: var(--accent); border-color: var(--accent); color: #FFFFFF; }
+
+  /* A. Flat lines: a bordered box in the transcript. */
+  .v-A .card { margin: 4px 0 2px 15px; padding: 10px; border: 1px solid var(--card-border); border-radius: 8px; }
+
+  /* B. One summary line; the card takes the input row's place. */
+  .v-B .sub { margin-left: 15px; display: flex; flex-direction: column; }
+  .v-B .card {
+    margin-top: 8px; padding: 10px; border-radius: 10px; background: var(--field);
+    border: 1px solid var(--card-border); box-shadow: 0 -1px 0 var(--separator);
+  }
+
+  /* C. Timeline. */
+  .v-C .line { position: relative; margin-left: 6px; padding-left: 14px; border-left: 1px solid var(--separator); }
+  .v-C .node { position: relative; }
+  .v-C .node::before {
+    content: ""; position: absolute; left: -18px; top: 6px; width: 7px; height: 7px; border-radius: 50%;
+    background: var(--secondary);
+  }
+  .v-C .node.pending::before { background: var(--accent); }
+  .v-C .node.denied::before { background: var(--del); }
+  .v-C .step { gap: 4px; }
+  .v-C .detail { margin-left: 0; }
+  .v-C .node.cardnode::before { left: -20px; top: 12px; width: 11px; height: 11px; box-shadow: 0 0 0 3px var(--bg); background: var(--accent); }
+  .v-C .card { padding: 10px; border-radius: 8px; background: var(--detail-bg); }
+
+  /* D. Chips; the card is a banner across the top. */
+  .v-D .chips { display: flex; flex-wrap: wrap; gap: 4px; }
+  .v-D .chip {
+    padding: 1px 8px; border-radius: 999px; background: var(--detail-bg); max-width: 220px;
+  }
+  .v-D .chip.open { background: var(--chip-open); color: var(--label); }
+  .v-D .detail { margin-left: 0; }
+  .v-D .banner {
+    position: absolute; left: 8px; right: 8px; top: 40px; z-index: 2; padding: 10px; border-radius: 10px;
+    background: var(--banner-bg); border: 1px solid var(--card-border); box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+    -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px);
+  }
+</style>
+</head>
+<body>
+<h1>Pauri #5: tool step lines and approval cards</h1>
+<p class="lede">Four shapes, one set of data. Each panel shows a read-only question that already finished
+(three steps, one opened), then a write that waits on a card. Click a step line to open or close it. The card
+buttons work: Allow and Allow for this chat finish the step, Deny marks it (denied). Feel taken from Pauri's
+current panel and the #10 page; content from the Codex CLI's approval prompt and the gray "Ran a command" lines
+in the ChatGPT and Claude apps.</p>
+<div class="controls">
+  <button data-page="file">Show file card</button>
+  <button data-page="theme">Light / Dark</button>
+  <button data-page="reset">Reset</button>
+</div>
+<div class="grid" id="grid"></div>
+
+<script>
+// ---- Shared data: every variant renders from these. ----
+const PANEL = {
+  width: 520, height: 600,
+  font: '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif',
+  mono: 'ui-monospace, "SF Mono", Menlo, monospace',
+  fontSize: 13, stepFontSize: 12, monoSize: 11, outputMaxHeight: 120,
+  colors: {
+    dark: {
+      bg: '#1E1E1E', label: '#FFFFFF', secondary: 'rgba(235, 235, 245, 0.6)', placeholder: 'rgba(235, 235, 245, 0.3)',
+      separator: 'rgba(255, 255, 255, 0.12)', field: '#2A2A2A', button: '#3A3A3C', detailBg: 'rgba(255, 255, 255, 0.06)',
+      chipOpen: 'rgba(255, 255, 255, 0.16)', cardBorder: 'rgba(255, 255, 255, 0.2)', bannerBg: 'rgba(44, 44, 46, 0.92)',
+      accent: '#0A84FF', add: '#30D158', del: '#FF453A',
+    },
+    light: {
+      bg: '#ECECEC', label: '#1D1D1F', secondary: 'rgba(60, 60, 67, 0.6)', placeholder: 'rgba(60, 60, 67, 0.3)',
+      separator: 'rgba(0, 0, 0, 0.12)', field: '#FFFFFF', button: '#FFFFFF', detailBg: 'rgba(0, 0, 0, 0.05)',
+      chipOpen: 'rgba(0, 0, 0, 0.12)', cardBorder: 'rgba(0, 0, 0, 0.18)', bannerBg: 'rgba(255, 255, 255, 0.92)',
+      accent: '#007AFF', add: '#248A3D', del: '#D70015',
+    },
+  },
+};
+
+const EXCHANGE = {
+  question: 'how many Swift files are in this repo?',
+  steps: [
+    { id: 's1', label: 'Listed files', status: 'completed',
+      detail: `/bin/zsh -lc "rg --files -g '*.swift' | wc -l"`, output: '      17' },
+    { id: 's2', label: 'Read Package.swift', status: 'completed',
+      detail: '/bin/zsh -lc "cat Package.swift"',
+      output: '// swift-tools-version:6.0\nimport PackageDescription\n\nlet package = Package(\n    name: "Pauri",\n    platforms: [.macOS(.v14)],' },
+    { id: 's3', label: 'Ran `git status`', status: 'completed',
+      detail: '/bin/zsh -lc "git status"', output: 'On branch main\nnothing to commit, working tree clean' },
+  ],
+  answer: 'There are 17 Swift files: 11 in Sources/Pauri and 6 in Tests/PauriTests.',
+};
+
+const APPROVALS = {
+  command: {
+    question: 'write hi to notes.txt',
+    step: { id: 'a1', label: "Ran `printf 'hi\\n' > notes.txt`", status: 'inProgress',
+            detail: `/bin/zsh -lc "printf 'hi\\n' > notes.txt"`, output: '' },
+    reason: 'Allow creating notes.txt outside the read-only sandbox?',
+    allowed: 'Done. notes.txt now holds one line: hi.',
+    denied: 'OK, I left notes.txt alone.',
+  },
+  file: {
+    question: 'capitalize the title in README.md',
+    step: { id: 'a2', label: 'Edited README.md', status: 'inProgress',
+            detail: '/Users/u/pauri/README.md',
+            output: '@@ -1,2 +1,2 @@\n-# pauri\n+# Pauri\n A floating Codex quick-chat window for macOS.' },
+    reason: null,
+    allowed: 'Done. The title now reads "Pauri".',
+    denied: 'OK, I left README.md as it was.',
+  },
+};
+
+const VARIANTS = [
+  { key: 'A', name: 'Flat lines', desc: 'Each step is its own gray line with a chevron, under the question. The card sits in the transcript under the steps, as a bordered box.' },
+  { key: 'B', name: 'One summary line', desc: 'All steps of an exchange fold into one gray line ("3 steps") that opens to the list, and each step opens further. The card replaces the input row until a choice is made.' },
+  { key: 'C', name: 'Timeline', desc: 'Steps are dots on a thin vertical line at the left of the exchange. The detail opens under its dot. The card is a larger node on the same line.' },
+  { key: 'D', name: 'Chips', desc: 'Steps are small gray capsules that wrap in one row. A click opens the detail in a box under the row. The card is a banner across the top of the panel, over the transcript.' },
+];
+
+const BUTTONS = [['deny', 'Deny'], ['allowForChat', 'Allow for this chat'], ['allow', 'Allow']];
+const FALLBACK_REASON = 'Codex wants to run a command or change a file.';
+
+// ---- Page state. ----
+let theme, cardKind, states;
+function reset() {
+  theme = 'dark'; cardKind = 'command';
+  states = {};
+  for (const v of VARIANTS) states[v.key] = { open: new Set(['s1']), summary: new Set(['x1']), decision: null };
+}
+
+const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+const labelHTML = s => esc(s).replace(/`([^`]+)`/g, '<code>$1</code>');
+
+function approvalStep(st) {
+  const base = APPROVALS[cardKind].step;
+  if (!st.decision) return base;
+  if (st.decision === 'deny') return { ...base, status: 'declined', label: base.label + ' (denied)' };
+  return { ...base, status: 'completed' };
+}
+
+function exchanges(st) {
+  const a = APPROVALS[cardKind];
+  const answer = st.decision ? (st.decision === 'deny' ? a.denied : a.allowed) : '';
+  return [
+    { id: 'x1', question: EXCHANGE.question, steps: EXCHANGE.steps, answer: EXCHANGE.answer },
+    { id: 'x2', question: a.question, steps: [approvalStep(st)], answer },
+  ];
+}
+
+function stepLine(step, st, cls = 'step') {
+  const open = st.open.has(step.id);
+  const mark = step.status === 'inProgress' ? '<span class="spinner"></span>' : '<span class="chev">&#9654;</span>';
+  return `<div class="${cls}${open ? ' open' : ''}" data-step="${step.id}">${mark}<span class="label">${labelHTML(step.label)}</span></div>`;
+}
+
+function detail(step) {
+  const out = step.output ? `<pre class="out">${esc(step.output)}</pre>` : '';
+  return `<div class="detail"><pre>${esc(step.detail)}</pre>${out}</div>`;
+}
+
+function card(extraClass = '') {
+  const a = APPROVALS[cardKind];
+  const body = cardKind === 'file'
+    ? `<pre>${esc(a.step.detail)}</pre><pre class="diff">${a.step.output.split('\n').map(l =>
+        l.startsWith('+') ? `<span class="add">${esc(l)}</span>` : l.startsWith('-') ? `<span class="del">${esc(l)}</span>` : esc(l)).join('\n')}</pre>`
+    : `<pre>${esc(a.step.detail)}</pre>`;
+  return `<div class="card ${extraClass}">
+    <div class="title">${labelHTML(a.step.label)}</div>${body}
+    <div class="reason">${esc(a.reason || FALLBACK_REASON)}</div>
+    <div class="buttons">${BUTTONS.map(([k, t]) => `<button class="${k}" data-decide="${k}">${t}</button>`).join('')}</div>
+  </div>`;
+}
+
+const answerHTML = x => x.answer ? `<div>${esc(x.answer)}</div>` : '';
+
+// ---- The four shapes. Each returns { top, transcript, bottom }. ----
+const SHAPES = {
+  A(st) {
+    const xs = exchanges(st);
+    return { transcript: xs.map(x => `<div class="exchange"><div class="question">${esc(x.question)}</div>
+      ${x.steps.map(s => stepLine(s, st) + (st.open.has(s.id) ? detail(s) : '')).join('')}
+      ${x.id === 'x2' && !st.decision ? card() : ''}${answerHTML(x)}</div>`).join('') };
+  },
+  B(st) {
+    const xs = exchanges(st);
+    return {
+      transcript: xs.map(x => {
+        const open = st.summary.has(x.id);
+        const n = x.steps.length, busy = x.steps.some(s => s.status === 'inProgress');
+        const mark = busy ? '<span class="spinner"></span>' : '<span class="chev">&#9654;</span>';
+        return `<div class="exchange"><div class="question">${esc(x.question)}</div>
+          <div class="step${open ? ' open' : ''}" data-summary="${x.id}">${mark}<span class="label">${n} step${n === 1 ? '' : 's'}</span></div>
+          ${open ? `<div class="sub">${x.steps.map(s => stepLine(s, st) + (st.open.has(s.id) ? detail(s) : '')).join('')}</div>` : ''}
+          ${answerHTML(x)}</div>`;
+      }).join(''),
+      bottom: st.decision ? null : card(),
+    };
+  },
+  C(st) {
+    const xs = exchanges(st);
+    return { transcript: xs.map(x => `<div class="exchange"><div class="question">${esc(x.question)}</div>
+      <div class="line">${x.steps.map(s => `<div class="node${s.status === 'inProgress' ? ' pending' : ''}${s.status === 'declined' ? ' denied' : ''}">
+        ${stepLine(s, st).replace('<span class="chev">&#9654;</span>', '').replace('<span class="spinner"></span>', '')}
+        ${st.open.has(s.id) ? detail(s) : ''}</div>`).join('')}
+        ${x.id === 'x2' && !st.decision ? `<div class="node cardnode">${card()}</div>` : ''}</div>
+      ${answerHTML(x)}</div>`).join('') };
+  },
+  D(st) {
+    const xs = exchanges(st);
+    return {
+      top: st.decision ? '' : `<div class="banner">${card()}</div>`,
+      transcript: xs.map(x => {
+        const opened = x.steps.find(s => st.open.has(s.id));
+        return `<div class="exchange"><div class="question">${esc(x.question)}</div>
+          <div class="chips">${x.steps.map(s => stepLine(s, st, 'step chip').replace('<span class="chev">&#9654;</span>', '')).join('')}</div>
+          ${opened ? detail(opened) : ''}${answerHTML(x)}</div>`;
+      }).join(''),
+    };
+  },
+};
+
+// ---- Rendering and clicks. ----
+function render() {
+  document.body.classList.toggle('light-page', theme === 'light');
+  const c = PANEL.colors[theme];
+  const vars = {
+    '--panel-width': PANEL.width + 'px', '--panel-height': PANEL.height + 'px', '--font': PANEL.font, '--mono': PANEL.mono,
+    '--font-size': PANEL.fontSize + 'px', '--step-font-size': PANEL.stepFontSize + 'px', '--mono-size': PANEL.monoSize + 'px',
+    '--output-max-height': PANEL.outputMaxHeight + 'px',
+    '--bg': c.bg, '--label': c.label, '--secondary': c.secondary, '--placeholder': c.placeholder, '--separator': c.separator,
+    '--field': c.field, '--button': c.button, '--detail-bg': c.detailBg, '--chip-open': c.chipOpen, '--card-border': c.cardBorder,
+    '--banner-bg': c.bannerBg, '--accent': c.accent, '--add': c.add, '--del': c.del,
+  };
+  for (const [k, v] of Object.entries(vars)) document.documentElement.style.setProperty(k, v);
+  document.querySelector('[data-page="file"]').textContent = cardKind === 'file' ? 'Show command card' : 'Show file card';
+
+  document.getElementById('grid').innerHTML = VARIANTS.map(v => {
+    const st = states[v.key];
+    const shape = SHAPES[v.key](st);
+    const bottom = shape.bottom || '<div class="inputrow"><div class="field">Ask Pauri</div><div class="orb"></div></div>';
+    return `<div class="variant"><h2>${v.key}. ${v.name}</h2><p>${esc(v.desc)}</p>
+      <div class="panel v-${v.key}" data-variant="${v.key}">
+        <div class="bar"><span title="New chat">&#9998;</span><span title="Settings">&#9881;</span></div>
+        ${shape.top || ''}<div class="transcript">${shape.transcript}</div>${bottom}
+      </div></div>`;
+  }).join('');
+  document.querySelectorAll('.transcript').forEach(t => { t.scrollTop = t.scrollHeight; });
+}
+
+document.addEventListener('click', e => {
+  const page = e.target.closest('[data-page]');
+  if (page) {
+    const what = page.dataset.page;
+    if (what === 'reset') reset();
+    if (what === 'theme') theme = theme === 'dark' ? 'light' : 'dark';
+    if (what === 'file') {
+      cardKind = cardKind === 'command' ? 'file' : 'command';
+      for (const st of Object.values(states)) st.decision = null;
+    }
+    return render();
+  }
+  const panel = e.target.closest('[data-variant]');
+  if (!panel) return;
+  const st = states[panel.dataset.variant];
+  const decide = e.target.closest('[data-decide]');
+  const summary = e.target.closest('[data-summary]');
+  const step = e.target.closest('[data-step]');
+  if (decide) st.decision = decide.dataset.decide;
+  else if (summary) st.summary.has(summary.dataset.summary) ? st.summary.delete(summary.dataset.summary) : st.summary.add(summary.dataset.summary);
+  else if (step) {
+    const id = step.dataset.step;
+    const wasOpen = st.open.has(id);
+    if (panel.dataset.variant === 'D') {
+      // One open chip per exchange: close its siblings.
+      step.parentElement.querySelectorAll('[data-step]').forEach(s => st.open.delete(s.dataset.step));
+    }
+    wasOpen ? st.open.delete(id) : st.open.add(id);
+  } else return;
+  render();
+});
+
+reset();
+render();
+</script>
+</body>
+</html>
