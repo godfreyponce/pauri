@@ -2,12 +2,26 @@ import AppKit
 import Carbon.HIToolbox
 import SwiftUI
 
+/// 1 shows the bare glass; 0 covers it with the solid window color.
+enum Transparency {
+    static let key = "transparency"
+    static let `default` = 1.0
+}
+
 struct SettingsView: View {
     let hotKey: HotKey
+    @AppStorage(Transparency.key) private var transparency = Transparency.default
 
     var body: some View {
         Form {
             LabeledContent("Show or hide Pauri") { ShortcutRecorder(hotKey: hotKey) }
+            Slider(value: $transparency, in: 0...1) {
+                Text("Transparency")
+            } minimumValueLabel: {
+                Text("Solid")
+            } maximumValueLabel: {
+                Text("Glass")
+            }
         }
         .padding()
         .frame(width: 320)
