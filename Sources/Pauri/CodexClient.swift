@@ -22,6 +22,10 @@ final class CodexClient {
     private(set) var processIdentifier: Int32?
     /// The turns of the thread the last `launch()` resumed; empty when it started a new thread.
     private(set) var restoredExchanges: [Exchange] = []
+    /// Called with the current thread's usage only, never another thread's (such as a fork's).
+    var onContextUsage: ((ContextUsage) -> Void)?
+
+    static let handoffPrompt = "Write a handoff note that lets a new chat continue where this one leaves off. Say what we are working on, what is decided, and what is still open. Write it to the assistant of the new chat, in plain text, with no preamble."
 
     private var starting: Task<Void, Error>?
     private var process: Process?
@@ -70,20 +74,46 @@ final class CodexClient {
                 try await start()
                 if threadID == nil { threadID = try await startThread() }
                 guard let threadID else { throw CodexProblem.stopped }
-                active = continuation
-                _ = try await send("turn/start", [
-                    "threadId": threadID,
-                    "input": [["type": "text", "text": question, "text_elements": [Any]()]],
-                ])
+                try await startTurn(question, on: threadID, into: continuation)
                 // Codex writes a thread to disk only at its first turn; an id saved before that
                 // cannot be resumed.
                 defaults.set(threadID, forKey: Self.threadKey)
             } catch {
-                active = nil
                 continuation.finish(throwing: error)
             }
         }
         return stream
+    }
+
+    /// Codex writes the note on an ephemeral fork of the current thread, so the thread itself
+    /// gets no extra turn and the fork is never saved.
+    func writeHandoff() async throws -> String {
+        try await start()
+        guard let threadID else { throw CodexProblem.stopped }
+        let fork: ThreadStartResult = try decode(await send("thread/fork", [
+            "threadId": threadID, "ephemeral": true, "excludeTurns": true,
+            "cwd": FileManager.default.homeDirectoryForCurrentUser.path, "sandbox": "read-only", "approvalPolicy": "never",
+        ]))
+        let (stream, continuation) = AsyncThrowingStream<String, Error>.makeStream()
+        try await startTurn(Self.handoffPrompt, on: fork.thread.id, into: continuation)
+        var note = ""
+        for try await delta in stream { note += delta }
+        return note.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private func startTurn(
+        _ text: String, on threadID: String, into continuation: AsyncThrowingStream<String, Error>.Continuation
+    ) async throws {
+        active = continuation
+        do {
+            _ = try await send("turn/start", [
+                "threadId": threadID,
+                "input": [["type": "text", "text": text, "text_elements": [Any]()]],
+            ])
+        } catch {
+            active = nil
+            throw error
+        }
     }
 
     private func launch() async throws {
@@ -102,14 +132,17 @@ final class CodexClient {
         guard account.isLoggedIn else { throw CodexProblem.notLoggedIn }
 
         if let saved = defaults.string(forKey: Self.threadKey) {
+            // Set before the resume: the usage Codex sends right after its reply can arrive
+            // first, and would be dropped as another thread's.
+            threadID = saved
             do {
                 let resumed: ThreadResumeResult = try decode(await send("thread/resume", [
                     "threadId": saved, "cwd": home.path, "sandbox": "read-only", "approvalPolicy": "never",
                 ]))
-                threadID = saved
                 restoredExchanges = resumed.exchanges
                 return
             } catch CodexProblem.failed {
+                threadID = nil
                 // The saved chat is gone (deleted session file, or a codex update dropped it).
                 defaults.removeObject(forKey: Self.threadKey)
             }
@@ -208,7 +241,9 @@ final class CodexClient {
         case .notification(.turnCompleted(let text?)), .notification(.error(let text, willRetry: false)):
             active?.finish(throwing: CodexProblem.failed(text))
             active = nil
-        case .notification(.error(_, willRetry: true)), .notification(.contextUsage), .notification(.ignored):
+        case .notification(.contextUsage(let id, let usage)):
+            if id == threadID { onContextUsage?(usage) }
+        case .notification(.error(_, willRetry: true)), .notification(.ignored):
             break
         }
     }
