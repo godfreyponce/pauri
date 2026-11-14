@@ -1,0 +1,310 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Pauri #16: Markdown answers and the user's messages, four shapes</title>
+<style>
+  body {
+    margin: 0; padding: 32px; background: #0D0D0D; color: #E6E6E6;
+    font: 13px/1.45 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+  }
+  body.light-page { background: #F2F2F2; color: #1D1D1F; }
+  h1 { font-size: 17px; font-weight: 600; margin: 0 0 4px; }
+  .lede { color: #9A9A9A; margin: 0 0 16px; max-width: 1080px; }
+  .controls { display: flex; gap: 8px; margin-bottom: 24px; }
+  .controls button {
+    font: inherit; color: inherit; background: #2A2A2A; border: 1px solid #3A3A3A;
+    border-radius: 6px; padding: 4px 12px; cursor: pointer;
+  }
+  body.light-page .controls button { background: #FFFFFF; border-color: #CFCFCF; }
+
+  /* A busy desktop behind the grid, CSS only, so Glass has something to show through. */
+  .desk { position: relative; display: inline-block; padding: 24px; border-radius: 16px; }
+  .desk.glass {
+    background:
+      repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.10) 0 2px, transparent 2px 46px),
+      repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.12) 0 14px, transparent 14px 28px),
+      radial-gradient(circle at 18% 22%, #F6C445 0 90px, transparent 91px),
+      radial-gradient(circle at 78% 30%, #3FA7F5 0 130px, transparent 131px),
+      radial-gradient(circle at 40% 80%, #EF5B7A 0 150px, transparent 151px),
+      radial-gradient(circle at 90% 88%, #55D17A 0 110px, transparent 111px),
+      linear-gradient(135deg, #FFFFFF, #DCE6F2);
+  }
+  .grid { display: grid; grid-template-columns: repeat(2, max-content); gap: 24px; }
+  .variant > h2 { font-size: 14px; margin: 0 0 2px; }
+  .variant > p { color: #9A9A9A; margin: 0 0 10px; width: var(--panel-width); }
+  .desk.glass .variant > h2, .desk.glass .variant > p {
+    color: #1D1D1F; background: rgba(255, 255, 255, 0.85); padding: 2px 6px; border-radius: 4px; width: auto;
+    max-width: calc(var(--panel-width) - 12px);
+  }
+
+  /* The panel. 1 CSS px = 1 pt. Colors come from PANEL in the script. */
+  .panel {
+    position: relative; display: flex; flex-direction: column; box-sizing: border-box;
+    width: var(--panel-width); height: var(--panel-height); padding: 16px;
+    background: var(--bg); color: var(--label); border: 1px solid var(--separator); border-radius: 12px;
+    font-family: var(--font); font-size: var(--font-size); line-height: 1.45;
+  }
+  .glass .panel {
+    background: var(--glass-bg);
+    -webkit-backdrop-filter: blur(24px) saturate(1.4); backdrop-filter: blur(24px) saturate(1.4);
+  }
+  .bar { display: flex; justify-content: flex-end; gap: 10px; color: var(--secondary); margin-bottom: 8px; }
+  .transcript { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; }
+  .exchange { display: flex; flex-direction: column; gap: 6px; }
+  .question { white-space: pre-wrap; }
+  .inputrow { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+  .field {
+    flex: 1; padding: 4px 7px; border-radius: 6px; background: var(--field); border: 1px solid var(--separator);
+    color: var(--placeholder);
+  }
+  .orb {
+    width: 32px; height: 32px; border-radius: 50%; flex: none; position: relative;
+    background: radial-gradient(circle at 50% 85%, #6A5BE0 0, #3B2F9C 45%, #1C1660 100%);
+    box-shadow: 0 0 10px rgba(106, 91, 224, 0.55);
+  }
+  .orb::after { content: "\2191"; position: absolute; inset: 0; display: grid; place-items: center; color: #FFF; font-weight: 700; }
+
+  /* Tool step line from #5 variant A. */
+  .step { display: flex; align-items: center; gap: 5px; color: var(--secondary); font-size: var(--step-font-size); line-height: 18px; }
+  .chev { flex: none; width: 10px; font-size: 9px; }
+
+  /* Rendered Markdown, shared by every shape. */
+  .md { display: flex; flex-direction: column; gap: 8px; }
+  .md h1, .md h2, .md h3 { margin: 4px 0 0; line-height: 1.25; font-weight: 700; }
+  .md h1 { font-size: 1.45em; } .md h2 { font-size: 1.25em; } .md h3 { font-size: 1.1em; }
+  .md p { margin: 0; }
+  .md ul, .md ol { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 3px; }
+  .md li > ul, .md li > ol { margin-top: 3px; }
+  .md code {
+    font-family: var(--mono); font-size: 0.92em; padding: 0 4px; border-radius: 4px; background: var(--code-bg);
+  }
+  .md pre {
+    margin: 0; padding: 8px 10px; border-radius: 8px; background: var(--code-bg); overflow-x: auto;
+    font-family: var(--mono); font-size: var(--mono-size); line-height: 1.5;
+  }
+  .md pre code { padding: 0; background: none; font-size: inherit; white-space: pre; }
+  .md a { color: var(--link); text-decoration: none; }
+  .md a:hover { text-decoration: underline; }
+
+  /* A. Bubble. */
+  .v-A .question {
+    align-self: flex-end; max-width: 75%; padding: 7px 11px; border-radius: 14px;
+    background: var(--purple-bubble); color: #FFFFFF;
+  }
+  .v-A .step { align-self: flex-start; }
+
+  /* B. Rail. */
+  .v-B .question {
+    padding: 1px 0 1px 10px; border-left: 2px solid var(--purple); color: var(--secondary); font-size: 12px;
+  }
+
+  /* C. Labeled sections. */
+  .v-C .transcript { gap: 14px; }
+  .v-C .exchange { border-top: 1px solid var(--separator); padding-top: 10px; }
+  .v-C .exchange:first-child { border-top: none; padding-top: 0; }
+  .v-C .you { font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--purple); }
+  .v-C .question { font-weight: 500; }
+  .v-C .question + .step, .v-C .question + .md { margin-top: 4px; }
+
+  /* D. Answer card. */
+  .v-D .question { color: var(--label); padding: 0 2px; }
+  .v-D .answer-card {
+    padding: 10px 12px; border-radius: 10px; background: var(--card-bg); border: 1px solid var(--card-border);
+  }
+</style>
+</head>
+<body>
+<h1>Pauri #16: Markdown answers and the user's messages</h1>
+<p class="lede">Four shapes, one sample chat. Every panel draws the same two exchanges from <code>data</code> below:
+a question that carries a selection quote and an answer with a heading, bold, italics, lists, inline code, a code
+block with one wide line (scroll it sideways), and a link; then a short question, one tool step line (#5 variant A),
+and a long answer. The shapes differ in how the user's message stands apart. Solid / Glass puts the panels over a
+bright, busy desktop. Feel taken from the ChatGPT window reference (answer type, code card, user bubble), Pauri's
+current panel, and the send orb's purple; layout copies none of them.</p>
+<div class="controls">
+  <button data-page="glass">Solid / Glass</button>
+  <button data-page="theme">Light / Dark</button>
+</div>
+<div class="desk" id="desk"><div class="grid" id="grid"></div></div>
+
+<script>
+// ---- Shared data: every variant renders from these. ----
+const data = {
+  exchanges: [
+    {
+      question: '> let first = items[0]\n> print(first.name)\nWhy does this crash?',
+      steps: [],
+      answer: [
+        '## Why it crashes',
+        '',
+        '`items[0]` reads the **first element**, and Swift traps when the array is *empty*. Nothing checks the count first.',
+        '',
+        '- An empty array has no index `0`.',
+        '- `first.name` never runs: the crash happens one line earlier.',
+        '  - The crash log says `Index out of range`.',
+        '',
+        'To fix it:',
+        '',
+        '1. Read the optional `items.first` instead.',
+        '2. Unwrap it with `guard let`.',
+        '',
+        '```swift',
+        'guard let first = items.first else { print("No items yet, so there is nothing to show in the list view."); return }',
+        'print(first.name)',
+        '```',
+        '',
+        'See [Collection.first](https://developer.apple.com/documentation/swift/collection/first) in the Swift docs.',
+      ].join('\n'),
+    },
+    {
+      question: 'Does the package build cleanly?',
+      steps: [{ label: 'Ran `swift build`' }],
+      answer: [
+        'Yes. `swift build` finished with no errors and no warnings, in about nine seconds on this Mac.',
+        '',
+        'The build compiled both targets: the app target **Pauri** and the test target **PauriTests**. The test target only builds when you run the tests, so a clean `swift build` says nothing yet about whether the tests pass.',
+        '',
+        'The slowest file was `PanelView.swift`. SwiftUI views with many nested modifiers make the type checker work hard, and this one holds the whole transcript. If build times start to hurt, splitting the transcript into its own view is the usual first step.',
+        '',
+        'Two dependencies resolved from the lockfile, and none of them changed, so nothing new was fetched. That also means the build does not depend on the network once the packages are cached.',
+        '',
+        'One thing to watch: the package still targets *macOS 14*. Anything you use from a newer SDK needs an `if #available` check, or the build will fail on the oldest supported system.',
+        '',
+        'If you want, I can run the tests next with `./scripts/test.sh` and tell you how many pass.',
+      ].join('\n'),
+    },
+  ],
+};
+
+const PANEL = {
+  width: 520, height: 600,
+  font: '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif',
+  mono: 'ui-monospace, "SF Mono", Menlo, monospace',
+  fontSize: 13, stepFontSize: 12, monoSize: 11.5,
+  colors: {
+    dark: {
+      bg: '#1E1E1E', glassBg: 'rgba(30, 30, 30, 0.55)', label: '#FFFFFF', secondary: 'rgba(235, 235, 245, 0.6)',
+      placeholder: 'rgba(235, 235, 245, 0.3)', separator: 'rgba(255, 255, 255, 0.12)', field: 'rgba(255, 255, 255, 0.08)',
+      codeBg: 'rgba(255, 255, 255, 0.08)', link: '#8F86FF', purple: '#8F86FF', purpleBubble: '#4A3DB8',
+      cardBg: 'rgba(255, 255, 255, 0.06)', cardBorder: 'rgba(255, 255, 255, 0.14)',
+    },
+    light: {
+      bg: '#ECECEC', glassBg: 'rgba(246, 246, 246, 0.55)', label: '#1D1D1F', secondary: 'rgba(60, 60, 67, 0.65)',
+      placeholder: 'rgba(60, 60, 67, 0.3)', separator: 'rgba(0, 0, 0, 0.12)', field: 'rgba(255, 255, 255, 0.7)',
+      codeBg: 'rgba(0, 0, 0, 0.06)', link: '#4A3DB8', purple: '#5B4BD0', purpleBubble: '#5B4BD0',
+      cardBg: 'rgba(255, 255, 255, 0.6)', cardBorder: 'rgba(0, 0, 0, 0.12)',
+    },
+  },
+};
+
+const VARIANTS = [
+  { key: 'A', name: 'Bubble', desc: 'Your message sits right-aligned in a rounded bubble in the orb\'s purple, at most three quarters wide. Answers run full width with no container.' },
+  { key: 'B', name: 'Rail', desc: 'Your message stays left, smaller and in the secondary color, with a thin purple bar down its left edge. The answer runs full width under it.' },
+  { key: 'C', name: 'Labeled sections', desc: 'Each exchange opens with a hairline and a small purple "You" label, your message in medium weight under it, then the answer like a document.' },
+  { key: 'D', name: 'Answer card', desc: 'Your message is plain text on the panel. Each answer sits in a slightly lighter card with a hairline border.' },
+];
+
+// ---- One small Markdown renderer, used by all four. ----
+const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+function inline(s) {
+  const codes = [];
+  s = esc(s).replace(/`([^`]+)`/g, (_, c) => `\u0000${codes.push(c) - 1}\u0000`);
+  s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+       .replace(/\*([^*]+)\*/g, '<em>$1</em>')
+       .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noreferrer">$1</a>');
+  return s.replace(/\u0000(\d+)\u0000/g, (_, i) => `<code>${codes[i]}</code>`);
+}
+
+function markdown(md) {
+  const lines = md.split('\n');
+  let html = '', i = 0;
+  while (i < lines.length) {
+    const line = lines[i];
+    if (!line.trim()) { i++; continue; }
+    if (line.startsWith('```')) {
+      const body = [];
+      for (i++; i < lines.length && !lines[i].startsWith('```'); i++) body.push(lines[i]);
+      i++;
+      html += `<pre><code>${esc(body.join('\n'))}</code></pre>`;
+      continue;
+    }
+    const h = line.match(/^(#{1,3}) (.*)/);
+    if (h) { html += `<h${h[1].length}>${inline(h[2])}</h${h[1].length}>`; i++; continue; }
+    if (/^\s*([-*]|\d+\.) /.test(line)) {
+      const items = [];
+      for (; i < lines.length && /^\s*([-*]|\d+\.) /.test(lines[i]); i++) {
+        const m = lines[i].match(/^(\s*)([-*]|\d+\.) (.*)/);
+        items.push({ depth: Math.floor(m[1].length / 2), ordered: /\d/.test(m[2]), text: m[3] });
+      }
+      html += list(items, 0);
+      continue;
+    }
+    const para = [];
+    for (; i < lines.length && lines[i].trim() && !/^(```|#{1,3} |\s*([-*]|\d+\.) )/.test(lines[i]); i++) para.push(lines[i]);
+    html += `<p>${inline(para.join(' '))}</p>`;
+  }
+  return `<div class="md">${html}</div>`;
+}
+
+function list(items, depth) {
+  const tag = items[0].ordered ? 'ol' : 'ul';
+  let html = `<${tag}>`;
+  for (let k = 0; k < items.length; k++) {
+    if (items[k].depth !== depth) continue;
+    const children = [];
+    for (let j = k + 1; j < items.length && items[j].depth > depth; j++) children.push(items[j]);
+    html += `<li>${inline(items[k].text)}${children.length ? list(children, depth + 1) : ''}</li>`;
+  }
+  return html + `</${tag}>`;
+}
+
+const stepLine = s => `<div class="step"><span class="chev">&#9654;</span><span>${inline(s.label)}</span></div>`;
+const steps = x => x.steps.map(stepLine).join('');
+const question = x => `<div class="question">${esc(x.question)}</div>`;
+
+// ---- The four shapes. Each returns the transcript's HTML. ----
+const SHAPES = {
+  A: xs => xs.map(x => `<div class="exchange">${question(x)}${steps(x)}${markdown(x.answer)}</div>`).join(''),
+  B: xs => xs.map(x => `<div class="exchange">${question(x)}${steps(x)}${markdown(x.answer)}</div>`).join(''),
+  C: xs => xs.map(x => `<div class="exchange"><div class="you">You</div>${question(x)}${steps(x)}${markdown(x.answer)}</div>`).join(''),
+  D: xs => xs.map(x => `<div class="exchange">${question(x)}${steps(x)}<div class="answer-card">${markdown(x.answer)}</div></div>`).join(''),
+};
+
+// ---- Page state and rendering. ----
+let theme = 'dark', glass = false;
+
+function render() {
+  document.body.classList.toggle('light-page', theme === 'light');
+  document.getElementById('desk').classList.toggle('glass', glass);
+  const c = PANEL.colors[theme];
+  const vars = {
+    '--panel-width': PANEL.width + 'px', '--panel-height': PANEL.height + 'px', '--font': PANEL.font, '--mono': PANEL.mono,
+    '--font-size': PANEL.fontSize + 'px', '--step-font-size': PANEL.stepFontSize + 'px', '--mono-size': PANEL.monoSize + 'px',
+    '--bg': c.bg, '--glass-bg': c.glassBg, '--label': c.label, '--secondary': c.secondary, '--placeholder': c.placeholder,
+    '--separator': c.separator, '--field': c.field, '--code-bg': c.codeBg, '--link': c.link, '--purple': c.purple,
+    '--purple-bubble': c.purpleBubble, '--card-bg': c.cardBg, '--card-border': c.cardBorder,
+  };
+  for (const [k, v] of Object.entries(vars)) document.documentElement.style.setProperty(k, v);
+
+  document.getElementById('grid').innerHTML = VARIANTS.map(v => `<div class="variant"><h2>${v.key}. ${v.name}</h2><p>${esc(v.desc)}</p>
+    <div class="panel v-${v.key}">
+      <div class="bar"><span title="New chat">&#9998;</span><span title="Settings">&#9881;</span></div>
+      <div class="transcript">${SHAPES[v.key](data.exchanges)}</div>
+      <div class="inputrow"><div class="field">Ask Pauri</div><div class="orb"></div></div>
+    </div></div>`).join('');
+}
+
+document.addEventListener('click', e => {
+  const page = e.target.closest('[data-page]');
+  if (!page) return;
+  if (page.dataset.page === 'theme') theme = theme === 'dark' ? 'light' : 'dark';
+  if (page.dataset.page === 'glass') glass = !glass;
+  render();
+});
+
+render();
+</script>
+</body>
+</html>
