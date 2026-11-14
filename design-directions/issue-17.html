@@ -1,0 +1,361 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Pauri #17: input area, four shapes</title>
+<script>
+// Shared data: every variant below reads only this object.
+const data = {
+  draft: "My Swift 6 build fails in the panel controller with this error:\n\n  Main actor-isolated property 'panel' can not be referenced from a nonisolated context\n\nIt is inside a NotificationCenter closure that I add in init. Should I mark the closure @MainActor,\nwrap the body in MainActor.assumeIsolated, or move the observer into a Task? I want the panel\nto hide when the app resigns active, and I do not want a data race warning in Swift 6.",
+  selection: "NotificationCenter.default.addObserver(forName: NSApplication.didResignActiveNotification,\n    object: nil, queue: .main) { _ in self.panel.orderOut(nil) }",
+  screenshot: { label: "Screenshot" },
+  exchange: {
+    question: "What does orderOut do to a key window?",
+    answer: "It removes the window from the screen list. If it was key, AppKit makes the next window in order key, or none if the app has no other window."
+  },
+  // model/list on codex-cli 0.169.0, 2026-11-14. The Fast entry comes first.
+  efforts: {
+    low: "Fast responses with lighter reasoning",
+    medium: "Balances speed and reasoning depth for everyday tasks",
+    high: "Greater reasoning depth for complex problems",
+    xhigh: "Extra high reasoning depth for complex problems",
+    max: "Maximum reasoning depth for the hardest problems",
+    ultra: "Maximum reasoning with automatic task delegation"
+  },
+  models: [
+    { id: "gpt-6.1-sol/priority", name: "GPT-6.1-Sol Fast", effort: "low",    levels: ["low","medium","high","xhigh","max","ultra"] },
+    { id: "gpt-6.1-sol/default",  name: "GPT-6.1-Sol",      effort: "low",    levels: ["low","medium","high","xhigh","max","ultra"] },
+    { id: "gpt-6-astra/default",  name: "GPT-6-Astra",      effort: "medium", levels: ["low","medium","high","xhigh","max","ultra"] },
+    { id: "gpt-6.1-terra/default",name: "GPT-6.1-Terra",    effort: "medium", levels: ["low","medium","high","xhigh","max","ultra"] },
+    { id: "gpt-6-sol/default",    name: "GPT-6-Sol",        effort: "medium", levels: ["low","medium","high","xhigh","max","ultra"] },
+    { id: "gpt-5.6-sol/default",  name: "GPT-5.6-Sol",      effort: "medium", levels: ["low","medium","high","xhigh","max","ultra"] },
+    { id: "gpt-5.6-terra/default",name: "GPT-5.6-Terra",    effort: "medium", levels: ["low","medium","high","xhigh","max","ultra"] },
+    { id: "gpt-6-luna/default",   name: "GPT-6-Luna",       effort: "medium", levels: ["low","medium","high","xhigh","max"] },
+    { id: "gpt-5.6-luna/default", name: "GPT-5.6-Luna",     effort: "medium", levels: ["low","medium","high","xhigh","max"] }
+  ],
+  // The <path> of the official OAI_OpenAI-Blossom_White.svg, byte for byte
+  // (https://cdn.openai.com/brand/openai-logos.zip). Drawn on its whole 716 canvas.
+  blossom: `<path d="M508.749 317.399C516.777 287.314 508.991 253.884 485.389 230.282C461.788 206.681 428.36 198.895 398.273 206.923C376.231 184.928 343.39 174.956 311.148 183.596C278.906 192.234 255.45 217.292 247.36 247.361C217.291 255.451 192.233 278.91 183.595 311.149C174.957 343.391 184.927 376.232 206.924 398.274C198.896 428.359 206.683 461.789 230.284 485.391C253.885 508.992 287.313 516.779 317.401 508.75C339.442 530.745 372.286 540.717 404.525 532.079C436.767 523.441 460.223 498.384 468.313 468.315C498.383 460.224 523.44 436.766 532.078 404.526C540.716 372.285 530.747 339.443 508.749 317.402V317.399ZM470.899 244.776C486.892 260.77 493.488 282.601 490.687 303.412L415.577 260.046C412.411 258.218 408.509 258.218 405.345 260.046L317.401 310.82V277.526C317.401 275.191 318.652 273.005 320.676 271.837L387.644 233.174C414.178 218.353 448.346 222.223 470.901 244.776H470.899ZM357.837 311.144L398.275 334.491V381.185L357.837 404.532L317.398 381.185V334.491L357.837 311.144ZM264.776 269.693C265.207 239.305 285.644 211.649 316.453 203.393C338.3 197.54 360.505 202.744 377.127 215.573L302.014 258.937C298.848 260.764 296.898 264.144 296.898 267.798V369.346L268.065 352.699C266.043 351.531 264.776 349.353 264.776 347.017V269.691V269.693ZM203.391 316.454C209.244 294.608 224.854 277.978 244.276 269.999V356.73C244.276 360.384 246.226 363.763 249.392 365.591L337.337 416.365L308.503 433.013C306.481 434.181 303.961 434.188 301.939 433.02L234.971 394.357C208.868 378.789 195.138 347.261 203.391 316.454ZM244.775 470.9C228.781 454.906 222.186 433.075 224.986 412.264L300.096 455.63C303.263 457.457 307.164 457.457 310.328 455.63L398.273 404.856V438.149C398.273 440.485 397.022 442.671 394.997 443.839L328.029 482.502C301.495 497.322 267.327 493.452 244.772 470.9H244.775ZM450.897 445.982C450.466 476.371 430.029 504.027 399.22 512.283C377.373 518.136 355.168 512.932 338.547 500.102L413.659 456.738C416.826 454.911 418.775 451.532 418.775 447.877V346.329L447.609 362.977C449.631 364.145 450.897 366.323 450.897 368.659V445.985V445.982ZM512.282 399.221C506.429 421.068 490.819 437.697 471.397 445.676V358.946C471.397 355.292 469.448 351.912 466.281 350.085L378.336 299.311L407.17 282.663C409.192 281.495 411.712 281.487 413.734 282.655L480.702 321.318C506.805 336.887 520.536 368.415 512.282 399.221Z" fill="white"/>`
+};
+
+// Sizes per variant, in points. Task 3 copies the winner's row into SwiftUI.
+const sizes = {
+  A: { textMinLines: 2, textMaxLines: 8, blossom: 22, barWidth: 3, barHeight: 12, barGap: 2, boxPadding: 10, deckGap: 6 },
+  B: { textMinLines: 1, textMaxLines: 8, blossom: 20, barWidth: 3, barHeight: 10, barGap: 2, boxPadding: 7,  deckGap: 6 },
+  C: { textMinLines: 3, textMaxLines: 8, blossom: 20, barWidth: 3, barHeight: 10, barGap: 2, boxPadding: 9,  deckGap: 4 },
+  D: { textMinLines: 1, textMaxLines: 8, blossom: 20, barWidth: 3, barHeight: 11, barGap: 2, boxPadding: 7,  deckGap: 6 }
+};
+const lineHeight = 18;
+</script>
+<style>
+  :root { color-scheme: dark; }
+  body {
+    margin: 0; padding: 32px; background: #15171c; color: #e8e8ea;
+    font: 13px/1.4 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+  }
+  h1 { font-size: 18px; margin: 0 0 4px; }
+  .lede { color: #9a9ca3; margin: 0 0 16px; max-width: 980px; }
+  .lede a { color: #8fb4ff; }
+  .refs { display: flex; gap: 24px; align-items: flex-start; margin: 0 0 28px; }
+  .refs figure { margin: 0; color: #9a9ca3; font-size: 12px; }
+  .refs img { display: block; max-width: 420px; max-height: 220px; border-radius: 8px; border: 1px solid #2a2d35; margin-bottom: 4px; }
+  .row { display: flex; gap: 28px; overflow-x: auto; padding-bottom: 16px; }
+  .col { flex: 0 0 560px; }
+  .col h2 { font-size: 14px; margin: 0 0 2px; }
+  .col p.note { margin: 0 0 4px; color: #9a9ca3; min-height: 36px; }
+  .col p.shot { margin: 0 0 10px; color: #c9b98a; font-size: 12px; }
+  .reset { font: inherit; font-size: 11px; margin-top: 8px; color: #c9c9cc; background: #262930; border: 1px solid #353943; border-radius: 6px; padding: 2px 8px; cursor: pointer; }
+
+  /* The busy desktop behind the glass panel. */
+  .desk {
+    position: relative; padding: 20px; border-radius: 12px; overflow: hidden;
+    background:
+      radial-gradient(circle at 18% 22%, #ffb347 0 46px, transparent 47px),
+      radial-gradient(circle at 82% 78%, #4fd1c5 0 70px, transparent 71px),
+      repeating-linear-gradient(45deg, rgba(255,255,255,0.10) 0 6px, transparent 6px 18px),
+      linear-gradient(120deg, #c2410c, #7c3aed 45%, #0ea5e9 75%, #16a34a);
+  }
+  .desk::before {
+    content: "func application(_ app: NSApplication) { panel.orderOut(nil) }  // busy window text  ";
+    position: absolute; inset: 0; color: rgba(255,255,255,0.35); font: 11px/1.6 ui-monospace, Menlo, monospace;
+    white-space: pre-wrap; word-break: break-all; padding: 8px; pointer-events: none;
+  }
+  .panel {
+    position: relative; width: 520px; height: 600px; box-sizing: border-box;
+    padding: 16px; display: flex; flex-direction: column; gap: 8px;
+    background: rgba(36, 37, 41, 0.62); backdrop-filter: blur(22px) saturate(1.3);
+    -webkit-backdrop-filter: blur(22px) saturate(1.3);
+    border: 1px solid rgba(255,255,255,0.14); border-radius: 12px;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.45);
+  }
+  .top { display: flex; align-items: center; gap: 12px; min-height: 22px; }
+  .top .spacer { flex: 1; }
+  .icon { width: 16px; height: 16px; color: #c9c9cc; flex: none; }
+  .transcript { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; min-height: 0; }
+  .transcript .fill { flex: 1; }
+  .transcript .q { font-weight: 700; }
+
+  /* Chips */
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px; max-width: 100%;
+    background: rgba(255,255,255,0.10); border-radius: 999px; padding: 3px 8px 3px 10px; color: #dcdce0;
+  }
+  .chip .t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+  .chip .x { cursor: pointer; color: #9a9ca3; border: 0; background: none; font: inherit; padding: 0 2px; }
+  .thumb { width: 34px; height: 22px; border-radius: 3px; background: linear-gradient(#8a8d96 0 30%, #5b5e66 30% 100%); position: relative; flex: none; }
+  .thumb::after { content: ""; position: absolute; left: 4px; right: 10px; top: 10px; height: 2px; background: #c9cbd1; box-shadow: 0 4px 0 #c9cbd1; }
+  .chip.ghost { background: transparent; border: 1px dashed rgba(255,255,255,0.28); color: #b9bbc2; cursor: pointer; padding: 3px 10px; }
+  .chips { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+  .chips.inline { flex-direction: row; flex-wrap: wrap; align-items: center; }
+
+  /* Text */
+  textarea {
+    font: inherit; line-height: 18px; color: #ececef; background: transparent; border: 0; outline: 0;
+    resize: none; width: 100%; box-sizing: border-box; padding: 0; display: block;
+  }
+  textarea::placeholder { color: #7e8088; }
+  .box {
+    background: rgba(0,0,0,0.28); border: 1px solid rgba(255,255,255,0.16); border-radius: 12px;
+  }
+  .box.sharp { border-radius: 7px; }
+
+  /* The picker: Blossom and name on a material capsule, then the bars. */
+  .picker { display: inline-flex; align-items: center; gap: 6px; position: relative; }
+  .capsule {
+    display: inline-flex; align-items: center; gap: 3px; cursor: pointer; border: 0; font: inherit; color: #e8e8ea;
+    background: rgba(60,62,70,0.72); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+    border-radius: 999px; padding: 0 9px 0 1px; height: 24px;
+  }
+  .capsule .caret { color: #9a9ca3; font-size: 10px; margin-left: 2px; }
+  .blossom { display: block; flex: none; }
+  .bars { display: inline-flex; align-items: flex-end; cursor: pointer; padding: 3px 4px; border-radius: 5px; }
+  .bars:hover { background: rgba(255,255,255,0.08); }
+  .bar { background: rgba(255,255,255,0.22); border-radius: 1px; }
+  .bar.on { background: #e8e8ea; }
+  .bars.ultra .bar.on:last-child { background: #f0b93a; }
+  .level { color: #9a9ca3; font-size: 11px; min-width: 34px; }
+  .menu {
+    position: absolute; z-index: 5; left: 0; bottom: 30px; min-width: 210px; padding: 4px;
+    background: rgba(40,42,48,0.97); border: 1px solid rgba(255,255,255,0.14); border-radius: 8px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+  }
+  .menu.down { bottom: auto; top: 30px; }
+  .menu div { padding: 4px 8px 4px 22px; border-radius: 4px; cursor: pointer; position: relative; }
+  .menu div:hover { background: #2f6fde; }
+  .menu div.on::before { content: "✓"; position: absolute; left: 7px; }
+
+  .ibtn { border: 0; background: none; color: #c9c9cc; cursor: pointer; padding: 2px; display: inline-flex; border-radius: 5px; }
+  .ibtn:hover { background: rgba(255,255,255,0.08); }
+  .textbtn { border: 0; background: none; color: #b9bbc2; cursor: pointer; font: inherit; font-size: 12px; padding: 2px 4px; border-radius: 5px; }
+  .textbtn:hover { background: rgba(255,255,255,0.08); color: #e8e8ea; }
+
+  /* The starry time-of-day orb. */
+  .orb {
+    width: 32px; height: 32px; border-radius: 50%; flex: none; cursor: pointer; position: relative; overflow: hidden;
+    background: radial-gradient(circle at 35% 30%, #4d5fb0, #1c2350 60%, #0b0f26);
+    box-shadow: 0 0 0 1px rgba(255,255,255,0.18), 0 2px 8px rgba(0,0,0,0.4);
+  }
+  .orb::after {
+    content: ""; position: absolute; inset: 0;
+    background:
+      radial-gradient(circle at 22% 62%, #fff 0 0.8px, transparent 1.4px),
+      radial-gradient(circle at 70% 28%, #fff 0 0.9px, transparent 1.5px),
+      radial-gradient(circle at 58% 74%, #dfe6ff 0 0.7px, transparent 1.3px),
+      radial-gradient(circle at 40% 40%, #fff 0 0.6px, transparent 1.2px);
+  }
+
+  /* Variant layouts */
+  .a-box { padding: var(--pad); display: flex; flex-direction: column; gap: var(--gap); }
+  .a-deck { display: flex; align-items: center; gap: 6px; }
+  .a-deck .spacer { flex: 1; }
+  .plus { position: relative; }
+
+  .b-strip { display: flex; align-items: center; padding: 0 2px; }
+  .b-row { display: flex; align-items: flex-end; gap: 8px; }
+  .b-row .box { flex: 1; padding: var(--pad) 9px; }
+
+  .c-wrap { display: flex; flex-direction: column; gap: var(--gap); }
+  .c-row { display: flex; align-items: stretch; gap: 8px; }
+  .c-row .box { flex: 1; padding: var(--pad) 10px; }
+  .c-side { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 8px; width: 36px; }
+  .c-foot { display: flex; align-items: center; padding: 0 2px; }
+  .c-foot .spacer { flex: 1; }
+
+  .d-row { display: flex; align-items: flex-end; gap: 8px; }
+  .d-row .box { flex: 1; padding: var(--pad) 6px var(--pad) 10px; display: flex; align-items: flex-end; gap: 6px; }
+
+  .strip { margin-top: 10px; display: grid; grid-template-columns: 90px 1fr; gap: 4px 10px; align-items: center; color: #9a9ca3; font-size: 11px; }
+  .strip .lv { display: flex; gap: 14px; flex-wrap: wrap; }
+  .strip .lv span { display: inline-flex; align-items: center; gap: 4px; }
+  .strip .bars { cursor: default; padding: 0; }
+  .strip .bars:hover { background: none; }
+</style>
+</head>
+<body>
+<h1>Input area: four shapes</h1>
+<p class="lede">Issue #17. Each mock is the 520 pt Pauri panel on glass, over a busy desktop, with the same
+draft, the same selected-text chip, the same screenshot chip, and the same models. Everything is live: type in
+the box (it grows up to 8 lines, then scrolls), open the model menu, click the bars to step the reasoning effort
+(it wraps back to low), and click a chip's x to remove it. Web search is always on, so no globe. The Blossom is
+the official OpenAI file, unmodified, on its own capsule; use follows
+<a href="https://openai.com/brand/">openai.com/brand</a>. References: Pauri's panel as it is today (glass, orb,
+chips above the input) and the ChatGPT window (text on top, controls under it in one rounded box). The third
+reference, T3 Code's composer, was not sent at gate 1, so it is not shown.</p>
+<div class="refs">
+  <figure><img src="../docs/reference/chatgpt-window.png" alt="ChatGPT window">ChatGPT window (docs/reference/chatgpt-window.png)</figure>
+  <figure id="today"></figure>
+</div>
+<div class="row" id="row"></div>
+
+<script>
+const icons = {
+  pencil: '<svg class="icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="1.5" y="3" width="10" height="11" rx="2"/><path d="M7 9.5l.4-2L13 2l1.6 1.6L9 9.1z"/></svg>',
+  gear: '<svg class="icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="8" cy="8" r="2.2"/><path d="M8 1.5v2M8 12.5v2M1.5 8h2M12.5 8h2M3.4 3.4l1.4 1.4M11.2 11.2l1.4 1.4M3.4 12.6l1.4-1.4M11.2 4.8l1.4-1.4"/></svg>',
+  mic: '<svg class="icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="5.5" y="1.5" width="5" height="8.5" rx="2.5"/><path d="M3 8a5 5 0 0 0 10 0M8 13v2"/></svg>',
+  plus: '<svg class="icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 3v10M3 8h10"/></svg>',
+  shot: '<svg class="icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M1.5 5V2.5h3M11.5 2.5h3V5M14.5 11v2.5h-3M4.5 13.5h-3V11"/><circle cx="8" cy="8" r="2.3"/></svg>',
+  quote: '<svg class="icon" viewBox="0 0 16 16" fill="currentColor" style="width:13px;height:13px"><path d="M2 4h5v4.5c0 2-1.2 3.3-3.3 3.6l-.3-1.2C4.6 10.6 5 10 5 9H2zm7 0h5v4.5c0 2-1.2 3.3-3.3 3.6l-.3-1.2c1.2-.3 1.6-.9 1.6-1.9H9z"/></svg>',
+  globe: '<svg class="icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2"><circle cx="8" cy="8" r="6.5"/><path d="M1.5 8h13M8 1.5c2 2 2 11 0 13M8 1.5c-2 2-2 11 0 13"/></svg>',
+  camera: '<svg class="icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="1.5" y="4" width="13" height="9" rx="2"/><circle cx="8" cy="8.5" r="2.3"/><path d="M5.5 4l1-1.5h3l1 1.5"/></svg>'
+};
+const esc = s => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
+
+const blossom = px =>
+  `<svg class="blossom" width="${px}" height="${px}" viewBox="0 0 716 716" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="OpenAI">${data.blossom}</svg>`;
+
+function barsHTML(levels, effort, s, interactive = true) {
+  const i = Math.max(0, levels.indexOf(effort));
+  const bars = levels.map((_, k) => {
+    const h = Math.round(s.barHeight * (0.45 + 0.55 * (k + 1) / levels.length));
+    return `<span class="bar${k <= i ? " on" : ""}" style="width:${s.barWidth}px;height:${h}px;margin-left:${k ? s.barGap : 0}px"></span>`;
+  }).join("");
+  const tip = `Reasoning: ${effort}. ${data.efforts[effort]}`;
+  return `<span class="bars${effort === "ultra" ? " ultra" : ""}"${interactive ? ` data-act="bars" role="button" aria-label="Reasoning effort" aria-valuetext="${effort}"` : ""} title="${esc(tip)}">${bars}</span>`;
+}
+
+function pickerHTML(st, s, menuDown = false) {
+  const m = st.model;
+  const menu = st.menuOpen ? `<div class="menu${menuDown ? " down" : ""}">${data.models.map(c =>
+    `<div data-act="pick" data-id="${c.id}" class="${c.id === m.id ? "on" : ""}">${esc(c.name)}</div>`).join("")}</div>` : "";
+  return `<span class="picker"><button class="capsule" data-act="menu" title="Model">${blossom(s.blossom)}<span>${esc(m.name)}</span><span class="caret">▾</span></button>${barsHTML(m.levels, m.effort, s)}<span class="level">${m.effort}</span>${menu}</span>`;
+}
+
+function chipsHTML(st, ghost = false) {
+  let h = "";
+  if (st.selection) h += `<span class="chip">${icons.quote}<span class="t">${esc(data.selection.split("\n")[0])}</span><button class="x" data-act="rmSel" title="Remove">✕</button></span>`;
+  if (st.screenshot) h += `<span class="chip"><span class="thumb"></span><span class="t">${data.screenshot.label}</span><button class="x" data-act="rmShot" title="Remove">✕</button></span>`;
+  if (ghost && !st.screenshot) h += `<span class="chip ghost" data-act="shot">+ Screenshot</span>`;
+  return h;
+}
+
+const textarea = (s) => `<textarea rows="${s.textMinLines}" placeholder="Ask Pauri" data-min="${s.textMinLines}" data-max="${s.textMaxLines}"></textarea>`;
+const orb = '<span class="orb" title="Send"></span>';
+const micBtn = `<button class="ibtn" title="Dictate">${icons.mic}</button>`;
+const transcript = () => `<div class="transcript"><div class="fill"></div><div class="q">${esc(data.exchange.question)}</div><div>${esc(data.exchange.answer)}</div></div>`;
+const topBar = (left = "") => `<div class="top">${left}<span class="spacer"></span>${icons.pencil}${icons.gear}</div>`;
+
+const variants = [
+  {
+    key: "A", name: "A. Two-deck box",
+    note: "One rounded box. The text runs the full width on top, at least 2 lines. A deck inside the box under it: + and the picker on the left, mic and orb on the right.",
+    shot: "Screenshot: the + menu at the left of the deck.",
+    render: (st, s) => topBar() + transcript() +
+      `<div class="chips">${chipsHTML(st)}</div>
+       <div class="box a-box" style="--pad:${s.boxPadding}px;--gap:${s.deckGap}px">${textarea(s)}
+         <div class="a-deck"><span class="plus"><button class="ibtn" data-act="plus" title="Add">${icons.plus}</button>${st.plusOpen ? `<div class="menu" style="bottom:28px"><div data-act="shot">Screenshot</div></div>` : ""}</span>
+           ${pickerHTML(st, s)}<span class="spacer"></span>${micBtn}${orb}</div></div>`
+  },
+  {
+    key: "B", name: "B. Picker strip above",
+    note: "A slim strip above the input holds the picker. The chips row under it ends in a ghost + Screenshot chip. The input row is the full-width text, then mic and orb.",
+    shot: "Screenshot: the ghost chip at the end of the chips row.",
+    render: (st, s) => topBar() + transcript() +
+      `<div class="b-strip">${pickerHTML(st, s)}</div>
+       <div class="chips inline">${chipsHTML(st, true)}</div>
+       <div class="b-row" style="--pad:${s.boxPadding}px"><div class="box sharp">${textarea(s)}</div>${micBtn}${orb}</div>`
+  },
+  {
+    key: "C", name: "C. Side column",
+    note: "The text box takes the width less a narrow column on its right, which stacks mic over orb. A quiet footer under the box holds the picker on the left and a Screenshot text button on the right.",
+    shot: "Screenshot: the text button at the right of the footer.",
+    render: (st, s) => topBar() + transcript() +
+      `<div class="chips">${chipsHTML(st)}</div>
+       <div class="c-wrap" style="--pad:${s.boxPadding}px;--gap:${s.deckGap}px">
+         <div class="c-row"><div class="box">${textarea(s)}</div><div class="c-side">${micBtn}${orb}</div></div>
+         <div class="c-foot">${pickerHTML(st, s)}<span class="spacer"></span><button class="textbtn" data-act="shot">${icons.shot.replace('class="icon"', 'class="icon" style="width:13px;height:13px;vertical-align:-2px"')} Screenshot</button></div>
+       </div>`
+  },
+  {
+    key: "D", name: "D. Controls out of the input",
+    note: "The input row is only the text, with the mic inside its trailing edge, and the orb. The picker and a screenshot button move to the top bar, left of the new-chat pencil.",
+    shot: "Screenshot: the icon button in the top bar, left of the pencil.",
+    render: (st, s) => `<div class="top">${pickerHTML(st, s, true)}<span class="spacer"></span><button class="ibtn" data-act="shot" title="Attach a screenshot">${icons.shot}</button>${icons.pencil}${icons.gear}</div>` +
+      transcript() +
+      `<div class="chips">${chipsHTML(st)}</div>
+       <div class="d-row" style="--pad:${s.boxPadding}px"><div class="box sharp">${textarea(s)}${micBtn}</div>${orb}</div>`
+  }
+];
+
+function grow(ta) {
+  const min = +ta.dataset.min, max = +ta.dataset.max;
+  ta.style.height = "auto";
+  const lines = Math.min(max, Math.max(min, Math.round(ta.scrollHeight / lineHeight)));
+  ta.style.height = lines * lineHeight + "px";
+  ta.style.overflowY = ta.scrollHeight > max * lineHeight + 1 ? "auto" : "hidden";
+}
+
+const fresh = () => ({ model: { ...data.models[0] }, selection: true, screenshot: true, menuOpen: false, plusOpen: false, draft: data.draft });
+
+const row = document.getElementById("row");
+variants.forEach(v => {
+  const s = sizes[v.key];
+  let st = fresh();
+  const col = document.createElement("div");
+  col.className = "col";
+  col.innerHTML = `<h2>${v.name}</h2><p class="note">${v.note}</p><p class="shot">${v.shot}</p>
+    <div class="desk"><div class="panel"></div></div>
+    <div class="strip"></div>
+    <button class="reset">Reset chips and draft</button>`;
+  row.appendChild(col);
+  const panel = col.querySelector(".panel");
+  const draw = () => {
+    panel.innerHTML = v.render(st, s);
+    const ta = panel.querySelector("textarea");
+    ta.value = st.draft;
+    ta.addEventListener("input", () => { st.draft = ta.value; grow(ta); });
+    grow(ta);
+  };
+  panel.addEventListener("click", e => {
+    const el = e.target.closest("[data-act]");
+    if (!el) { if (st.menuOpen || st.plusOpen) { st.menuOpen = st.plusOpen = false; draw(); } return; }
+    const act = el.dataset.act;
+    if (act === "menu") { st.menuOpen = !st.menuOpen; st.plusOpen = false; }
+    if (act === "plus") { st.plusOpen = !st.plusOpen; st.menuOpen = false; }
+    if (act === "pick") { st.model = { ...data.models.find(c => c.id === el.dataset.id) }; st.menuOpen = false; }
+    if (act === "bars") {
+      const lv = st.model.levels, i = lv.indexOf(st.model.effort);
+      st.model.effort = i < 0 ? lv[0] : lv[(i + 1) % lv.length];
+    }
+    if (act === "rmSel") st.selection = false;
+    if (act === "rmShot") st.screenshot = false;
+    if (act === "shot") { st.screenshot = true; st.plusOpen = false; }
+    draw();
+  });
+  col.querySelector(".reset").addEventListener("click", () => { st = fresh(); draw(); });
+  const six = data.models[0].levels, five = data.models[7].levels;
+  const strip = (lv, label) => `<span>${label}</span><span class="lv">${lv.map(e => `<span>${barsHTML(lv, e, s, false)}${e}</span>`).join("")}</span>`;
+  col.querySelector(".strip").innerHTML = strip(six, "Six levels") + strip(five, "Luna, five");
+  draw();
+});
+
+// Reference (a): the input row as it is today, for comparison.
+document.getElementById("today").innerHTML =
+  `<div class="desk" style="width:520px;padding:14px"><div class="panel" style="height:auto;padding:12px">
+     <div style="display:flex;align-items:center;gap:8px">
+       <div class="box sharp" style="flex:1;padding:4px 8px;color:#7e8088">Ask Pauri</div>
+       <span style="display:inline-flex;gap:4px;align-items:center;color:#c9c9cc">▣ GPT-6.1-Sol Fast ▾</span>
+       ${icons.globe}${icons.camera}${icons.mic}${orb}
+     </div></div></div>Pauri today: one row, the text field is cramped`;
+</script>
+</body>
+</html>
