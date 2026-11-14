@@ -126,6 +126,41 @@
   .look-town .body { background: linear-gradient(to bottom, #3B3A7A, #8A6AA8 52%, #E7A0A0 70%); }
   .look-town .town-hill { background: radial-gradient(ellipse 100% 36% at 50% 100%, #1E1C3A 97%, transparent 100%); }
 
+  /* Ambient motion: every scene moves a little all the time. --pace shortens every loop while answering. */
+  .orb { --pace: 1; }
+  .orb.busy, body.busy .orb { --pace: 0.35; }
+  body.reduce .orb * { animation: none !important; }
+  .orb .speck { opacity: var(--o); }
+  .m-twinkle .speck { animation: twinkle calc(3.2s * var(--pace)) ease-in-out infinite; animation-delay: calc(var(--i) * -0.8s); }
+  .m-shimmer .speck { animation: twinkle calc(1.6s * var(--pace)) ease-in-out infinite; animation-delay: calc(var(--i) * -0.45s); }
+  .m-sway .speck { animation: sway calc(2.6s * var(--pace)) ease-in-out infinite; animation-delay: calc(var(--i) * -0.6s); }
+  .m-drift .speck { animation: drift calc(4.5s * var(--pace)) ease-in-out infinite; animation-delay: calc(var(--i) * -1.1s); }
+  .m-float .speck { animation: float calc(5s * var(--pace)) linear infinite; animation-delay: calc(var(--i) * -1.25s); }
+  .m-flicker .speck { animation: flicker calc(3.8s * var(--pace)) steps(1) infinite; animation-delay: calc(var(--i) * -0.9s); }
+  .look-sky .cloud, .look-sky .cloud-shade { animation: cloud-drift calc(9s * var(--pace)) ease-in-out infinite; }
+  .look-dawn .dawn-sun { animation: rise calc(10s * var(--pace)) ease-in-out infinite; }
+  .look-dawn .mist { animation: cloud-drift calc(8s * var(--pace)) ease-in-out infinite; }
+  .look-seaside .sail, .look-seaside .hull { transform-origin: 79% 66%; animation: bob calc(3s * var(--pace)) ease-in-out infinite; }
+  .look-golden .golden-sun, .look-moon .moon { animation: breathe calc(5s * var(--pace)) ease-in-out infinite; }
+  .look-harbor .sun-path { animation: breathe calc(2.4s * var(--pace)) ease-in-out infinite; }
+  @keyframes twinkle { 0%, 100% { opacity: var(--o); } 50% { opacity: calc(var(--o) * 0.2); } }
+  @keyframes sway { 0%, 100% { transform: translateX(calc(-0.5px * var(--s))); } 50% { transform: translateX(calc(0.5px * var(--s))); } }
+  @keyframes drift {
+    0%, 100% { transform: translate(0, 0); opacity: var(--o); }
+    30% { transform: translate(calc(1.4px * var(--s)), calc(-1px * var(--s))); opacity: calc(var(--o) * 0.2); }
+    65% { transform: translate(calc(-1px * var(--s)), calc(-2px * var(--s))); opacity: var(--o); }
+  }
+  @keyframes float {
+    0% { transform: translateY(0); opacity: 0; }
+    20% { opacity: var(--o); }
+    100% { transform: translateY(calc(-7px * var(--s))); opacity: 0; }
+  }
+  @keyframes flicker { 0% { opacity: var(--o); } 70% { opacity: calc(var(--o) * 0.35); } 78% { opacity: var(--o); } }
+  @keyframes cloud-drift { 0%, 100% { transform: translateX(calc(-1.5px * var(--s))); } 50% { transform: translateX(calc(1.5px * var(--s))); } }
+  @keyframes rise { 0%, 100% { transform: translateY(calc(1px * var(--s))); } 50% { transform: translateY(calc(-1px * var(--s))); } }
+  @keyframes bob { 0%, 100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(calc(0.7px * var(--s))) rotate(3deg); } }
+  @keyframes breathe { 0%, 100% { opacity: 1; } 50% { opacity: 0.65; } }
+
   /* 5. Through the day: the scene orbs stacked, cross-faded by the clock. */
   .day { background: #161616; border: 1px solid #262626; border-radius: 12px; padding: 16px; margin-bottom: 16px; }
   .day h2 { font-size: 14px; margin: 0 0 4px; }
@@ -160,11 +195,14 @@
   a flower meadow, a seaside town at sunset, and a forest at dusk. Original motifs only, no characters.
   Pick the send animation at the top: it applies to every column. Each column shows the orb in a dark and a
   light input row at 1x (32 pt), then at 3x. Click <b>Send</b> or any orb to play a send.
+  Every scene also moves a little all the time (clouds drift, the boat bobs, fireflies wander); <b>Answering</b>
+  speeds that up, and <b>Reduce Motion</b> stops it.
 </p>
 <div class="controls">
   <label>Animation <select id="anim"></select></label>
   <label><input type="checkbox" id="reduce"> Reduce Motion</label>
   <label><input type="checkbox" id="disabled"> Disabled (blank draft)</label>
+  <label><input type="checkbox" id="busy"> Answering (scenes move faster)</label>
 </div>
 <p id="anim-text"></p>
 <section class="day" id="day">
@@ -281,9 +319,13 @@ function arrowSvg(color) {
     stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V4.5M5 11.5l7-7 7 7"/></svg>`;
 }
 
+// How each scene's specks move when idle.
+const MOTION = { sky: "twinkle", meadow: "sway", harbor: "shimmer", forest: "drift", dawn: "twinkle",
+  moon: "twinkle", bluehour: "twinkle", seaside: "shimmer", golden: "float", town: "flicker" };
+
 function makeOrb(look, scale) {
   const orb = document.createElement("button");
-  orb.className = `orb look-${look.id}`;
+  orb.className = `orb look-${look.id} m-${MOTION[look.id]}`;
   orb.setAttribute("aria-label", "Send");
   const vars = {
     "--s": scale, "--size": ORB.size, "--arrow-size": ORB.arrowSize, "--arrow-shadow": look.arrowShadow,
@@ -291,10 +333,10 @@ function makeOrb(look, scale) {
     "--disabled-opacity": ORB.disabledOpacity,
   };
   for (const [k, v] of Object.entries(vars)) orb.style.setProperty(k, v);
-  const specks = look.specks.map(p => {
+  const specks = look.specks.map((p, i) => {
     const d = p.r * 2 * scale;
     const glow = p.glow ? `box-shadow:0 0 ${2.5 * scale}px ${p.color};` : "";
-    return `<i class="speck" style="width:${d}px;height:${d}px;background:${p.color};opacity:${p.opacity};${glow}` +
+    return `<i class="speck" style="width:${d}px;height:${d}px;background:${p.color};--o:${p.opacity};--i:${i};${glow}` +
       `left:${p.x * ORB.size * scale - d / 2}px;top:${p.y * ORB.size * scale - d / 2}px"></i>`;
   }).join("");
   const layers = look.layers.map(n => `<span class="${n}"></span>`).join("");
@@ -309,6 +351,7 @@ function makeOrb(look, scale) {
 const animSelect = document.getElementById("anim");
 const reduceBox = document.getElementById("reduce");
 const disabledBox = document.getElementById("disabled");
+const busyBox = document.getElementById("busy");
 for (const a of ANIMATIONS) animSelect.add(new Option(a.name, a.id));
 reduceBox.checked = matchMedia("(prefers-reduced-motion: reduce)").matches;
 const reduced = () => reduceBox.checked;
@@ -394,11 +437,14 @@ function finish(col) {
 }
 
 function render() {
-  document.body.className = `anim-${anim()}`;
+  document.body.className = `anim-${anim()}${reduced() ? " reduce" : ""}${busyBox.checked ? " busy" : ""}`;
   document.getElementById("anim-text").textContent = ANIMATIONS.find(a => a.id === anim()).text;
   for (const col of columns) {
     const dim = disabledBox.checked || col.answering;
-    for (const { orb } of col.orbs) orb.classList.toggle("dimmed", dim);
+    for (const { orb } of col.orbs) {
+      orb.classList.toggle("dimmed", dim);
+      orb.classList.toggle("busy", col.answering);
+    }
     // The dynamic orb's scenes carry their own opacity, so it dims as a whole stack.
     col.stackEls?.forEach(el => el.style.opacity = dim ? ORB.disabledOpacity : 1);
   }
@@ -607,7 +653,7 @@ setNow();
 
 // Switching animation or Reduce Motion ends any answer in progress, so no pulse is left over.
 animSelect.onchange = reduceBox.onchange = () => { columns.forEach(finish); };
-disabledBox.onchange = render;
+disabledBox.onchange = busyBox.onchange = render;
 render();
 </script>
 </body>
