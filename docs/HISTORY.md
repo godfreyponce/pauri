@@ -3,6 +3,22 @@
 Accepted-work archive. One section per accepted ticket, appended at the accept-time docs commit.
 Newest first.
 
+## #14 Stop an answer from the send orb's square (2026-11-14)
+
+- While an answer streams, a click on the orb's square sends `turn/interrupt` to the running
+  `codex app-server` turn, so Codex stops working too. Codex then ends the turn with
+  `turn/completed`, status `"interrupted"`, which Pauri reads as a clean end: the text so far
+  stays, no notice shows, and the orb goes back to the arrow. Enter in the text field still
+  only sends. The orb's tooltip and VoiceOver label read "Stop" while answering.
+- The turn id comes from the `turn/started` notification, not the `turn/start` reply (the plan
+  said the reply). On codex-cli 0.169.0, an interrupt sent right after the reply on a fresh
+  launch got "no active turn to interrupt". A click before `turn/started` is remembered and
+  sent when it arrives. Only the chat's own thread counts, so a handoff fork's turn is never
+  interrupted by a stop left over from the turn before it.
+- Tests 68/68 on main after the merge with #11 (65/65 in the worktree), ten live tests skipped
+  (`./scripts/test.sh && ./scripts/build-app.sh`); the live suite passed 10/10 with
+  `PAURI_LIVE=1`. Commit 8c1aa69.
+
 ## #11 Dictation button (2026-11-14)
 
 - A mic button between the input and the send orb. Press to start, press again to stop. Each
