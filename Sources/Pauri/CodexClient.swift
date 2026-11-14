@@ -151,12 +151,10 @@ final class CodexClient {
 
         let reading = stdout.fileHandleForReading
         Task.detached { [weak self] in
-            do {
-                for try await line in reading.bytes.lines {
-                    guard let message = try? CodexIncoming(line: Data(line.utf8)) else { continue }
-                    await self?.receive(message, from: owner)
-                }
-            } catch {}
+            try? await forEachLine(in: reading.bytes) { line in
+                guard let message = try? CodexIncoming(line: line) else { return }
+                await self?.receive(message, from: owner)
+            }
         }
     }
 
@@ -230,6 +228,21 @@ final class CodexClient {
             return try JSONDecoder().decode(Result.self, from: data)
         } catch {
             throw CodexProblem.failed("Codex sent a reply Pauri can't read.")
+        }
+    }
+}
+
+/// Splits on "\n" only. `AsyncLineSequence` also splits on U+2028, U+2029, and U+0085, which
+/// Codex writes raw inside JSON strings.
+func forEachLine<Bytes: AsyncSequence>(in bytes: Bytes, _ body: (Data) async -> Void) async throws
+where Bytes.Element == UInt8 {
+    var line = Data()
+    for try await byte in bytes {
+        if byte == UInt8(ascii: "\n") {
+            await body(line)
+            line = Data()
+        } else {
+            line.append(byte)
         }
     }
 }
