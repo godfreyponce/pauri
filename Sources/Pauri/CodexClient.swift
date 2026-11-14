@@ -20,6 +20,8 @@ enum CodexProblem: Error, Equatable {
 @MainActor
 final class CodexClient {
     private(set) var processIdentifier: Int32?
+    /// The turns of the thread the last `launch()` resumed; empty when it started a new thread.
+    private(set) var restoredExchanges: [Exchange] = []
 
     private var starting: Task<Void, Error>?
     private var process: Process?
@@ -28,8 +30,11 @@ final class CodexClient {
     private var nextID = 1
     private var pending: [Int: CheckedContinuation<Data, Error>] = [:]
     private var active: AsyncThrowingStream<String, Error>.Continuation?
+    private let defaults: UserDefaults
+    private static let threadKey = "lastThreadID"
 
-    init() {
+    init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
         // A write to the pipe of a child that just died must fail, not kill Pauri.
         signal(SIGPIPE, SIG_IGN)
     }
@@ -52,17 +57,27 @@ final class CodexClient {
         }
     }
 
+    /// The next `ask` starts a new thread on the same process.
+    func forgetThread() {
+        threadID = nil
+        defaults.removeObject(forKey: Self.threadKey)
+    }
+
     func ask(_ question: String) -> AsyncThrowingStream<String, Error> {
         let (stream, continuation) = AsyncThrowingStream<String, Error>.makeStream()
         Task {
             do {
                 try await start()
+                if threadID == nil { threadID = try await startThread() }
                 guard let threadID else { throw CodexProblem.stopped }
                 active = continuation
                 _ = try await send("turn/start", [
                     "threadId": threadID,
                     "input": [["type": "text", "text": question, "text_elements": [Any]()]],
                 ])
+                // Codex writes a thread to disk only at its first turn; an id saved before that
+                // cannot be resumed.
+                defaults.set(threadID, forKey: Self.threadKey)
             } catch {
                 active = nil
                 continuation.finish(throwing: error)
@@ -86,10 +101,28 @@ final class CodexClient {
         let account: AccountReadResult = try decode(await send("account/read", [:]))
         guard account.isLoggedIn else { throw CodexProblem.notLoggedIn }
 
+        if let saved = defaults.string(forKey: Self.threadKey) {
+            do {
+                let resumed: ThreadResumeResult = try decode(await send("thread/resume", [
+                    "threadId": saved, "cwd": home.path, "sandbox": "read-only", "approvalPolicy": "never",
+                ]))
+                threadID = saved
+                restoredExchanges = resumed.exchanges
+                return
+            } catch CodexProblem.failed {
+                // The saved chat is gone (deleted session file, or a codex update dropped it).
+                defaults.removeObject(forKey: Self.threadKey)
+            }
+        }
+        threadID = try await startThread()
+        restoredExchanges = []
+    }
+
+    private func startThread() async throws -> String {
         let started: ThreadStartResult = try decode(await send("thread/start", [
-            "cwd": home.path, "sandbox": "read-only", "approvalPolicy": "never",
+            "cwd": FileManager.default.homeDirectoryForCurrentUser.path, "sandbox": "read-only", "approvalPolicy": "never",
         ]))
-        threadID = started.thread.id
+        return started.thread.id
     }
 
     /// Runs the user's interactive login shell, where nvm, Homebrew, and Volta set up `PATH`.
