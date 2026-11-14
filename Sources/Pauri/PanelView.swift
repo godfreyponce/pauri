@@ -3,6 +3,7 @@ import SwiftUI
 
 struct PanelView: View {
     let hotKey: HotKey
+    let chat: Chat
     @State private var draft = ""
     @State private var showsSettings = false
     @FocusState private var focused: Bool
@@ -17,10 +18,20 @@ struct PanelView: View {
                     .help("Settings")
                     .popover(isPresented: $showsSettings) { SettingsView(hotKey: hotKey) }
             }
-            Spacer()
+            ScrollView {
+                Text(chat.answer)
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .frame(maxHeight: .infinity)
+            if let notice = chat.notice {
+                Text(notice)
+                    .foregroundStyle(.secondary)
+            }
             TextField("Ask Pauri", text: $draft)
                 .textFieldStyle(.roundedBorder)
                 .focused($focused)
+                .onSubmit { if chat.send(draft) { draft = "" } }
         }
         .padding()
         .background {

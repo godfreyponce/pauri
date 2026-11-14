@@ -2,7 +2,7 @@
 glass: pauri
 status: in-progress
 last_worked_on: 2026-11-13
-next_action: "#2"
+next_action: "#9"
 blocked_on: ""
 phase: "Bootstrapped 2026-11-13. Tickets #1-#12 cut from docs/spec.md, none green-lit."
 ---
@@ -21,9 +21,11 @@ Archive: `docs/HISTORY.md`. Queue: GitHub Issues (`gh issue list`). Protocol: `A
 - Build: `./scripts/build-app.sh` (writes `build/Pauri.app`).
 - Run: `open build/Pauri.app`. Quit: `pkill -x Pauri`.
 - Test: `./scripts/test.sh`.
+- Live test: `PAURI_LIVE=1 ./scripts/test.sh --filter liveTwoQuestionsOneProcess` (needs a logged-in Codex, spends a few tokens).
 - Full check: `./scripts/test.sh && ./scripts/build-app.sh`.
 
 ## Gotchas
 
 - A GUI app does not get the shell's `PATH`. On the owner's Mac `codex` lives under `~/.nvm`.
+- `codex app-server` protocol types: `codex app-server generate-ts --out <dir>`. They change between codex versions.
 - Public repo: no env values, credentials, or owner personal data in commits or issues.

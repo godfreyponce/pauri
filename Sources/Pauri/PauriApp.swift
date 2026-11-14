@@ -14,11 +14,15 @@ struct PauriApp: App {
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var panel: PanelController?
     private var hotKey: HotKey?
+    private var chat: Chat?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        let chat = Chat(client: CodexClient())
+        chat.warmUp()
+        self.chat = chat
         let hotKey = HotKey { [weak self] in self?.panel?.toggle() }
         self.hotKey = hotKey
-        panel = PanelController(hotKey: hotKey)
+        panel = PanelController(hotKey: hotKey, chat: chat)
     }
 
     /// Opening Pauri again shows the panel: the way back in when a new shortcut never arrives.
