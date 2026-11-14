@@ -6,7 +6,7 @@ The name: P from *Proxima*, the rest from *Centauri*. The nearest star, always c
 
 ## Status
 
-The panel opens on a hotkey and takes text, but it has no backend yet: it does not talk to Codex. The design is in [docs/spec.md](docs/spec.md) and the work queue is in GitHub Issues.
+The panel opens on a hotkey. Type a question and press Return: the answer streams in from your own `codex app-server`. One question at a time; follow-ups, the model picker, and tool steps come next. The design is in [docs/spec.md](docs/spec.md) and the work queue is in GitHub Issues.
 
 ## Requirements
 
