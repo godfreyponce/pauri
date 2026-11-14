@@ -3,6 +3,31 @@
 Accepted-work archive. One section per accepted ticket, appended at the accept-time docs commit.
 Newest first.
 
+## #10 Send orb that follows the time of day (2026-11-13)
+
+- The send button is a 32 pt painted orb at the right of the text field. Its scene follows the
+  clock through ten frames: blue hour, dawn, flower meadow, seaside morning, summer sky, golden
+  afternoon, harbor sunset, evening town, dusk forest, midnight moon. Neighbouring frames
+  cross-fade over 40 minutes, or 60% of a frame when that is shorter. Original motifs in a
+  Studio Ghibli mood, no characters, no image assets.
+- The owner moved the design away from the indigo reference orb (`docs/reference/send-orb.png`)
+  over six rounds at the Task 1 stop. `design-directions/issue-10.html` is the record: four
+  looks, four send animations, and section 5, the dynamic orb that won. The midnight-moon frame
+  keeps the reference's indigo starry sphere.
+- Place without a permission prompt: the Mac's time zone is looked up in
+  `/usr/share/zoneinfo/zone.tab`, and NOAA's sunrise formula places dawn and sunset. A zone that
+  zone.tab does not list uses 6:30 and 19:00. The day length is held to 1 to 20 hours, so
+  midnight sun, polar night, and a sunset after midnight keep the ten frames in order.
+- Enter and a click both go through `PanelView.submit()`; each accepted send plays press and
+  ring (the orb dips to 0.88, one glow ring grows and fades). The scene moves only while an
+  answer streams and holds its frame otherwise, and the arrow turns into a square. The square
+  does nothing yet: #14. The orb dims to 0.4 only for a blank draft; while answering it stays
+  bright, and `Chat.send` refuses the send. Reduce Motion: the glow flashes, nothing moves.
+- SwiftUI fades each layer of a stack on its own: the scenes and the orb carry
+  `.compositingGroup()` so a cross-fade or the dim does not show inner layers.
+- Tests 35/35 on main after the merge, four live tests skipped (`./scripts/test.sh &&
+  ./scripts/build-app.sh`). Commits 0d88d3e..0ad3bc2, merge e054484.
+
 ## #13 Codex stdout reader without a shared blocking read (2026-11-13)
 
 - Pauri reads `codex app-server` stdout through `FileHandle.readabilityHandler`
