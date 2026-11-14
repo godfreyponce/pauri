@@ -195,4 +195,14 @@ struct CodexProtocolTests {
         #expect(parseCodexLookup("__PAURI__\nalias codex=foo\n/usr/bin:/bin\n") == nil)
         #expect(parseCodexLookup("") == nil)
     }
+
+    @Test func turnInputPutsTheImageAfterTheText() throws {
+        func json(_ input: [[String: Any]]) throws -> String {
+            String(decoding: try JSONSerialization.data(withJSONObject: input, options: [.sortedKeys]), as: UTF8.self)
+        }
+        #expect(try json(CodexClient.turnInput("hi", image: nil))
+            == #"[{"text":"hi","text_elements":[],"type":"text"}]"#)
+        #expect(try json(CodexClient.turnInput("hi", image: URL(fileURLWithPath: "/tmp/shot.png")))
+            == #"[{"text":"hi","text_elements":[],"type":"text"},{"path":"\/tmp\/shot.png","type":"localImage"}]"#)
+    }
 }

@@ -85,7 +85,7 @@ final class CodexClient {
         defaults.removeObject(forKey: Self.threadKey)
     }
 
-    func ask(_ question: String) -> AsyncThrowingStream<TurnEvent, Error> {
+    func ask(_ question: String, image: URL? = nil) -> AsyncThrowingStream<TurnEvent, Error> {
         let (stream, continuation) = AsyncThrowingStream<TurnEvent, Error>.makeStream()
         turn = nil
         stopRequested = false
@@ -94,7 +94,7 @@ final class CodexClient {
                 try await start()
                 if threadID == nil { threadID = try await startThread() }
                 guard let threadID else { throw CodexProblem.stopped }
-                try await startTurn(question, on: threadID, into: continuation)
+                try await startTurn(question, image: image, on: threadID, into: continuation)
                 // Codex writes a thread to disk only at its first turn; an id saved before that
                 // cannot be resumed.
                 defaults.set(threadID, forKey: Self.threadKey)
@@ -143,14 +143,22 @@ final class CodexClient {
         return note
     }
 
+    /// The text item goes first, then the image.
+    nonisolated static func turnInput(_ text: String, image: URL?) -> [[String: Any]] {
+        var input: [[String: Any]] = [["type": "text", "text": text, "text_elements": [Any]()]]
+        if let image { input.append(["type": "localImage", "path": image.path]) }
+        return input
+    }
+
     private func startTurn(
-        _ text: String, on threadID: String, into continuation: AsyncThrowingStream<TurnEvent, Error>.Continuation
+        _ text: String, image: URL? = nil, on threadID: String,
+        into continuation: AsyncThrowingStream<TurnEvent, Error>.Continuation
     ) async throws {
         active = continuation
         do {
             _ = try await send("turn/start", [
                 "threadId": threadID,
-                "input": [["type": "text", "text": text, "text_elements": [Any]()]],
+                "input": Self.turnInput(text, image: image),
             ])
         } catch {
             active = nil
