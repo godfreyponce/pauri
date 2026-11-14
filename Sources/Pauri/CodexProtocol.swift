@@ -8,6 +8,7 @@ enum RPCID: Hashable, Sendable {
 
 enum CodexNotification: Equatable, Sendable {
     case agentMessageDelta(String)
+    case turnStarted(threadID: String, turnID: String)
     case turnCompleted(errorMessage: String?)
     case error(message: String, willRetry: Bool)
     case contextUsage(threadID: String, ContextUsage)
@@ -174,10 +175,16 @@ extension CodexNotification {
         switch method {
         case "item/agentMessage/delta":
             self = .agentMessageDelta(params["delta"] as? String ?? "")
+        case "turn/started":
+            guard let threadID = params["threadId"] as? String,
+                  let turnID = (params["turn"] as? [String: Any])?["id"] as? String
+            else { self = .ignored; return }
+            self = .turnStarted(threadID: threadID, turnID: turnID)
         case "turn/completed":
             let turn = params["turn"] as? [String: Any] ?? [:]
             let status = turn["status"] as? String ?? "unknown"
-            if status == "completed" {
+            // Only Pauri talks to its own app-server, so an interrupted turn is one the user stopped.
+            if status == "completed" || status == "interrupted" {
                 self = .turnCompleted(errorMessage: nil)
             } else {
                 let message = (turn["error"] as? [String: Any])?["message"] as? String

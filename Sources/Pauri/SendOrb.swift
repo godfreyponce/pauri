@@ -19,7 +19,7 @@ struct SendOrb: View {
 
     var body: some View {
         // Not `.disabled`: a disabled plain button may draw itself greyed out, and while answering the orb
-        // must stay bright to show the moving scene. `action` is `PanelView.submit`, which `Chat.send` refuses.
+        // must stay bright and clickable, because a click then stops the answer.
         Button(action: action) {
             TimelineView(.everyMinute) { minute in
                 let weights = DaySchedule.weights(
@@ -34,8 +34,8 @@ struct SendOrb: View {
         .buttonStyle(.plain)
         .focusable(false)
         .opacity(isEnabled || isAnswering ? 1 : 0.4)
-        .help("Send")
-        .accessibilityLabel("Send")
+        .help(isAnswering ? "Stop" : "Send")
+        .accessibilityLabel(isAnswering ? "Stop" : "Send")
         .onChange(of: isMoving, initial: true) { _, moving in
             if moving {
                 movingSince = .now

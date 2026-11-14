@@ -47,6 +47,11 @@ final class CodexClient {
     private var nextID = 1
     private var pending: [Int: CheckedContinuation<Data, Error>] = [:]
     private var active: AsyncThrowingStream<TurnEvent, Error>.Continuation?
+    /// The chat's running turn, from `turn/started`. The `turn/start` reply carries the id too, but
+    /// an interrupt sent right after it got "no active turn to interrupt" (codex-cli 0.169.0).
+    private var turn: (threadID: String, id: String)?
+    /// A stop that came before `turn/started`.
+    private var stopRequested = false
     private let defaults: UserDefaults
     private static let threadKey = "lastThreadID"
 
@@ -82,6 +87,8 @@ final class CodexClient {
 
     func ask(_ question: String) -> AsyncThrowingStream<TurnEvent, Error> {
         let (stream, continuation) = AsyncThrowingStream<TurnEvent, Error>.makeStream()
+        turn = nil
+        stopRequested = false
         Task {
             do {
                 try await start()
@@ -96,6 +103,16 @@ final class CodexClient {
             }
         }
         return stream
+    }
+
+    /// Codex ends the turn with status "interrupted", which finishes the stream without an error.
+    func stopAnswer() {
+        stopRequested = true
+        guard let turn else { return }
+        Task {
+            // The reply is `{}`; an error only means the turn had already ended.
+            _ = try? await send("turn/interrupt", ["threadId": turn.threadID, "turnId": turn.id])
+        }
     }
 
     func decide(_ request: ApprovalRequest, _ decision: ApprovalDecision) {
@@ -269,6 +286,12 @@ final class CodexClient {
             active?.yield(.text(text))
         case .notification(.step(let step)):
             active?.yield(.step(step))
+        case .notification(.turnStarted(let threadID, let id)):
+            // A handoff fork's turn is never the user's to stop, and `stopRequested` may be left
+            // from the turn before it.
+            guard active != nil, threadID == self.threadID else { return }
+            turn = (threadID, id)
+            if stopRequested { stopAnswer() }
         case .notification(.turnCompleted(nil)):
             active?.finish()
             active = nil
