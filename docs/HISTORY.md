@@ -3,6 +3,25 @@
 Accepted-work archive. One section per accepted ticket, appended at the accept-time docs commit.
 Newest first.
 
+## #9 Glass window and transparency slider (2026-11-13)
+
+- The panel is frosted glass: an `NSVisualEffectView` (material `.popover`, blending
+  `.behindWindow`, state `.active`) is the panel's content view, with the SwiftUI hosting view
+  inside it. `.active` matters: Pauri never becomes the active app, and the default state would
+  draw the flat inactive look.
+- `PanelView` lays `windowBackgroundColor` over the glass at opacity `1 - transparency`. One
+  slider in the gear popover, Solid (0) to Glass (1), default Glass, writes `UserDefaults` key
+  `transparency` through `@AppStorage`, so the panel follows it live and it survives a relaunch.
+  Reset: `defaults delete io.github.godfreyponce.pauri transparency`.
+- At Glass the slider stops at the bare system material. In dark mode `.popover` lets only a
+  faint blur of the apps behind through; a clearer look is a one-word material swap in
+  `PanelController`.
+- With macOS Reduce Transparency on, the glass draws solid, so the slider has almost no effect.
+- Main moved under the build (#2 landed); `issue-9` merged main in (4559520), keeping the glass
+  and #2's `PanelView(hotKey:chat:)`.
+- Tests 21/21, one skipped (`./scripts/test.sh && ./scripts/build-app.sh`). Commits
+  9a2bc7a..e1faf74, main merged in 4559520, merge 91ba497.
+
 ## #2 Ask one question, get a streamed answer (2026-11-13)
 
 - Pauri finds `codex` through the user's interactive login shell (`$SHELL -l -i -c`, about 0.5 s,
