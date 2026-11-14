@@ -7,10 +7,16 @@ struct PanelView: View {
     @State private var draft = ""
     @State private var showsSettings = false
     @State private var sends = 0
+    @State private var dictation = Dictation()
+    /// The draft as it was when the mic started; speech is added after it.
+    @State private var dictationPrefix = ""
+    /// The last text dictation wrote, so a change that differs from it is the user typing.
+    @State private var dictated = ""
     @FocusState private var focused: Bool
     @AppStorage(Transparency.key) private var transparency = Transparency.default
 
     private func submit() {
+        dictation.stop()
         if chat.send(draft) {
             draft = ""
             sends += 1
@@ -74,6 +80,17 @@ struct PanelView: View {
                 Text(notice)
                     .foregroundStyle(.secondary)
             }
+            if let problem = dictation.problem {
+                HStack {
+                    Text(problem.message)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    if let url = problem.settingsURL {
+                        Button("Open System Settings") { NSWorkspace.shared.open(url) }
+                            .buttonStyle(.borderless)
+                    }
+                }
+            }
             SelectionBar(chat: chat)
             HStack {
                 TextField("Ask Pauri", text: $draft, axis: .vertical)
@@ -81,6 +98,25 @@ struct PanelView: View {
                     .textFieldStyle(.roundedBorder)
                     .focused($focused)
                     .onSubmit(submit)
+                Button {
+                    if dictation.isListening {
+                        dictation.stop()
+                    } else {
+                        dictationPrefix = draft
+                        dictation.start { spoken in
+                            dictated = Dictation.joined(dictationPrefix, spoken)
+                            draft = dictated
+                        }
+                    }
+                } label: {
+                    if dictation.isListening {
+                        Image(systemName: "mic.fill").foregroundStyle(.red)
+                    } else {
+                        Image(systemName: dictation.problem == nil ? "mic" : "mic.slash")
+                    }
+                }
+                .buttonStyle(.borderless)
+                .help(dictation.isListening ? "Stop dictation" : dictation.problem?.message ?? "Dictate")
                 SendOrb(sends: sends,
                         isEnabled: !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                             && !chat.isAnswering && !chat.isWritingHandoff,
@@ -96,6 +132,12 @@ struct PanelView: View {
         // key, and moving focus to the text field then would close the popover.
         .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { note in
             if note.object is FloatingPanel { focused = true }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSWindow.didResignKeyNotification)) { note in
+            if note.object is FloatingPanel { dictation.stop() }
+        }
+        .onChange(of: draft) { _, new in
+            if dictation.isListening && new != dictated { dictation.stop() }
         }
     }
 }
