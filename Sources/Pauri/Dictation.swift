@@ -1,3 +1,4 @@
+import AppKit
 import AVFoundation
 import Observation
 import Speech
@@ -37,8 +38,10 @@ final class Dictation {
     private(set) var isListening = false
     private(set) var problem: DictationProblem?
 
-    /// True while the access dialogs are up, so a second press cannot start a second engine.
-    @ObservationIgnored private var isStarting = false
+    /// The start whose access dialogs are up: a second press cannot start a second engine, and
+    /// `cancel()` can drop it.
+    @ObservationIgnored private var pendingStart: Int?
+    @ObservationIgnored private var starts = 0
     @ObservationIgnored private var engine: AVAudioEngine?
     @ObservationIgnored private var request: SFSpeechAudioBufferRecognitionRequest?
     @ObservationIgnored private var recognizer: SFSpeechRecognizer?
@@ -48,20 +51,31 @@ final class Dictation {
     @ObservationIgnored private var run = 0
 
     func start(onText: @escaping @MainActor (String) -> Void) {
-        guard !isStarting, !isListening else { return }
-        isStarting = true
+        guard pendingStart == nil, !isListening else { return }
+        starts += 1
+        let thisStart = starts
+        pendingStart = thisStart
         problem = nil
         Task {
-            defer { isStarting = false }
             let micAllowed = await AVCaptureDevice.requestAccess(for: .audio)
             let speechAllowed = await Self.requestSpeechAccess()
             let onDevice = SFSpeechRecognizer()?.supportsOnDeviceRecognition ?? false
+            guard pendingStart == thisStart else { return }
+            pendingStart = nil
             if let problem = Self.problem(micAllowed: micAllowed, speechAllowed: speechAllowed, onDevice: onDevice) {
                 self.problem = problem
                 return
             }
+            // The panel can be hidden while the dialogs are up; the mic must not run behind it.
+            guard NSApp.windows.contains(where: { $0 is FloatingPanel && $0.isVisible }) else { return }
             listen(onText)
         }
+    }
+
+    /// Stops listening, and drops a start whose access dialogs are still up.
+    func cancel() {
+        pendingStart = nil
+        stop()
     }
 
     func stop() {

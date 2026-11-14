@@ -16,7 +16,7 @@ struct PanelView: View {
     @AppStorage(Transparency.key) private var transparency = Transparency.default
 
     private func submit() {
-        dictation.stop()
+        dictation.cancel()
         if chat.send(draft) {
             draft = ""
             sends += 1
