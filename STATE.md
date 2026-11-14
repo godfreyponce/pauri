@@ -2,7 +2,7 @@
 glass: pauri
 status: in-progress
 last_worked_on: 2026-11-13
-next_action: "#8"
+next_action: "#5"
 blocked_on: ""
 phase: "Bootstrapped 2026-11-13. Tickets #1-#12 cut from docs/spec.md, none green-lit."
 ---

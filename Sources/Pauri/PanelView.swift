@@ -45,18 +45,37 @@ struct PanelView: View {
             }
             .defaultScrollAnchor(.bottom)
             .frame(maxHeight: .infinity)
+            // An inset, not an overlay: the first exchange can still scroll out from under the card.
+            .safeAreaInset(edge: .top) {
+                if chat.isContextFull {
+                    ContextBanner(isWriting: chat.isWritingHandoff, isEnabled: chat.canStartNewChat) {
+                        Task {
+                            if let note = await chat.writeHandoff() {
+                                draft = note
+                                focused = true
+                            }
+                        }
+                    } newChat: {
+                        chat.newChat()
+                    }
+                    .padding(.horizontal, 24)
+                    .padding(.top, 8)
+                }
+            }
             if let notice = chat.notice {
                 Text(notice)
                     .foregroundStyle(.secondary)
             }
             SelectionBar(chat: chat)
             HStack {
-                TextField("Ask Pauri", text: $draft)
+                TextField("Ask Pauri", text: $draft, axis: .vertical)
+                    .lineLimit(1...8)
                     .textFieldStyle(.roundedBorder)
                     .focused($focused)
                     .onSubmit(submit)
                 SendOrb(sends: sends,
-                        isEnabled: !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !chat.isAnswering,
+                        isEnabled: !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                            && !chat.isAnswering && !chat.isWritingHandoff,
                         isAnswering: chat.isAnswering,
                         action: submit)
             }
