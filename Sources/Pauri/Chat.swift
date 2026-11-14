@@ -14,6 +14,8 @@ final class Chat {
     private(set) var notice: String?
     private(set) var isAnswering = false
     private(set) var isStarting = true
+    /// The text selected in the front app when the hotkey opened the panel; goes with the next question.
+    var selection: String?
     private(set) var contextUsage: ContextUsage?
     private(set) var isWritingHandoff = false
 
@@ -86,13 +88,15 @@ final class Chat {
     func send(_ question: String) -> Bool {
         let question = question.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !question.isEmpty, !isAnswering, !isWritingHandoff else { return false }
-        exchanges.append(Exchange(question: question, answer: ""))
+        let prompt = Self.prompt(question, selection: selection)
+        selection = nil
+        exchanges.append(Exchange(question: prompt, answer: ""))
         notice = nil
         isAnswering = true
         let sent = ContinuousClock.now
         Task {
             do {
-                for try await delta in client.ask(question) {
+                for try await delta in client.ask(prompt) {
                     showRestoredTurns()
                     if exchanges[exchanges.count - 1].answer.isEmpty {
                         NSLog("Pauri: first token after %d ms", Int((ContinuousClock.now - sent) / .milliseconds(1)))
@@ -105,6 +109,15 @@ final class Chat {
             isAnswering = false
         }
         return true
+    }
+
+    /// The selection as a Markdown quote above the question. `"\r\n"` is one `Character`, so one line break.
+    nonisolated static func prompt(_ question: String, selection: String?) -> String {
+        guard let selection else { return question }
+        let quote = selection.split(omittingEmptySubsequences: false, whereSeparator: \.isNewline)
+            .map { "> " + $0 }
+            .joined(separator: "\n")
+        return quote + "\n\n" + question
     }
 
     private static func message(for error: Error) -> String {

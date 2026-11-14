@@ -66,6 +66,7 @@ struct PanelView: View {
                 Text(notice)
                     .foregroundStyle(.secondary)
             }
+            SelectionBar(chat: chat)
             HStack {
                 TextField("Ask Pauri", text: $draft, axis: .vertical)
                     .lineLimit(1...8)
