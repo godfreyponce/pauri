@@ -14,9 +14,13 @@ struct PauriApp: App {
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var panel: PanelController?
     private var hotKey: HotKey?
+    private var chat: Chat?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        panel = PanelController()
+        let chat = Chat(client: CodexClient())
+        chat.warmUp()
+        self.chat = chat
+        panel = PanelController(chat: chat)
         hotKey = HotKey(shortcut: .default) { [weak self] in self?.panel?.toggle() }
     }
 }
