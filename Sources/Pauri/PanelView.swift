@@ -6,8 +6,16 @@ struct PanelView: View {
     let chat: Chat
     @State private var draft = ""
     @State private var showsSettings = false
+    @State private var sends = 0
     @FocusState private var focused: Bool
     @AppStorage(Transparency.key) private var transparency = Transparency.default
+
+    private func submit() {
+        if chat.send(draft) {
+            draft = ""
+            sends += 1
+        }
+    }
 
     var body: some View {
         VStack {
@@ -57,11 +65,18 @@ struct PanelView: View {
                 Text(notice)
                     .foregroundStyle(.secondary)
             }
-            TextField("Ask Pauri", text: $draft, axis: .vertical)
-                .lineLimit(1...8)
-                .textFieldStyle(.roundedBorder)
-                .focused($focused)
-                .onSubmit { if chat.send(draft) { draft = "" } }
+            HStack {
+                TextField("Ask Pauri", text: $draft, axis: .vertical)
+                    .lineLimit(1...8)
+                    .textFieldStyle(.roundedBorder)
+                    .focused($focused)
+                    .onSubmit(submit)
+                SendOrb(sends: sends,
+                        isEnabled: !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                            && !chat.isAnswering && !chat.isWritingHandoff,
+                        isAnswering: chat.isAnswering,
+                        action: submit)
+            }
         }
         .padding()
         .background {

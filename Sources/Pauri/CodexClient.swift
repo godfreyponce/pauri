@@ -217,7 +217,7 @@ final class CodexClient {
 
         let reading = stdout.fileHandleForReading
         Task.detached { [weak self] in
-            try? await forEachLine(in: reading.bytes) { line in
+            await forEachLine(in: chunks(of: reading)) { line in
                 guard let message = try? CodexIncoming(line: line) else { return }
                 await self?.receive(message, from: owner)
             }
@@ -300,17 +300,34 @@ final class CodexClient {
     }
 }
 
+/// `FileHandle.bytes` reads every handle in the process one at a time, so an idle app-server
+/// stalls another one's reader (#13). A readability handler gets its own dispatch source.
+func chunks(of handle: FileHandle) -> AsyncStream<Data> {
+    AsyncStream { continuation in
+        handle.readabilityHandler = { handle in
+            let data = handle.availableData
+            if data.isEmpty {
+                handle.readabilityHandler = nil
+                continuation.finish()
+            } else {
+                continuation.yield(data)
+            }
+        }
+    }
+}
+
 /// Splits on "\n" only. `AsyncLineSequence` also splits on U+2028, U+2029, and U+0085, which
 /// Codex writes raw inside JSON strings.
-func forEachLine<Bytes: AsyncSequence>(in bytes: Bytes, _ body: (Data) async -> Void) async throws
-where Bytes.Element == UInt8 {
+func forEachLine(in chunks: AsyncStream<Data>, _ body: (Data) async -> Void) async {
     var line = Data()
-    for try await byte in bytes {
-        if byte == UInt8(ascii: "\n") {
+    for await chunk in chunks {
+        var rest = chunk[...]
+        while let newline = rest.firstIndex(of: UInt8(ascii: "\n")) {
+            line.append(rest[..<newline])
             await body(line)
             line = Data()
-        } else {
-            line.append(byte)
+            rest = rest[rest.index(after: newline)...]
         }
+        line.append(rest)
     }
 }
