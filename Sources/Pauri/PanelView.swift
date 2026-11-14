@@ -74,7 +74,9 @@ struct PanelView: View {
                                              decide: { chat.decide(request, $0) })
                                     .padding(.leading, 15)
                             }
-                            Text(exchange.answer)
+                            MarkdownView(markdown: exchange.answer,
+                                         isStreaming: chat.isAnswering && index == chat.exchanges.count - 1)
+                                .equatable()
                         }
                     }
                 }
