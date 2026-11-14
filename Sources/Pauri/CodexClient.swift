@@ -95,7 +95,9 @@ final class CodexClient {
         ["web_search": on ? "live" : "disabled"]
     }
 
-    func ask(_ question: String, model: ModelChoice, searchesWeb: Bool) -> AsyncThrowingStream<TurnEvent, Error> {
+    func ask(
+        _ question: String, image: URL? = nil, model: ModelChoice, searchesWeb: Bool
+    ) -> AsyncThrowingStream<TurnEvent, Error> {
         let (stream, continuation) = AsyncThrowingStream<TurnEvent, Error>.makeStream()
         turn = nil
         stopRequested = false
@@ -109,7 +111,7 @@ final class CodexClient {
                     try await reloadThread(searchesWeb: searchesWeb)
                 }
                 guard let threadID else { throw CodexProblem.stopped }
-                try await startTurn(question, model: model, on: threadID, into: continuation)
+                try await startTurn(question, image: image, model: model, on: threadID, into: continuation)
                 // Codex writes a thread to disk only at its first turn; an id saved before that
                 // cannot be resumed.
                 defaults.set(threadID, forKey: Self.threadKey)
@@ -158,16 +160,23 @@ final class CodexClient {
         return note
     }
 
+    /// The text item goes first, then the image.
+    nonisolated static func turnInput(_ text: String, image: URL?) -> [[String: Any]] {
+        var input: [[String: Any]] = [["type": "text", "text": text, "text_elements": [Any]()]]
+        if let image { input.append(["type": "localImage", "path": image.path]) }
+        return input
+    }
+
     /// `model` nil keeps the thread's own model, as a handoff fork does. Effort is always sent with
     /// a model, because the user's Codex config can set a higher one.
     private func startTurn(
-        _ text: String, model: ModelChoice?, on threadID: String,
+        _ text: String, image: URL? = nil, model: ModelChoice?, on threadID: String,
         into continuation: AsyncThrowingStream<TurnEvent, Error>.Continuation
     ) async throws {
         active = continuation
         var params: [String: Any] = [
             "threadId": threadID,
-            "input": [["type": "text", "text": text, "text_elements": [Any]()]],
+            "input": Self.turnInput(text, image: image),
         ]
         if let model {
             params["model"] = model.model

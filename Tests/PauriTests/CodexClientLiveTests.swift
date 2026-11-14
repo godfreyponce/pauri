@@ -44,6 +44,19 @@ private func searched(_ steps: [ToolStep]) -> Bool {
     while !condition() { try await Task.sleep(for: .milliseconds(50)) }
 }
 
+/// 64x64, left half red, right half blue.
+private func redBlueImage() throws -> CGImage {
+    let sRGB = try #require(CGColorSpace(name: CGColorSpace.sRGB))
+    let context = try #require(CGContext(
+        data: nil, width: 64, height: 64, bitsPerComponent: 8, bytesPerRow: 0, space: sRGB,
+        bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
+    context.setFillColor(red: 1, green: 0, blue: 0, alpha: 1)
+    context.fill(CGRect(x: 0, y: 0, width: 32, height: 64))
+    context.setFillColor(red: 0, green: 0, blue: 1, alpha: 1)
+    context.fill(CGRect(x: 32, y: 0, width: 32, height: 64))
+    return try #require(context.makeImage())
+}
+
 @Suite struct CodexClientLiveTests {
     @Test(.enabled(if: ProcessInfo.processInfo.environment["PAURI_LIVE"] == "1"))
     @MainActor func liveTwoQuestionsOneProcess() async throws {
@@ -255,6 +268,23 @@ private func searched(_ steps: [ToolStep]) -> Bool {
         #expect(!FileManager.default.fileExists(atPath: files[2].path))
         #expect(chat.notice == nil)
         #expect(!(chat.exchanges.last?.answer.isEmpty ?? true))
+        try await quit(client)
+    }
+
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["PAURI_LIVE"] == "1"))
+    @MainActor func liveImageIsDescribedAndOutlivesItsFile() async throws {
+        let client = CodexClient(defaults: freshDefaults("pauri-live-image"))
+        let file = FileManager.default.temporaryDirectory.appending(path: "pauri-live-\(UUID()).png")
+        try ScreenCapture.writePNG(redBlueImage(), to: file)
+        var first = ""
+        for try await case .text(let delta) in client.ask(
+            "What two colors are in the attached image, left then right? Five words or fewer.", image: file, model: .quick, searchesWeb: true) {
+            first += delta
+        }
+        #expect(first.lowercased().contains("red") && first.lowercased().contains("blue"))
+        try FileManager.default.removeItem(at: file)
+        let second = try await answer(client, "Name the left color of that image again, one word.")
+        #expect(second.lowercased().contains("red"))
         try await quit(client)
     }
 }

@@ -12,6 +12,8 @@ struct PanelView: View {
     @State private var dictationPrefix = ""
     /// The last text dictation wrote, so a change that differs from it is the user typing.
     @State private var dictated = ""
+    @State private var screenshotProblem: ScreenCaptureProblem?
+    @State private var isCapturing = false
     @FocusState private var focused: Bool
     @AppStorage(Transparency.key) private var transparency = Transparency.default
 
@@ -20,6 +22,25 @@ struct PanelView: View {
         if chat.send(draft) {
             draft = ""
             sends += 1
+        }
+    }
+
+    private func captureScreenshot() {
+        guard ScreenCapture.isAllowed else {
+            ScreenCapture.requestAccess()
+            screenshotProblem = .screenRecording
+            return
+        }
+        screenshotProblem = nil
+        isCapturing = true
+        Task {
+            let displayID = ScreenCapture.displayID(of: NSApp.windows.first { $0 is FloatingPanel }?.screen)
+            do {
+                chat.attachScreenshot(try await ScreenCapture.capture(displayID: displayID))
+            } catch {
+                screenshotProblem = .couldNotCapture
+            }
+            isCapturing = false
         }
     }
 
@@ -42,6 +63,9 @@ struct PanelView: View {
                     ForEach(chat.exchanges.indices, id: \.self) { index in
                         let exchange = chat.exchanges[index]
                         VStack(alignment: .leading, spacing: 4) {
+                            if exchange.hasScreenshot {
+                                Label("Screenshot", systemImage: "photo").foregroundStyle(.secondary)
+                            }
                             Text(exchange.question).bold()
                             ForEach(exchange.steps) { ToolStepRow(step: $0) }
                             if index == chat.exchanges.count - 1, let request = chat.approvals.first {
@@ -91,6 +115,20 @@ struct PanelView: View {
                     }
                 }
             }
+            if let problem = screenshotProblem {
+                HStack {
+                    Text(problem.message)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    if let url = problem.settingsURL {
+                        Button("Open System Settings") { NSWorkspace.shared.open(url) }
+                            .buttonStyle(.borderless)
+                    }
+                }
+            }
+            if let url = chat.screenshot {
+                ScreenshotChip(url: url) { chat.removeScreenshot() }
+            }
             SelectionBar(chat: chat)
             HStack {
                 TextField("Ask Pauri", text: $draft, axis: .vertical)
@@ -119,6 +157,10 @@ struct PanelView: View {
                 }
                 // A change mid-turn would not reach the running turn.
                 .disabled(chat.isAnswering || chat.isWritingHandoff)
+                Button(action: captureScreenshot) { Image(systemName: "camera.viewfinder") }
+                    .buttonStyle(.borderless)
+                    .disabled(isCapturing)
+                    .help(screenshotProblem?.message ?? "Attach a screenshot")
                 Button {
                     if dictation.isListening {
                         dictation.stop()
