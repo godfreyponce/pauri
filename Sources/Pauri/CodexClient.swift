@@ -208,7 +208,7 @@ final class CodexClient {
         case .notification(.turnCompleted(let text?)), .notification(.error(let text, willRetry: false)):
             active?.finish(throwing: CodexProblem.failed(text))
             active = nil
-        case .notification(.error(_, willRetry: true)), .notification(.ignored):
+        case .notification(.error(_, willRetry: true)), .notification(.contextUsage), .notification(.ignored):
             break
         }
     }
