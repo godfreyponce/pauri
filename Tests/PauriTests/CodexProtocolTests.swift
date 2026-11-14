@@ -111,6 +111,13 @@ struct CodexProtocolTests {
         #expect(two.label == "Changed 2 files")
     }
 
+    @Test func aStepStillRunningWhenTheTurnEndsReadsAsFailed() {
+        let running = ToolStep(id: "c", label: "Ran `git status`", detail: "d", output: "", status: .inProgress)
+        #expect(running.endedWithTurn == ToolStep(id: "c", label: "Ran `git status` (failed)", detail: "d", output: "", status: .failed))
+        let done = ToolStep(id: "c", label: "Listed files", detail: "d", output: "17", status: .completed)
+        #expect(done.endedWithTurn == done)
+    }
+
     @Test func otherItemTypesAreIgnored() throws {
         #expect(try incoming(#"{"method":"item/started","params":{"item":{"type":"agentMessage","id":"m","text":""},"threadId":"t","turnId":"u"}}"#)
             == .notification(.ignored))

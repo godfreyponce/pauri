@@ -61,6 +61,12 @@ extension ToolStep {
         }
     }
 
+    /// No `item/completed` comes for a step after its turn ends, so one still running stops spinning.
+    var endedWithTurn: ToolStep {
+        guard status == .inProgress else { return self }
+        return ToolStep(id: id, label: label + " (failed)", detail: detail, output: output, status: .failed)
+    }
+
     private static func commandLabel(actions: [[String: Any]], command: String) -> String {
         let types = Set(actions.map { $0["type"] as? String ?? "" })
         if types == ["read"] {

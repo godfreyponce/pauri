@@ -103,6 +103,7 @@ final class Chat {
             }
             // Codex no longer waits on these, so a click on one must be impossible.
             approvals = []
+            exchanges[exchanges.count - 1].steps = exchanges[exchanges.count - 1].steps.map(\.endedWithTurn)
             isAnswering = false
         }
         return true
