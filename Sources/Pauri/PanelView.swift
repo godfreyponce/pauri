@@ -148,12 +148,6 @@ struct PanelView: View {
                     .menuStyle(.borderlessButton)
                     .fixedSize()
                     .help("Model")
-                    Button { chat.searchesWeb.toggle() } label: {
-                        Image(systemName: "globe").foregroundStyle(chat.searchesWeb ? Color.accentColor : .secondary)
-                    }
-                    .buttonStyle(.borderless)
-                    .help(chat.searchesWeb ? "Web search on" : "Web search off")
-                    .accessibilityLabel(chat.searchesWeb ? "Web search on" : "Web search off")
                 }
                 // A change mid-turn would not reach the running turn.
                 .disabled(chat.isAnswering || chat.isWritingHandoff)

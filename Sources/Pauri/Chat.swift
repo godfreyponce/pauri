@@ -31,7 +31,6 @@ final class Chat {
     private(set) var isWritingHandoff = false
     /// Read when a question is sent, so a pick applies from the next message on.
     var model: ModelChoice = .quick
-    var searchesWeb = true
     private(set) var modelChoices: [ModelChoice] = [.quick]
 
     var isContextFull: Bool {
@@ -75,6 +74,8 @@ final class Chat {
         didRestore = true
         exchanges.insert(contentsOf: client.restoredExchanges, at: 0)
         modelChoices = client.models.map(ModelChoice.menu) ?? [.quick]
+        // The current pick gains its loaded entry's effort levels.
+        if let loaded = modelChoices.first(where: { $0.id == model.id }) { model = loaded }
     }
 
     func newChat() {
@@ -83,8 +84,7 @@ final class Chat {
         notice = nil
         allowsEverythingInThisChat = false
         contextUsage = nil
-        model = .quick
-        searchesWeb = true
+        model = modelChoices.first ?? .quick
         client.forgetThread()
     }
 
@@ -131,7 +131,7 @@ final class Chat {
         let sent = ContinuousClock.now
         Task {
             do {
-                for try await event in client.ask(prompt, image: image, model: model, searchesWeb: searchesWeb) {
+                for try await event in client.ask(prompt, image: image, model: model) {
                     showRestoredTurns()
                     let last = exchanges.count - 1
                     switch event {

@@ -234,6 +234,12 @@ struct ThreadStartResult: Decodable {
     let thread: ThreadRef
 }
 
+/// One reasoning level a model offers, as `model/list` reports it.
+struct ReasoningEffortOption: Decodable, Equatable, Sendable {
+    let reasoningEffort: String
+    let description: String
+}
+
 /// One page of `model/list`; Codex sends every model in one page (codex-cli 0.169.0).
 struct ModelListResult: Decodable {
     struct Model: Decodable {
@@ -241,6 +247,8 @@ struct ModelListResult: Decodable {
         let displayName: String
         let description: String
         let defaultReasoningEffort: String
+        /// Lowest level first (codex-cli 0.169.0).
+        let supportedReasoningEfforts: [ReasoningEffortOption]
     }
 
     let data: [Model]
@@ -250,22 +258,36 @@ struct ModelListResult: Decodable {
 struct ModelChoice: Equatable, Sendable, Identifiable {
     let model: String
     let name: String
-    let effort: String
+    var effort: String
+    /// The levels `model/list` reports for `model`, lowest first; empty when it was not loaded.
+    let efforts: [ReasoningEffortOption]
     /// "priority" is Codex's Fast tier; "default" is standard speed.
     let serviceTier: String
     let help: String
 
     var id: String { model + "/" + serviceTier }
 
-    static let quick = ModelChoice(model: "gpt-6.1-sol", name: "GPT-6.1-Sol Fast", effort: "low",
+    static let quick = ModelChoice(model: "gpt-6.1-sol", name: "GPT-6.1-Sol Fast", effort: "low", efforts: [],
                                    serviceTier: "priority", help: "Fast answers at low reasoning effort.")
 
-    /// `[.quick]` followed by each model at its default effort and standard speed.
+    /// `.quick` with its model's levels, followed by each model at its default effort and standard speed.
     static func menu(_ models: ModelListResult) -> [ModelChoice] {
-        [.quick] + models.data.map {
+        let quickLevels = models.data.first { $0.id == quick.model }?.supportedReasoningEfforts ?? []
+        let fast = ModelChoice(model: quick.model, name: quick.name, effort: quick.effort, efforts: quickLevels,
+                               serviceTier: quick.serviceTier, help: quick.help)
+        return [fast] + models.data.map {
             ModelChoice(model: $0.id, name: $0.displayName, effort: $0.defaultReasoningEffort,
-                        serviceTier: "default", help: $0.description)
+                        efforts: $0.supportedReasoningEfforts, serviceTier: "default", help: $0.description)
         }
+    }
+
+    /// The level after `effort`, wrapping to the lowest; an unlisted `effort` goes to the lowest.
+    func nextEffort() -> ModelChoice {
+        guard !efforts.isEmpty else { return self }
+        let levels = efforts.map(\.reasoningEffort)
+        var next = self
+        next.effort = levels.firstIndex(of: effort).map { levels[($0 + 1) % levels.count] } ?? levels[0]
+        return next
     }
 }
 

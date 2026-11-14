@@ -185,15 +185,52 @@ struct CodexProtocolTests {
     }
 
     @Test func modelListGivesTheFastEntryThenEachModel() throws {
-        let reply = #"{"data":[{"id":"gpt-6.1-sol","model":"gpt-6.1-sol","displayName":"GPT-6.1-Sol","description":"Latest workhorse model for coding and everyday work.","hidden":false,"supportedReasoningEfforts":[],"defaultReasoningEffort":"low","serviceTiers":[{"id":"priority","name":"Fast","description":"2x speed, increased usage"}],"isDefault":true},{"id":"gpt-6-luna","model":"gpt-6-luna","displayName":"GPT-6-Luna","description":"Fast and affordable model for easier tasks.","hidden":false,"supportedReasoningEfforts":[],"defaultReasoningEffort":"medium","serviceTiers":[],"isDefault":false}],"nextCursor":null}"#
+        let reply = #"{"data":[{"id":"gpt-6.1-sol","model":"gpt-6.1-sol","displayName":"GPT-6.1-Sol","description":"Latest workhorse model for coding and everyday work.","hidden":false,"supportedReasoningEfforts":[{"reasoningEffort":"low","description":"Fast responses with lighter reasoning"},{"reasoningEffort":"medium","description":"Balances speed and reasoning depth for everyday tasks"}],"defaultReasoningEffort":"low","serviceTiers":[{"id":"priority","name":"Fast","description":"2x speed, increased usage"}],"isDefault":true},{"id":"gpt-6-luna","model":"gpt-6-luna","displayName":"GPT-6-Luna","description":"Fast and affordable model for easier tasks.","hidden":false,"supportedReasoningEfforts":[{"reasoningEffort":"medium","description":"Balances speed and reasoning depth for everyday tasks"}],"defaultReasoningEffort":"medium","serviceTiers":[],"isDefault":false}],"nextCursor":null}"#
         let models = try JSONDecoder().decode(ModelListResult.self, from: Data(reply.utf8))
+        let medium = ReasoningEffortOption(reasoningEffort: "medium", description: "Balances speed and reasoning depth for everyday tasks")
+        let solLevels = [ReasoningEffortOption(reasoningEffort: "low", description: "Fast responses with lighter reasoning"), medium]
         #expect(ModelChoice.menu(models) == [
-            .quick,
-            ModelChoice(model: "gpt-6.1-sol", name: "GPT-6.1-Sol", effort: "low", serviceTier: "default",
+            ModelChoice(model: "gpt-6.1-sol", name: "GPT-6.1-Sol Fast", effort: "low", efforts: solLevels,
+                        serviceTier: "priority", help: "Fast answers at low reasoning effort."),
+            ModelChoice(model: "gpt-6.1-sol", name: "GPT-6.1-Sol", effort: "low", efforts: solLevels, serviceTier: "default",
                         help: "Latest workhorse model for coding and everyday work."),
-            ModelChoice(model: "gpt-6-luna", name: "GPT-6-Luna", effort: "medium", serviceTier: "default",
+            ModelChoice(model: "gpt-6-luna", name: "GPT-6-Luna", effort: "medium", efforts: [medium], serviceTier: "default",
                         help: "Fast and affordable model for easier tasks."),
         ])
+    }
+
+    private func choice(_ effort: String, levels: [String]) -> ModelChoice {
+        ModelChoice(model: "m", name: "M", effort: effort,
+                    efforts: levels.map { ReasoningEffortOption(reasoningEffort: $0, description: $0 + " text") },
+                    serviceTier: "default", help: "h")
+    }
+
+    @Test func nextEffortStepsUpAndWraps() {
+        let start = choice("low", levels: ["low", "medium", "high"])
+        let first = start.nextEffort(), second = first.nextEffort(), third = second.nextEffort()
+        #expect([first.effort, second.effort, third.effort] == ["medium", "high", "low"])
+        #expect(third == start)
+    }
+
+    @Test func nextEffortWithNoLevelsKeepsTheEffort() {
+        #expect(ModelChoice.quick.nextEffort() == .quick)
+    }
+
+    @Test func nextEffortFromAnUnlistedLevelGoesToTheFirst() {
+        #expect(choice("minimal", levels: ["low", "medium"]).nextEffort().effort == "low")
+    }
+
+    @Test func turnParamsCarryTheSteppedEffort() {
+        let params = CodexClient.turnParams("hi", image: nil, model: choice("low", levels: ["low", "medium"]).nextEffort(), threadID: "t")
+        #expect(params["effort"] as? String == "medium")
+        #expect(params["model"] as? String == "m")
+        #expect(params["serviceTierForTurn"] as? String == "default")
+        #expect(params["threadId"] as? String == "t")
+    }
+
+    @Test func turnParamsWithNoModelSendNoModelOrEffort() {
+        let params = CodexClient.turnParams("hi", image: nil, model: nil, threadID: "t")
+        #expect(params["model"] == nil && params["effort"] == nil && params["serviceTierForTurn"] == nil)
     }
 
     @Test func webSearchItemIsAStep() throws {
@@ -207,9 +244,9 @@ struct CodexProtocolTests {
             == "Searched the web")
     }
 
-    @Test func webSearchConfigMapsTheGlobe() {
-        #expect(CodexClient.webSearchConfig(true)["web_search"] as? String == "live")
-        #expect(CodexClient.webSearchConfig(false)["web_search"] as? String == "disabled")
+    @Test func everyThreadLoadsWithLiveWebSearch() {
+        #expect((CodexClient.threadStartParams()["config"] as? [String: Any])?["web_search"] as? String == "live")
+        #expect((CodexClient.resumeParams("t")["config"] as? [String: Any])?["web_search"] as? String == "live")
     }
 
     @Test func lookupSkipsShellNoise() {

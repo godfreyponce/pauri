@@ -16,17 +16,17 @@ import Testing
 
 @MainActor private func answer(_ client: CodexClient, _ question: String) async throws -> String {
     var answer = ""
-    for try await case .text(let delta) in client.ask(question, model: .quick, searchesWeb: true) { answer += delta }
+    for try await case .text(let delta) in client.ask(question, model: .quick) { answer += delta }
     return answer
 }
 
 /// The text and steps of one answer. Declines every approval, so no card can leave a test waiting.
 @MainActor private func run(
-    _ client: CodexClient, _ question: String, model: ModelChoice = .quick, searchesWeb: Bool
+    _ client: CodexClient, _ question: String, model: ModelChoice = .quick
 ) async throws -> (text: String, steps: [ToolStep]) {
     var text = ""
     var steps: [ToolStep] = []
-    for try await event in client.ask(question, model: model, searchesWeb: searchesWeb) {
+    for try await event in client.ask(question, model: model) {
         switch event {
         case .text(let delta): text += delta
         case .step(let step): steps.append(step)
@@ -69,7 +69,7 @@ private func redBlueImage() throws -> CGImage {
         for question in ["Reply with just the word hi.", "Reply with just the word bye."] {
             let sent = ContinuousClock.now
             var answer = ""
-            for try await case .text(let delta) in client.ask(question, model: .quick, searchesWeb: true) {
+            for try await case .text(let delta) in client.ask(question, model: .quick) {
                 if answer.isEmpty { print("first token after \(ContinuousClock.now - sent)") }
                 answer += delta
             }
@@ -150,23 +150,17 @@ private func redBlueImage() throws -> CGImage {
         try await client.start()
         let models = try #require(client.models)
         #expect(models.data.map(\.id).contains(ModelChoice.quick.model))
-        #expect(!(try await run(client, "Reply with just the word hi.", searchesWeb: false)).text.isEmpty)
+        #expect(!(try await run(client, "Reply with just the word hi.")).text.isEmpty)
         try await quit(client)
     }
 
     @Test(.enabled(if: ProcessInfo.processInfo.environment["PAURI_LIVE"] == "1"), .timeLimit(.minutes(3)))
-    @MainActor func liveWebSearchFollowsTheGlobe() async throws {
+    @MainActor func liveWebSearchIsAlwaysOn() async throws {
         let client = CodexClient(defaults: freshDefaults("pauri-live-web-search"))
         let question = "Look up today's top headline on bbc.com/news and give it in one line."
-        let off = try await run(client, question, searchesWeb: false)
-        print("globe off:", off.steps.map(\.label), off.text)
-        #expect(!searched(off.steps))
-        let on = try await run(client, question, searchesWeb: true)
-        print("globe on:", on.steps.map(\.label), on.text)
+        let on = try await run(client, question)
+        print("web search:", on.steps.map(\.label), on.text)
         #expect(searched(on.steps))
-        let offAgain = try await run(client, question, searchesWeb: false)
-        print("globe off again:", offAgain.steps.map(\.label), offAgain.text)
-        #expect(!searched(offAgain.steps))
         try await quit(client)
     }
 
@@ -188,7 +182,7 @@ private func redBlueImage() throws -> CGImage {
     @MainActor func liveStopKeepsTheTextAndTheNextQuestionAnswers() async throws {
         let client = CodexClient(defaults: freshDefaults("pauri-live-stop"))
         var text = ""
-        for try await case .text(let delta) in client.ask("Count from 1 to 300, one number per line, nothing else.", model: .quick, searchesWeb: true) {
+        for try await case .text(let delta) in client.ask("Count from 1 to 300, one number per line, nothing else.", model: .quick) {
             if text.isEmpty { client.stopAnswer() }
             text += delta
         }
@@ -202,7 +196,7 @@ private func redBlueImage() throws -> CGImage {
     @Test(.enabled(if: ProcessInfo.processInfo.environment["PAURI_LIVE"] == "1"))
     @MainActor func liveStopBeforeTheTurnStartsEndsTheAnswer() async throws {
         let client = CodexClient(defaults: freshDefaults("pauri-live-stop-early"))
-        let stream = client.ask("Count from 1 to 300, one number per line, nothing else.", model: .quick, searchesWeb: true)
+        let stream = client.ask("Count from 1 to 300, one number per line, nothing else.", model: .quick)
         client.stopAnswer()
         var text = ""
         for try await case .text(let delta) in stream { text += delta }
@@ -214,7 +208,7 @@ private func redBlueImage() throws -> CGImage {
     @MainActor func liveHandoffAfterAStopWritesTheNote() async throws {
         let client = CodexClient(defaults: freshDefaults("pauri-live-stop-handoff"))
         var text = ""
-        for try await case .text(let delta) in client.ask("My favorite color is teal. Then count from 1 to 300, one number per line.", model: .quick, searchesWeb: true) {
+        for try await case .text(let delta) in client.ask("My favorite color is teal. Then count from 1 to 300, one number per line.", model: .quick) {
             if text.isEmpty { client.stopAnswer() }
             text += delta
         }
@@ -227,7 +221,7 @@ private func redBlueImage() throws -> CGImage {
         let client = CodexClient(defaults: freshDefaults("pauri-live-read"))
         let repo = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
         var events: [TurnEvent] = []
-        for try await event in client.ask("How many Swift files are in \(repo.path)? Use a shell command to count them.", model: .quick, searchesWeb: true) {
+        for try await event in client.ask("How many Swift files are in \(repo.path)? Use a shell command to count them.", model: .quick) {
             events.append(event)
         }
         #expect(!events.contains { if case .approval = $0 { true } else { false } })
@@ -278,7 +272,7 @@ private func redBlueImage() throws -> CGImage {
         try ScreenCapture.writePNG(redBlueImage(), to: file)
         var first = ""
         for try await case .text(let delta) in client.ask(
-            "What two colors are in the attached image, left then right? Five words or fewer.", image: file, model: .quick, searchesWeb: true) {
+            "What two colors are in the attached image, left then right? Five words or fewer.", image: file, model: .quick) {
             first += delta
         }
         #expect(first.lowercased().contains("red") && first.lowercased().contains("blue"))
