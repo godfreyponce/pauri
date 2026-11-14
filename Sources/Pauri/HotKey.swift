@@ -1,5 +1,6 @@
 import AppKit
 import Carbon.HIToolbox
+import Observation
 
 /// A Carbon virtual key code (`kVK_*`) plus a Carbon modifier mask (`cmdKey`, `shiftKey`, ...).
 struct Shortcut: Equatable, Sendable {
@@ -83,29 +84,66 @@ struct Shortcut: Equatable, Sendable {
     }
 }
 
-/// A system-wide hotkey, registered through Carbon for the app's lifetime.
+/// The system-wide hotkey, registered through Carbon. It owns the live shortcut and saves each change.
 @MainActor
+@Observable
 final class HotKey {
-    fileprivate let action: @MainActor () -> Void
-    private var handler: EventHandlerRef?
-    private var ref: EventHotKeyRef?
+    private(set) var shortcut: Shortcut
+    @ObservationIgnored fileprivate let action: @MainActor () -> Void
+    @ObservationIgnored private let defaults: UserDefaults
+    @ObservationIgnored private var handler: EventHandlerRef?
+    @ObservationIgnored private var ref: EventHotKeyRef?
 
-    init(shortcut: Shortcut, action: @escaping @MainActor () -> Void) {
+    init(defaults: UserDefaults = .standard, action: @escaping @MainActor () -> Void) {
+        self.defaults = defaults
         self.action = action
-        let target = GetApplicationEventTarget()
+        shortcut = Shortcut.saved(in: defaults)
         var pressed = EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed))
-        var status = InstallEventHandler(
-            target, hotKeyPressed, 1, &pressed, Unmanaged.passUnretained(self).toOpaque(), &handler)
+        let status = InstallEventHandler(
+            GetApplicationEventTarget(), hotKeyPressed, 1, &pressed, Unmanaged.passUnretained(self).toOpaque(),
+            &handler)
         guard status == noErr else {
             NSLog("Pauri: hotkey registration failed, OSStatus %d", status)
             return
         }
+        register(shortcut)
+    }
+
+    /// Stops the hotkey firing, so the recorder can take the current shortcut as a key press.
+    func pause() {
+        guard let ref else { return }
+        UnregisterEventHotKey(ref)
+        self.ref = nil
+    }
+
+    func resume() {
+        guard ref == nil else { return }
+        register(shortcut)
+    }
+
+    /// Switches to `new` and saves it; when Carbon refuses it, the old shortcut stays live.
+    @discardableResult
+    func change(to new: Shortcut) -> Bool {
+        pause()
+        guard register(new) else {
+            register(shortcut)
+            return false
+        }
+        shortcut = new
+        new.save(to: defaults)
+        return true
+    }
+
+    @discardableResult
+    private func register(_ shortcut: Shortcut) -> Bool {
         let id = EventHotKeyID(signature: "PAUR".utf8.reduce(0) { $0 << 8 | FourCharCode($1) }, id: 1)
-        status = RegisterEventHotKey(shortcut.keyCode, shortcut.modifiers, id, target, 0, &ref)
+        let status = RegisterEventHotKey(
+            shortcut.keyCode, shortcut.modifiers, id, GetApplicationEventTarget(), 0, &ref)
         guard status == noErr else {
             NSLog("Pauri: hotkey registration failed, OSStatus %d", status)
-            return
+            return false
         }
+        return true
     }
 }
 

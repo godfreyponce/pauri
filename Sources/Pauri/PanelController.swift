@@ -5,7 +5,7 @@ import SwiftUI
 final class PanelController {
     private let panel: FloatingPanel
 
-    init() {
+    init(hotKey: HotKey) {
         panel = FloatingPanel(
             contentRect: NSRect(x: 0, y: 0, width: 520, height: 680),
             styleMask: [.nonactivatingPanel, .titled, .fullSizeContentView],
@@ -18,7 +18,7 @@ final class PanelController {
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         panel.hidesOnDeactivate = false
         panel.isReleasedWhenClosed = false
-        panel.contentView = NSHostingView(rootView: PanelView())
+        panel.contentView = NSHostingView(rootView: PanelView(hotKey: hotKey))
         panel.center()
     }
 
@@ -37,7 +37,7 @@ final class PanelController {
     }
 }
 
-private final class FloatingPanel: NSPanel {
+final class FloatingPanel: NSPanel {
     override var canBecomeKey: Bool { true }
 
     override func cancelOperation(_ sender: Any?) {
