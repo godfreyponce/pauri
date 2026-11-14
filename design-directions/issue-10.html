@@ -124,6 +124,18 @@
   .look-town .body { background: linear-gradient(to bottom, #3B3A7A, #8A6AA8 52%, #E7A0A0 70%); }
   .look-town .town-hill { background: radial-gradient(ellipse 100% 36% at 50% 100%, #1E1C3A 97%, transparent 100%); }
 
+  /* While answering, the arrow turns into a square. */
+  .orb .arrow, .orb .stop { transition: opacity 0.15s ease-out, transform 0.15s ease-out; }
+  .orb .stop { display: flex; align-items: center; justify-content: center; opacity: 0; transform: scale(0.6); }
+  .orb .stop i {
+    width: calc(var(--stop-size) * var(--s) * 1px); height: calc(var(--stop-size) * var(--s) * 1px);
+    border-radius: calc(2px * var(--s)); background: var(--arrow-color);
+    filter: drop-shadow(0 calc(0.5px * var(--s)) calc(1px * var(--s)) var(--arrow-shadow));
+  }
+  .orb.busy .arrow, body.busy .orb .arrow { opacity: 0; transform: scale(0.6); }
+  .orb.busy .stop, body.busy .orb .stop { opacity: 1; transform: scale(1); }
+  body.reduce .orb .arrow, body.reduce .orb .stop { transform: none !important; }
+
   /* Ambient motion: each scene's loop runs only while an answer is coming in, and holds still where it is otherwise. */
   .orb:not(.busy) * { animation-play-state: paused !important; }
   body.busy .orb * { animation-play-state: running !important; }
@@ -193,8 +205,8 @@
   a flower meadow, a seaside town at sunset, and a forest at dusk. Original motifs only, no characters.
   Pick the send animation at the top: it applies to every column. Each column shows the orb in a dark and a
   light input row at 1x (32 pt), then at 3x. Click <b>Send</b> or any orb to play a send.
-  Each scene holds still until you send. While the answer comes in (until <b>Finish answer</b>) the scene moves:
-  clouds drift, the boat bobs, fireflies wander. <b>Answering</b> shows every orb moving at once, and
+  Each scene holds still until you send. While the answer comes in (until <b>Finish answer</b>) the scene moves
+  (clouds drift, the boat bobs, fireflies wander) and the arrow turns into a square. <b>Answering</b> shows every orb moving at once, and
   <b>Reduce Motion</b> keeps every scene still.
 </p>
 <div class="controls">
@@ -239,6 +251,7 @@
 const ORB = {
   size: 32,                      // pt
   arrowSize: 14,                 // pt, matches .font(.system(size: 14, weight: .bold))
+  stopSize: 10,                  // pt, the square shown while answering; guess
   glowRadius: 6,                 // pt, guess
   disabledOpacity: 0.4,          // guess (gate 1 decision 6)
 };
@@ -328,6 +341,7 @@ function makeOrb(look, scale) {
   orb.setAttribute("aria-label", "Send");
   const vars = {
     "--s": scale, "--size": ORB.size, "--arrow-size": ORB.arrowSize, "--arrow-shadow": look.arrowShadow,
+    "--arrow-color": look.arrow, "--stop-size": ORB.stopSize,
     "--glow": look.glow, "--glow-bright": look.glowBright, "--glow-radius": ORB.glowRadius,
     "--disabled-opacity": ORB.disabledOpacity,
   };
@@ -342,7 +356,7 @@ function makeOrb(look, scale) {
   orb.innerHTML = `<span class="glow"></span><span class="boost"></span><span class="ring"></span>
     <span class="body">${layers}</span><span class="specks">${specks}</span>
     <span class="finish-shade"></span><span class="finish-gloss"></span><span class="finish-ink"></span>
-    <span class="arrow">${arrowSvg(look.arrow)}</span>`;
+    <span class="arrow">${arrowSvg(look.arrow)}</span><span class="stop"><i></i></span>`;
   return orb;
 }
 
@@ -422,7 +436,7 @@ function send(col) {
   if (disabledBox.checked || col.answering) return;
   for (const { orb, scale } of col.orbs) PLAY[anim()](orb, scale);
   col.answering = true;
-  col.state.textContent = "Answering... (scene moving, sends refused)";
+  col.state.textContent = "Answering... (scene moving, square shown, sends refused)";
   render();
 }
 
