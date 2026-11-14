@@ -18,7 +18,16 @@ final class PanelController {
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         panel.hidesOnDeactivate = false
         panel.isReleasedWhenClosed = false
-        panel.contentView = NSHostingView(rootView: PanelView(hotKey: hotKey, chat: chat))
+        let glass = NSVisualEffectView()
+        glass.material = .popover
+        glass.blendingMode = .behindWindow
+        // Pauri never becomes the active app; following the active state would draw the flat inactive look.
+        glass.state = .active
+        panel.contentView = glass
+        let content = NSHostingView(rootView: PanelView(hotKey: hotKey, chat: chat))
+        content.frame = glass.bounds
+        content.autoresizingMask = [.width, .height]
+        glass.addSubview(content)
         panel.center()
     }
 
