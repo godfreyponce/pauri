@@ -3,6 +3,23 @@
 Accepted-work archive. One section per accepted ticket, appended at the accept-time docs commit.
 Newest first.
 
+## #13 Codex stdout reader without a shared blocking read (2026-11-13)
+
+- Pauri reads `codex app-server` stdout through `FileHandle.readabilityHandler`
+  (`chunks(of:)` in `CodexClient.swift`), not `FileHandle.bytes`. A `.bytes` read on an idle
+  pipe stalled every other `.bytes` reader in the process, so a second live client hung in
+  `start()`. Each handle now gets its own dispatch source and holds no thread while it waits.
+- `forEachLine` takes `AsyncStream<Data>` chunks, joins a line split across chunks, and still
+  splits on "\n" only (U+2028 stays inside JSON strings). Bytes after the last "\n" at
+  end-of-file are dropped, as before.
+- The live suite is no longer serialized; the four live tests run side by side
+  (`PAURI_LIVE=1 ./scripts/test.sh --filter CodexClientLiveTests`, about 10 s).
+  `quit` stays: it stands for quitting Pauri before a relaunch and keeps a test from leaving an
+  app-server running. The #3 note that live tests stop each app-server because of a stall no
+  longer holds.
+- Tests 28/28, four live tests skipped (`./scripts/test.sh && ./scripts/build-app.sh`). Commit
+  e1f8ffa.
+
 ## #3 Follow-ups, reopen last chat, Cmd+N (2026-11-13)
 
 - The panel shows the whole chat: each question in bold with its answer under it, scrolled to the
