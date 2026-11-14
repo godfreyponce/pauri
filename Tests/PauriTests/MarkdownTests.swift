@@ -90,6 +90,16 @@ struct MarkdownTests {
         #expect(Markdown.streamingSafe("x\n\n```swift\nlet a = `b") == "x\n\n```swift\nlet a = `b")
     }
 
+    @Test func streamingCountsIndentedAndTildeFences() {
+        #expect(Markdown.streamingSafe("1. Install:\n   ```bash\n   npm i") == "1. Install:\n   ```bash\n   npm i")
+        #expect(Markdown.streamingSafe("~~~\nlet a = `b") == "~~~\nlet a = `b")
+    }
+
+    @Test func streamingIgnoresBoldMarksInsideCode() {
+        #expect(Markdown.streamingSafe("Use `a**b` and the") == "Use `a**b` and the")
+        #expect(Markdown.streamingSafe("Use `x**2` and **bold") == "Use `x**2` and bold")
+    }
+
     @Test func streamingLooksAtLastParagraphOnly() {
         #expect(Markdown.streamingSafe("a ** b\n\nfine") == "a ** b\n\nfine")
         #expect(Markdown.streamingSafe("- [ ] task") == "- [ ] task")

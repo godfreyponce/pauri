@@ -105,15 +105,21 @@ enum Markdown {
     /// so the marks do not flash raw before their closing half arrives.
     static func streamingSafe(_ markdown: String) -> String {
         let lines = markdown.components(separatedBy: "\n")
-        let isFence = { (line: String) in line.hasPrefix("```") }
+        let isFence = { (line: String) in
+            let trimmed = line.drop { $0 == " " }
+            return trimmed.hasPrefix("```") || trimmed.hasPrefix("~~~")
+        }
         guard lines.filter(isFence).count.isMultiple(of: 2) else { return markdown }
         let tailStart = (lines.lastIndex { isFence($0) || $0.trimmingCharacters(in: .whitespaces).isEmpty } ?? -1) + 1
         guard tailStart < lines.count else { return markdown }
         var tail = lines[tailStart...].joined(separator: "\n")
 
-        for mark in ["**", "`"] where !(tail.components(separatedBy: mark).count - 1).isMultiple(of: 2) {
-            if let last = tail.range(of: mark, options: .backwards) { tail.removeSubrange(last) }
+        if !(tail.components(separatedBy: "`").count - 1).isMultiple(of: 2),
+           let last = tail.range(of: "`", options: .backwards) {
+            tail.removeSubrange(last)
         }
+        let boldMarks = boldMarkRanges(in: tail)
+        if !boldMarks.count.isMultiple(of: 2), let last = boldMarks.last { tail.removeSubrange(last) }
         if let open = tail.range(of: "[", options: .backwards) {
             let after = tail[open.upperBound...]
             if !after.contains("]") {
@@ -123,5 +129,24 @@ enum Markdown {
             }
         }
         return (lines[..<tailStart] + [tail]).joined(separator: "\n")
+    }
+
+    /// The `**` marks outside code spans: inside one, `x**2` is code, not bold.
+    private static func boldMarkRanges(in text: String) -> [Range<String.Index>] {
+        var marks: [Range<String.Index>] = []
+        var isInCode = false
+        var index = text.startIndex
+        while index < text.endIndex {
+            if text[index] == "`" {
+                isInCode.toggle()
+            } else if !isInCode, text[index...].hasPrefix("**") {
+                let end = text.index(index, offsetBy: 2)
+                marks.append(index..<end)
+                index = end
+                continue
+            }
+            index = text.index(after: index)
+        }
+        return marks
     }
 }
