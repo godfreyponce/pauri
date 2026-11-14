@@ -65,8 +65,9 @@ struct PanelView: View {
                         VStack(alignment: .leading, spacing: 4) {
                             if exchange.hasScreenshot {
                                 Label("Screenshot", systemImage: "photo").foregroundStyle(.secondary)
+                                    .frame(maxWidth: .infinity, alignment: .trailing)
                             }
-                            Text(exchange.question).bold()
+                            QuestionBubble(question: exchange.question)
                             ForEach(exchange.steps) { ToolStepRow(step: $0) }
                             if index == chat.exchanges.count - 1, let request = chat.approvals.first {
                                 ApprovalCard(request: request,
@@ -204,5 +205,24 @@ struct PanelView: View {
         .onChange(of: draft) { _, new in
             if dictation.isListening && new != dictated { dictation.stop() }
         }
+    }
+}
+
+/// The user's message, set apart from answers: variant A of `design-directions/issue-16.html`.
+/// Plain text, not Markdown, so `2*3*4` stays as typed.
+struct QuestionBubble: View {
+    let question: String
+
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        Text(question)
+            .foregroundStyle(.white)
+            .padding(.vertical, 7)
+            .padding(.horizontal, 11)
+            .background(colorScheme == .dark ? Color(hex: 0x4A3DB8) : Color(hex: 0x5B4BD0),
+                        in: RoundedRectangle(cornerRadius: 14))
+            .containerRelativeFrame(.horizontal, alignment: .trailing) { width, _ in width * 0.75 }
+            .frame(maxWidth: .infinity, alignment: .trailing)
     }
 }

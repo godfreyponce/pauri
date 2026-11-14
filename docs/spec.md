@@ -40,7 +40,7 @@ Reference screenshots (the owner's, from the intake thread), in `docs/reference/
 13. **Tool activity in the chat:** one small gray line per step ("Read 2 files", "Ran `git status`"), expandable for details; a full approval card when it needs an OK. These lines are UI only and cost the model no context. Context stays lean because quick questions use no tools and context capture is single-item (decision 10).
 
 ### Look
-14. **Overall:** as simple as the ChatGPT window and T3 Code. Input bar holds a model picker, web search toggle (on), dictation button, send button.
+14. **Overall:** as simple as the ChatGPT window and T3 Code. Input bar holds a model picker, web search toggle (on), dictation button, send button. Answers render Markdown with native text, no web view; the user's messages use variant A of `design-directions/issue-16.html`.
 15. **Send button:** a purple starry glowing orb (reference screenshot), small animation on send.
 16. **Window:** macOS glass material so what's behind shows through, one transparency slider.
 17. **Dictation:** Apple's on-device speech recognition (free, private, no subscription use). Fallback: a local Whisper model if Apple's struggles with code words.
