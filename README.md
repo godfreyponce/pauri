@@ -20,6 +20,8 @@ You need Command Line Tools (`xcode-select --install`) or Xcode.
 - Build: `./scripts/build-app.sh`. It writes `build/Pauri.app`.
 - Run: `open build/Pauri.app`.
 - Show the panel: Cmd+Shift+Space. Press it again, or Esc, to hide the panel.
+- Change the shortcut: click the gear at the top right of the panel, click the shortcut, and press the new one. Esc cancels.
+- If the shortcut stops working: run `open build/Pauri.app` again to show the panel, or reset the shortcut with `defaults delete io.github.godfreyponce.pauri hotKey`.
 - Quit: `pkill -x Pauri`. Pauri has no Dock icon and no menu.
 - Test: `./scripts/test.sh`.
 
