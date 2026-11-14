@@ -6,6 +6,7 @@ struct Exchange: Equatable, Sendable {
     var answer: String
     /// Shown in the panel only; nothing sends them back to the model.
     var steps: [ToolStep] = []
+    var hasScreenshot = false
 }
 
 enum ApprovalChoice {
@@ -24,6 +25,8 @@ final class Chat {
     private(set) var approvals: [ApprovalRequest] = []
     /// The text selected in the front app when the hotkey opened the panel; goes with the next question.
     var selection: String?
+    /// The PNG the screenshot button wrote; goes with the next question, then is deleted.
+    private(set) var screenshot: URL?
     private(set) var contextUsage: ContextUsage?
     private(set) var isWritingHandoff = false
 
@@ -95,19 +98,32 @@ final class Chat {
         }
     }
 
+    /// Replaces the one already attached, and deletes its file.
+    func attachScreenshot(_ url: URL) {
+        removeScreenshot()
+        screenshot = url
+    }
+
+    func removeScreenshot() {
+        if let screenshot { try? FileManager.default.removeItem(at: screenshot) }
+        screenshot = nil
+    }
+
     @discardableResult
     func send(_ question: String) -> Bool {
         let question = question.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !question.isEmpty, !isAnswering, !isWritingHandoff else { return false }
         let prompt = Self.prompt(question, selection: selection)
         selection = nil
-        exchanges.append(Exchange(question: prompt, answer: ""))
+        let image = screenshot
+        screenshot = nil
+        exchanges.append(Exchange(question: prompt, answer: "", hasScreenshot: image != nil))
         notice = nil
         isAnswering = true
         let sent = ContinuousClock.now
         Task {
             do {
-                for try await event in client.ask(prompt) {
+                for try await event in client.ask(prompt, image: image) {
                     showRestoredTurns()
                     let last = exchanges.count - 1
                     switch event {
@@ -137,6 +153,8 @@ final class Chat {
             approvals = []
             exchanges[exchanges.count - 1].steps = exchanges[exchanges.count - 1].steps.map(\.endedWithTurn)
             isAnswering = false
+            // Codex keeps its own copy in the session file.
+            if let image { try? FileManager.default.removeItem(at: image) }
         }
         return true
     }
