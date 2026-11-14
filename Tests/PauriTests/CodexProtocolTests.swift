@@ -184,6 +184,34 @@ struct CodexProtocolTests {
         #expect(result.exchanges == [Exchange(question: "hi", answer: "")])
     }
 
+    @Test func modelListGivesTheFastEntryThenEachModel() throws {
+        let reply = #"{"data":[{"id":"gpt-6.1-sol","model":"gpt-6.1-sol","displayName":"GPT-6.1-Sol","description":"Latest workhorse model for coding and everyday work.","hidden":false,"supportedReasoningEfforts":[],"defaultReasoningEffort":"low","serviceTiers":[{"id":"priority","name":"Fast","description":"2x speed, increased usage"}],"isDefault":true},{"id":"gpt-6-luna","model":"gpt-6-luna","displayName":"GPT-6-Luna","description":"Fast and affordable model for easier tasks.","hidden":false,"supportedReasoningEfforts":[],"defaultReasoningEffort":"medium","serviceTiers":[],"isDefault":false}],"nextCursor":null}"#
+        let models = try JSONDecoder().decode(ModelListResult.self, from: Data(reply.utf8))
+        #expect(ModelChoice.menu(models) == [
+            .quick,
+            ModelChoice(model: "gpt-6.1-sol", name: "GPT-6.1-Sol", effort: "low", serviceTier: "default",
+                        help: "Latest workhorse model for coding and everyday work."),
+            ModelChoice(model: "gpt-6-luna", name: "GPT-6-Luna", effort: "medium", serviceTier: "default",
+                        help: "Fast and affordable model for easier tasks."),
+        ])
+    }
+
+    @Test func webSearchItemIsAStep() throws {
+        #expect(try step(#"{"method":"item/started","params":{"item":{"type":"webSearch","id":"ws1","query":"bbc headlines","action":{"type":"search","query":"bbc headlines","queries":null},"results":null},"threadId":"t","turnId":"u"}}"#)
+            == ToolStep(id: "ws1", label: "Searched the web for “bbc headlines”", detail: "bbc headlines", output: "", status: .completed))
+    }
+
+    /// `item/started` for a search comes before Codex knows the query (codex-cli 0.169.0).
+    @Test func webSearchWithNoQueryYetHasNoEmptyQuotes() throws {
+        #expect(try step(#"{"method":"item/started","params":{"item":{"type":"webSearch","id":"ws1","query":"","action":{"type":"other"},"results":null},"threadId":"t","turnId":"u"}}"#).label
+            == "Searched the web")
+    }
+
+    @Test func webSearchConfigMapsTheGlobe() {
+        #expect(CodexClient.webSearchConfig(true)["web_search"] as? String == "live")
+        #expect(CodexClient.webSearchConfig(false)["web_search"] as? String == "disabled")
+    }
+
     @Test func lookupSkipsShellNoise() {
         let output = "Welcome back!\n__PAURI__\n/Users/u/.nvm/versions/node/v24/bin/codex\n/Users/u/.nvm/versions/node/v24/bin:/usr/bin:/bin\n"
         #expect(parseCodexLookup(output) == CodexLocation(

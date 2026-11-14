@@ -37,6 +37,8 @@ final class CodexClient {
     private(set) var restoredExchanges: [Exchange] = []
     /// Called with the current thread's usage only, never another thread's (such as a fork's).
     var onContextUsage: ((ContextUsage) -> Void)?
+    /// What `model/list` reported at launch; nil when it failed.
+    private(set) var models: ModelListResult?
 
     static let handoffPrompt = "Write a handoff note that lets a new chat continue where this one leaves off. Say what we are working on, what is decided, and what is still open. Write it to the assistant of the new chat, in plain text, with no preamble."
 
@@ -44,6 +46,8 @@ final class CodexClient {
     private var process: Process?
     private var input: FileHandle?
     private var threadID: String?
+    /// The web search config the current thread was started or resumed with.
+    private var loadedSearchesWeb: Bool?
     private var nextID = 1
     private var pending: [Int: CheckedContinuation<Data, Error>] = [:]
     private var active: AsyncThrowingStream<TurnEvent, Error>.Continuation?
@@ -82,19 +86,32 @@ final class CodexClient {
     /// The next `ask` starts a new thread on the same process.
     func forgetThread() {
         threadID = nil
+        loadedSearchesWeb = nil
         defaults.removeObject(forKey: Self.threadKey)
     }
 
-    func ask(_ question: String, image: URL? = nil) -> AsyncThrowingStream<TurnEvent, Error> {
+    /// Codex has no per-turn web search flag; it is a config key set per thread.
+    nonisolated static func webSearchConfig(_ on: Bool) -> [String: Any] {
+        ["web_search": on ? "live" : "disabled"]
+    }
+
+    func ask(
+        _ question: String, image: URL? = nil, model: ModelChoice, searchesWeb: Bool
+    ) -> AsyncThrowingStream<TurnEvent, Error> {
         let (stream, continuation) = AsyncThrowingStream<TurnEvent, Error>.makeStream()
         turn = nil
         stopRequested = false
         Task {
             do {
                 try await start()
-                if threadID == nil { threadID = try await startThread() }
+                if threadID == nil {
+                    threadID = try await startThread(searchesWeb: searchesWeb)
+                    loadedSearchesWeb = searchesWeb
+                } else if searchesWeb != loadedSearchesWeb {
+                    try await reloadThread(searchesWeb: searchesWeb)
+                }
                 guard let threadID else { throw CodexProblem.stopped }
-                try await startTurn(question, image: image, on: threadID, into: continuation)
+                try await startTurn(question, image: image, model: model, on: threadID, into: continuation)
                 // Codex writes a thread to disk only at its first turn; an id saved before that
                 // cannot be resumed.
                 defaults.set(threadID, forKey: Self.threadKey)
@@ -129,7 +146,7 @@ final class CodexClient {
             "cwd": FileManager.default.homeDirectoryForCurrentUser.path, "sandbox": "read-only", "approvalPolicy": "never",
         ]))
         let (stream, continuation) = AsyncThrowingStream<TurnEvent, Error>.makeStream()
-        try await startTurn(Self.handoffPrompt, on: fork.thread.id, into: continuation)
+        try await startTurn(Self.handoffPrompt, model: nil, on: fork.thread.id, into: continuation)
         var answer = ""
         // The fork runs with approvalPolicy "never", so no approval waits on this loop.
         for try await case .text(let delta) in stream { answer += delta }
@@ -150,16 +167,25 @@ final class CodexClient {
         return input
     }
 
+    /// `model` nil keeps the thread's own model, as a handoff fork does. Effort is always sent with
+    /// a model, because the user's Codex config can set a higher one.
     private func startTurn(
-        _ text: String, image: URL? = nil, on threadID: String,
+        _ text: String, image: URL? = nil, model: ModelChoice?, on threadID: String,
         into continuation: AsyncThrowingStream<TurnEvent, Error>.Continuation
     ) async throws {
         active = continuation
+        var params: [String: Any] = [
+            "threadId": threadID,
+            "input": Self.turnInput(text, image: image),
+        ]
+        if let model {
+            params["model"] = model.model
+            params["effort"] = model.effort
+            // Applies to this turn only, so a later standard-speed pick really runs at standard speed.
+            params["serviceTierForTurn"] = model.serviceTier
+        }
         do {
-            _ = try await send("turn/start", [
-                "threadId": threadID,
-                "input": Self.turnInput(text, image: image),
-            ])
+            _ = try await send("turn/start", params)
         } catch {
             active = nil
             throw error
@@ -180,16 +206,16 @@ final class CodexClient {
 
         let account: AccountReadResult = try decode(await send("account/read", [:]))
         guard account.isLoggedIn else { throw CodexProblem.notLoggedIn }
+        models = try? decode(await send("model/list", [:]))
 
         if let saved = defaults.string(forKey: Self.threadKey) {
             // Set before the resume: the usage Codex sends right after its reply can arrive
             // first, and would be dropped as another thread's.
             threadID = saved
             do {
-                let resumed: ThreadResumeResult = try decode(await send("thread/resume", [
-                    "threadId": saved, "cwd": home.path, "sandbox": "read-only", "approvalPolicy": "on-request",
-                ]))
+                let resumed: ThreadResumeResult = try decode(await send("thread/resume", Self.resumeParams(saved, searchesWeb: true)))
                 restoredExchanges = resumed.exchanges
+                loadedSearchesWeb = true
                 return
             } catch CodexProblem.failed {
                 threadID = nil
@@ -197,15 +223,38 @@ final class CodexClient {
                 defaults.removeObject(forKey: Self.threadKey)
             }
         }
-        threadID = try await startThread()
+        threadID = try await startThread(searchesWeb: true)
+        loadedSearchesWeb = true
         restoredExchanges = []
     }
 
-    private func startThread() async throws -> String {
+    private func startThread(searchesWeb: Bool) async throws -> String {
         let started: ThreadStartResult = try decode(await send("thread/start", [
             "cwd": FileManager.default.homeDirectoryForCurrentUser.path, "sandbox": "read-only", "approvalPolicy": "on-request",
+            "config": Self.webSearchConfig(searchesWeb),
         ]))
         return started.thread.id
+    }
+
+    private static func resumeParams(_ threadID: String, searchesWeb: Bool) -> [String: Any] {
+        [
+            "threadId": threadID, "cwd": FileManager.default.homeDirectoryForCurrentUser.path,
+            "sandbox": "read-only", "approvalPolicy": "on-request", "config": webSearchConfig(searchesWeb),
+        ]
+    }
+
+    /// A thread's config is fixed while it is loaded, so a new web search setting reloads it.
+    /// Codex saves a thread only at its first turn; one with no turn yet is replaced instead.
+    private func reloadThread(searchesWeb: Bool) async throws {
+        guard let threadID, defaults.string(forKey: Self.threadKey) == threadID else {
+            threadID = try await startThread(searchesWeb: searchesWeb)
+            loadedSearchesWeb = searchesWeb
+            return
+        }
+        _ = try await send("thread/unsubscribe", ["threadId": threadID])
+        // The old turns are already on screen, so the reply's turns are not read.
+        _ = try await send("thread/resume", Self.resumeParams(threadID, searchesWeb: searchesWeb))
+        loadedSearchesWeb = searchesWeb
     }
 
     /// Runs the user's interactive login shell, where nvm, Homebrew, and Volta set up `PATH`.
@@ -329,6 +378,7 @@ final class CodexClient {
         input = nil
         processIdentifier = nil
         threadID = nil
+        loadedSearchesWeb = nil
         starting = nil
     }
 
