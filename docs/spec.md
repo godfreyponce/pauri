@@ -27,8 +27,8 @@ Reference screenshots (the owner's, from the intake thread), in `docs/reference/
 ### Backend
 5. **Auth:** Pauri never handles OpenAI credentials. It spawns the user's installed and logged-in `codex` CLI (`codex app-server`), like T3 Code. Requirement for users: Codex CLI installed and `codex login` done.
 6. **Speed:** first tokens in about a second. One Codex process stays warm in the background. Quick questions go to a fast model at low reasoning effort; bigger models come from the in-window picker. No direct OpenAI API calls (the subscription does not cover them).
-7. **Default model:** a fast one, owner suggested "Sol 6.1 fast". **Verify at build** which fast models Codex actually exposes and their exact ids.
-8. **Web search:** on by default. **Verify at build** how Codex enables it (config or per-turn flag).
+7. **Default model:** `gpt-6.1-sol` at low reasoning effort on Codex's Fast service tier (`priority`, "2x speed, increased usage"): the owner's "Sol 6.1 fast". The picker lists what `codex app-server`'s `model/list` reports (checked on codex-cli 0.169.0), each at its default effort and standard speed. Pauri sends `model`, `effort`, and `serviceTierForTurn` on every `turn/start`, because the user's own Codex config can set a higher effort.
+8. **Web search:** on by default. Codex has no per-turn flag; it is the `web_search` config key (`live` when on, `disabled` when off), set per thread through `config` on `thread/start` and `thread/resume`. A change mid-chat reloads the thread (`thread/unsubscribe`, then `thread/resume`) before the next message. Off turns off Codex's search tool only: Codex can still try a shell command such as `curl`, which the read-only sandbox blocks and which then asks for approval. Checked on codex-cli 0.169.0.
 
 ### Safety
 9. **Permissions:** reads without asking; asks before every file write or command, with an "allow for this chat" option. Codex read-only sandbox plus its approval prompts.

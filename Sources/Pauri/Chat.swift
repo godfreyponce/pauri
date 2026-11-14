@@ -26,6 +26,10 @@ final class Chat {
     var selection: String?
     private(set) var contextUsage: ContextUsage?
     private(set) var isWritingHandoff = false
+    /// Read when a question is sent, so a pick applies from the next message on.
+    var model: ModelChoice = .quick
+    var searchesWeb = true
+    private(set) var modelChoices: [ModelChoice] = [.quick]
 
     var isContextFull: Bool {
         guard let contextUsage else { return false }
@@ -62,10 +66,12 @@ final class Chat {
 
     /// A question asked during the start is already in `exchanges`; the old turns go above it.
     /// A failed start at launch leaves this to the first answer, which starts Codex again.
+    /// The picker's models come from the same start.
     private func showRestoredTurns() {
         guard !didRestore else { return }
         didRestore = true
         exchanges.insert(contentsOf: client.restoredExchanges, at: 0)
+        modelChoices = client.models.map(ModelChoice.menu) ?? [.quick]
     }
 
     func newChat() {
@@ -74,6 +80,8 @@ final class Chat {
         notice = nil
         allowsEverythingInThisChat = false
         contextUsage = nil
+        model = .quick
+        searchesWeb = true
         client.forgetThread()
     }
 
@@ -107,7 +115,7 @@ final class Chat {
         let sent = ContinuousClock.now
         Task {
             do {
-                for try await event in client.ask(prompt, model: .quick, searchesWeb: true) {
+                for try await event in client.ask(prompt, model: model, searchesWeb: searchesWeb) {
                     showRestoredTurns()
                     let last = exchanges.count - 1
                     switch event {

@@ -98,6 +98,27 @@ struct PanelView: View {
                     .textFieldStyle(.roundedBorder)
                     .focused($focused)
                     .onSubmit(submit)
+                Group {
+                    Menu {
+                        ForEach(chat.modelChoices) { choice in
+                            Toggle(choice.name, isOn: Binding(get: { chat.model == choice }, set: { _ in chat.model = choice }))
+                                .help(choice.help)
+                        }
+                    } label: {
+                        Label(chat.model.name, systemImage: "cpu")
+                    }
+                    .menuStyle(.borderlessButton)
+                    .fixedSize()
+                    .help("Model")
+                    Button { chat.searchesWeb.toggle() } label: {
+                        Image(systemName: "globe").foregroundStyle(chat.searchesWeb ? Color.accentColor : .secondary)
+                    }
+                    .buttonStyle(.borderless)
+                    .help(chat.searchesWeb ? "Web search on" : "Web search off")
+                    .accessibilityLabel(chat.searchesWeb ? "Web search on" : "Web search off")
+                }
+                // A change mid-turn would not reach the running turn.
+                .disabled(chat.isAnswering || chat.isWritingHandoff)
                 Button {
                     if dictation.isListening {
                         dictation.stop()
