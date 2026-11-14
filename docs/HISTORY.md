@@ -3,6 +3,26 @@
 Accepted-work archive. One section per accepted ticket, appended at the accept-time docs commit.
 Newest first.
 
+## #5 Tool steps and approval cards (2026-11-14)
+
+- Threads start and resume with `sandbox: "read-only"` and `approvalPolicy: "on-request"`.
+  A probe on codex 0.167.2 showed `"untrusted"` asking for a plain `rg --files | wc -l`, while
+  `"on-request"` ran reads with no request and asked before each shell or patch write. The
+  #8 handoff fork keeps `approvalPolicy: "never"`: it only writes text.
+- Each `commandExecution` and `fileChange` item shows as one gray line labeled from its
+  `commandActions` ("Read 2 files", "Ran `git status`", "Created out.txt"). A click shows the
+  command and its output, capped at 120 pt with a scroll. Steps sit above the answer text and
+  stay in the UI; old chats restored at launch show none. A step still running when its turn
+  ends turns into "(failed)", so no spinner outlives Codex.
+- A write or other command shows a card under the steps: Allow (`accept`), Deny (`decline`,
+  the turn goes on), Allow for this chat. That last one is Pauri's own flag, because Codex's
+  `acceptForSession` covers only the same command. New chat and a relaunch clear it. Pauri
+  never sends `acceptForSession` or an execpolicy amendment. Requests queue; the card shows
+  the first, and the queue clears when the turn ends.
+- Card and line shape: variant A (flat lines) of `design-directions/issue-5.html`.
+- Tests 60/60, seven live tests skipped (`./scripts/test.sh && ./scripts/build-app.sh`); the
+  live suite passed 7/7 with `PAURI_LIVE=1`. Commits 47c5f07..2232e2c, merge 11697d3.
+
 ## #6 Send the selected text (2026-11-13)
 
 - The hotkey reads the selection of the front app before it shows the panel (Accessibility API:
