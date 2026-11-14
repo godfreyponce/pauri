@@ -3,6 +3,30 @@
 Accepted-work archive. One section per accepted ticket, appended at the accept-time docs commit.
 Newest first.
 
+## #3 Follow-ups, reopen last chat, Cmd+N (2026-11-13)
+
+- The panel shows the whole chat: each question in bold with its answer under it, scrolled to the
+  bottom. Every question goes to the same Codex thread, so a follow-up uses the earlier turns.
+- Codex keeps the chat on disk; Pauri stores only the thread id, in `UserDefaults` key
+  `lastThreadID`, written after a question's `turn/start` succeeds (a thread with no turns cannot
+  be resumed). Each start of the app-server, at launch or after Codex dies, sends
+  `thread/resume` with that id and the same overrides as `thread/start`, and the panel shows the
+  old turns from the reply's `thread.turns` (userMessage and agentMessage text only). Any failed
+  resume removes the id and opens a blank chat with no notice. Reset:
+  `defaults delete io.github.godfreyponce.pauri lastThreadID`.
+- If the start at launch fails, the old turns appear with the first answer after it, above that
+  question.
+- Cmd+N, or the pencil button left of the gear, forgets the id; the next question starts a new
+  thread on the same warm process. It is off while an answer streams and during the start at
+  launch. Shipped as SwiftUI `.keyboardShortcut` on the button.
+- `thread/resume` full-turn hydration is deprecated for paginated threads in codex-cli 0.167.2
+  (`thread/turns/list` replaces it); it works today.
+- Live tests (`PAURI_LIVE=1 ./scripts/test.sh --filter live`) sit in a serialized suite and stop
+  each client's app-server before the next client starts: two live app-servers in one process
+  stall the second reader (#13).
+- Tests 25/25, three live tests skipped (`./scripts/test.sh && ./scripts/build-app.sh`). Commits
+  c365bd0..500cf2c, merge df9569d.
+
 ## #9 Glass window and transparency slider (2026-11-13)
 
 - The panel is frosted glass: an `NSVisualEffectView` (material `.popover`, blending
