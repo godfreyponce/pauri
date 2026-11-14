@@ -64,5 +64,23 @@ import Testing
         let afterNewChat = CodexClient(defaults: defaults)
         try await afterNewChat.start()
         #expect(afterNewChat.restoredExchanges.isEmpty)
+        try await quit(afterNewChat)
+    }
+
+    /// No `warmUp()` call: the chat is in the state a failed start at launch leaves it in.
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["PAURI_LIVE"] == "1"))
+    @MainActor func liveChatShowsOldTurnsAfterAFailedStart() async throws {
+        let defaults = freshDefaults("pauri-live-failed-start")
+        let first = CodexClient(defaults: defaults)
+        _ = try await answer(first, "what is 2+2")
+        try await quit(first)
+
+        let client = CodexClient(defaults: defaults)
+        let chat = Chat(client: client)
+        #expect(chat.send("times 3"))
+        while chat.isAnswering { try await Task.sleep(for: .milliseconds(50)) }
+        #expect(chat.exchanges.map(\.question) == ["what is 2+2", "times 3"])
+        #expect(chat.notice == nil)
+        try await quit(client)
     }
 }

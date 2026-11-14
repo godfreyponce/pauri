@@ -20,6 +20,8 @@ final class Chat {
     var canStartNewChat: Bool { !isAnswering && !isStarting }
 
     private let client: CodexClient
+    /// Set once the resumed thread's old turns are shown, so a later restart never shows them twice.
+    private var didRestore = false
 
     init(client: CodexClient) {
         self.client = client
@@ -29,13 +31,20 @@ final class Chat {
         Task {
             do {
                 try await client.start()
-                // A question asked during the start is already in `exchanges`; the old turns go above it.
-                exchanges.insert(contentsOf: client.restoredExchanges, at: 0)
+                showRestoredTurns()
             } catch {
                 notice = Self.message(for: error)
             }
             isStarting = false
         }
+    }
+
+    /// A question asked during the start is already in `exchanges`; the old turns go above it.
+    /// A failed start at launch leaves this to the first answer, which starts Codex again.
+    private func showRestoredTurns() {
+        guard !didRestore else { return }
+        didRestore = true
+        exchanges.insert(contentsOf: client.restoredExchanges, at: 0)
     }
 
     func newChat() {
@@ -56,6 +65,7 @@ final class Chat {
         Task {
             do {
                 for try await delta in client.ask(question) {
+                    showRestoredTurns()
                     if exchanges[exchanges.count - 1].answer.isEmpty {
                         NSLog("Pauri: first token after %d ms", Int((ContinuousClock.now - sent) / .milliseconds(1)))
                     }
