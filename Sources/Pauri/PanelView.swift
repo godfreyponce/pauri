@@ -37,11 +37,28 @@ struct PanelView: View {
             }
             .defaultScrollAnchor(.bottom)
             .frame(maxHeight: .infinity)
+            .overlay(alignment: .top) {
+                if chat.isContextFull {
+                    ContextBanner(isWriting: chat.isWritingHandoff) {
+                        Task {
+                            if let note = await chat.writeHandoff() {
+                                draft = note
+                                focused = true
+                            }
+                        }
+                    } newChat: {
+                        chat.newChat()
+                    }
+                    .padding(.horizontal, 24)
+                    .padding(.top, 8)
+                }
+            }
             if let notice = chat.notice {
                 Text(notice)
                     .foregroundStyle(.secondary)
             }
-            TextField("Ask Pauri", text: $draft)
+            TextField("Ask Pauri", text: $draft, axis: .vertical)
+                .lineLimit(1...8)
                 .textFieldStyle(.roundedBorder)
                 .focused($focused)
                 .onSubmit { if chat.send(draft) { draft = "" } }

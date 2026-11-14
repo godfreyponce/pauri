@@ -14,10 +14,18 @@ final class Chat {
     private(set) var notice: String?
     private(set) var isAnswering = false
     private(set) var isStarting = true
+    private(set) var contextUsage: ContextUsage?
+    private(set) var isWritingHandoff = false
+
+    var isContextFull: Bool {
+        guard let contextUsage else { return false }
+        return ContextLimit.isFull(contextUsage, debug: UserDefaults.standard.bool(forKey: ContextLimit.debugKey))
+    }
 
     /// Off during the start at launch, which would set the resumed thread after a new chat
-    /// forgot it, and during an answer, which would stream into the blank chat.
-    var canStartNewChat: Bool { !isAnswering && !isStarting }
+    /// forgot it, during an answer, which would stream into the blank chat, and while the
+    /// handoff note is written, which ends in a new chat of its own.
+    var canStartNewChat: Bool { !isAnswering && !isStarting && !isWritingHandoff }
 
     private let client: CodexClient
     /// Set once the resumed thread's old turns are shown, so a later restart never shows them twice.
@@ -25,6 +33,7 @@ final class Chat {
 
     init(client: CodexClient) {
         self.client = client
+        client.onContextUsage = { [weak self] usage in self?.contextUsage = usage }
     }
 
     func warmUp() {
@@ -51,13 +60,32 @@ final class Chat {
         guard canStartNewChat else { return }
         exchanges = []
         notice = nil
+        contextUsage = nil
         client.forgetThread()
+    }
+
+    /// On success the chat is already new and the note is for the input box; it is never sent here.
+    /// On failure the old chat stays, with the error as the notice.
+    func writeHandoff() async -> String? {
+        guard canStartNewChat else { return nil }
+        isWritingHandoff = true
+        notice = nil
+        do {
+            let note = try await client.writeHandoff()
+            isWritingHandoff = false
+            newChat()
+            return note
+        } catch {
+            isWritingHandoff = false
+            notice = Self.message(for: error)
+            return nil
+        }
     }
 
     @discardableResult
     func send(_ question: String) -> Bool {
         let question = question.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !question.isEmpty, !isAnswering else { return false }
+        guard !question.isEmpty, !isAnswering, !isWritingHandoff else { return false }
         exchanges.append(Exchange(question: question, answer: ""))
         notice = nil
         isAnswering = true
