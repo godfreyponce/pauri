@@ -3,6 +3,28 @@
 Accepted-work archive. One section per accepted ticket, appended at the accept-time docs commit.
 Newest first.
 
+## #8 Context-full banner and handoff (2026-11-13)
+
+- Pauri reads Codex's `thread/tokenUsage/updated` (sent after each turn and right after
+  `thread/resume`) for the current thread only, and compares `tokenUsage.last.totalTokens` with
+  `modelContextWindow`. `total` is a running sum of every request, not the context size.
+- The banner shows from `ContextLimit.guess = 0.7` (a guess, in `ContextBanner.swift`). Debug:
+  `defaults write io.github.godfreyponce.pauri contextBannerDebug -bool YES` lowers it to 0.01,
+  which any chat passes after one answer (one short question holds about 16k of 475k tokens on
+  gpt-6.1-sol: Codex's own instructions).
+- "Write a handoff draft" forks the thread with `ephemeral: true` and asks Codex for the note on
+  the fork, so the old chat gets no extra turn and the fork is never written to disk. The note
+  goes into the input box of a new chat and is sent only on Return. An empty note is an error,
+  and the old chat stays. "New chat" is Cmd+N. While the note is written, both banner buttons,
+  the pencil, Cmd+N, Return, and the send orb are off.
+- The banner is variant A of `design-directions/issue-8.html` (floating card) in variant B's
+  yellow: a yellow tint and border on a material card, text in the primary color so light mode
+  stays readable. It sits in a top safe-area inset of the transcript, so the first exchange can
+  scroll out from under it. No close button. The input box grows to 8 lines.
+- Tests 43/43 on main after the merge, five live tests skipped (`./scripts/test.sh &&
+  ./scripts/build-app.sh`; 43/43 on the branch). Commits 30920a9..0c09461 (main merged in at
+  cd380d7), merge 2f5a396.
+
 ## #10 Send orb that follows the time of day (2026-11-13)
 
 - The send button is a 32 pt painted orb at the right of the text field. Its scene follows the
