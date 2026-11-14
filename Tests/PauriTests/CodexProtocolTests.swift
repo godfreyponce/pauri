@@ -4,6 +4,24 @@ import Testing
 
 private func incoming(_ line: String) throws -> CodexIncoming { try CodexIncoming(line: Data(line.utf8)) }
 
+private let listCommand = #"/bin/zsh -lc "rg --files --hidden -g '"'!.git'"' -g '*.swift' | wc -l""#
+
+private func step(_ line: String) throws -> ToolStep {
+    guard case .notification(.step(let step)) = try incoming(line) else {
+        Issue.record("not a step: \(line)")
+        throw CodexProtocolError(line: Data(line.utf8))
+    }
+    return step
+}
+
+private func commandStep(_ actions: String, status: String = "completed", output: String = "null") throws -> ToolStep {
+    try step(#"{"method":"item/completed","params":{"item":{"type":"commandExecution","id":"c","command":"/bin/zsh -lc x","cwd":"/Users/u","status":"\#(status)","commandActions":\#(actions),"aggregatedOutput":\#(output),"exitCode":0},"threadId":"t","turnId":"u"}}"#)
+}
+
+private func fileStep(_ changes: String) throws -> ToolStep {
+    try step(#"{"method":"item/completed","params":{"item":{"type":"fileChange","id":"f","changes":\#(changes),"status":"completed"},"threadId":"t","turnId":"u"}}"#)
+}
+
 struct CodexProtocolTests {
     @Test func agentDeltaCarriesItsText() throws {
         #expect(try incoming(#"{"method":"item/agentMessage/delta","params":{"threadId":"t","turnId":"u","itemId":"i","delta":"hi"},"emittedAtMs":1}"#)
@@ -30,9 +48,72 @@ struct CodexProtocolTests {
             == .notification(.ignored))
     }
 
-    @Test func serverRequestKeepsItsID() throws {
-        #expect(try incoming(#"{"id":7,"method":"item/tool/requestUserInput","params":{}}"#) == .request(id: .int(7)))
-        #expect(try incoming(#"{"id":"a1","method":"item/tool/requestUserInput","params":{}}"#) == .request(id: .string("a1")))
+    @Test func otherServerRequestsAreRefused() throws {
+        #expect(try incoming(#"{"id":7,"method":"item/tool/requestUserInput","params":{}}"#) == .request(id: .int(7), .other))
+        #expect(try incoming(#"{"id":"a1","method":"item/permissions/requestApproval","params":{}}"#) == .request(id: .string("a1"), .other))
+    }
+
+    @Test func commandApprovalCarriesItemAndReason() throws {
+        let line = #"{"id":0,"method":"item/commandExecution/requestApproval","params":{"kind":"command","threadId":"t","turnId":"u","itemId":"exec-2","startedAtMs":1,"environmentId":"local","reason":"Allow creating the requested out.txt file outside the read-only sandbox?","command":"/bin/zsh -lc \"printf 'hi\\\\n' > out.txt\"","cwd":"/Users/u","commandActions":[{"type":"unknown","command":"printf 'hi\\n' > out.txt"}],"availableDecisions":["accept","cancel"]}}"#
+        #expect(try incoming(line) == .request(id: .int(0), .approval(
+            itemID: "exec-2", reason: "Allow creating the requested out.txt file outside the read-only sandbox?")))
+    }
+
+    @Test func fileChangeApprovalCarriesItem() throws {
+        let line = #"{"id":1,"method":"item/fileChange/requestApproval","params":{"threadId":"t","turnId":"u","itemId":"exec-3","startedAtMs":1,"reason":null,"grantRoot":null}}"#
+        #expect(try incoming(line) == .request(id: .int(1), .approval(itemID: "exec-3", reason: nil)))
+    }
+
+    @Test func decisionReplyCarriesTheDecision() throws {
+        let line = CodexOutgoing.decision(id: .string("a1"), .decline)
+        #expect(line.last == UInt8(ascii: "\n"))
+        let object = try #require(JSONSerialization.jsonObject(with: line) as? [String: Any])
+        #expect(object["id"] as? String == "a1")
+        #expect((object["result"] as? [String: Any])?["decision"] as? String == "decline")
+    }
+
+    @Test func commandStepStartsAsListedFiles() throws {
+        let line = #"{"method":"item/started","params":{"item":{"type":"commandExecution","id":"exec-1","command":"/bin/zsh -lc \"rg --files --hidden -g '\"'!.git'\"' -g '*.swift' | wc -l\"","cwd":"/Users/u/repo","processId":null,"source":"agent","status":"inProgress","commandActions":[{"type":"listFiles","command":"rg --files --hidden -g '!.git' -g '*.swift'","path":null}],"aggregatedOutput":null,"exitCode":null,"durationMs":null},"threadId":"t","turnId":"u","startedAtMs":1}}"#
+        #expect(try incoming(line) == .notification(.step(ToolStep(
+            id: "exec-1", label: "Listed files", detail: listCommand, output: "", status: .inProgress))))
+    }
+
+    @Test func completedCommandStepCarriesItsOutput() throws {
+        let step = try commandStep(#"[{"type":"listFiles","command":"rg --files","path":null}]"#, output: #""      17\n""#)
+        #expect(step.output == "      17\n")
+        #expect(step.status == .completed)
+    }
+
+    @Test func readActionsNameOneFileOrCountMany() throws {
+        #expect(try commandStep(#"[{"type":"read","command":"cat Package.swift","name":"Package.swift","path":"/Users/u/repo/Package.swift"}]"#).label
+            == "Read Package.swift")
+        #expect(try commandStep(#"[{"type":"read","command":"cat a","name":"a","path":"/Users/u/a"},{"type":"read","command":"cat b","name":"b","path":"/Users/u/b"}]"#).label
+            == "Read 2 files")
+    }
+
+    @Test func searchActionNamesItsQuery() throws {
+        #expect(try commandStep(#"[{"type":"search","command":"rg CodexClient","query":"CodexClient","path":null}]"#).label
+            == "Searched for CodexClient")
+    }
+
+    @Test func otherCommandShowsItsCommand() throws {
+        let actions = #"[{"type":"unknown","command":"git status"}]"#
+        #expect(try commandStep(actions).label == "Ran `git status`")
+        #expect(try commandStep(actions, status: "declined").label == "Ran `git status` (denied)")
+    }
+
+    @Test func fileChangeNamesTheFile() throws {
+        let one = try fileStep(#"[{"path":"/Users/u/out.txt","kind":{"type":"add"},"diff":"+hi\n"}]"#)
+        #expect(one.label == "Created out.txt")
+        #expect(one.detail == "/Users/u/out.txt")
+        #expect(one.output == "+hi\n")
+        let two = try fileStep(#"[{"path":"/Users/u/a","kind":{"type":"add"},"diff":""},{"path":"/Users/u/b","kind":{"type":"delete"},"diff":""}]"#)
+        #expect(two.label == "Changed 2 files")
+    }
+
+    @Test func otherItemTypesAreIgnored() throws {
+        #expect(try incoming(#"{"method":"item/started","params":{"item":{"type":"agentMessage","id":"m","text":""},"threadId":"t","turnId":"u"}}"#)
+            == .notification(.ignored))
     }
 
     @Test func serverRequestReplyIsMethodNotFound() throws {

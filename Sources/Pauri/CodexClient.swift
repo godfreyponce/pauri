@@ -198,7 +198,7 @@ final class CodexClient {
             pending.removeValue(forKey: id)?.resume(returning: result)
         case .failure(let id, let text):
             pending.removeValue(forKey: id)?.resume(throwing: CodexProblem.failed(text))
-        case .request(let id):
+        case .request(let id, _):
             write(CodexOutgoing.unsupported(id: id))
         case .notification(.agentMessageDelta(let text)):
             active?.yield(text)
@@ -208,7 +208,7 @@ final class CodexClient {
         case .notification(.turnCompleted(let text?)), .notification(.error(let text, willRetry: false)):
             active?.finish(throwing: CodexProblem.failed(text))
             active = nil
-        case .notification(.error(_, willRetry: true)), .notification(.ignored):
+        case .notification(.error(_, willRetry: true)), .notification(.step), .notification(.ignored):
             break
         }
     }
