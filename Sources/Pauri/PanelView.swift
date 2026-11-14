@@ -34,9 +34,17 @@ struct PanelView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 12) {
                     ForEach(chat.exchanges.indices, id: \.self) { index in
+                        let exchange = chat.exchanges[index]
                         VStack(alignment: .leading, spacing: 4) {
-                            Text(chat.exchanges[index].question).bold()
-                            Text(chat.exchanges[index].answer)
+                            Text(exchange.question).bold()
+                            ForEach(exchange.steps) { ToolStepRow(step: $0) }
+                            if index == chat.exchanges.count - 1, let request = chat.approvals.first {
+                                ApprovalCard(request: request,
+                                             step: exchange.steps.first { $0.id == request.itemID },
+                                             decide: { chat.decide(request, $0) })
+                                    .padding(.leading, 15)
+                            }
+                            Text(exchange.answer)
                         }
                     }
                 }

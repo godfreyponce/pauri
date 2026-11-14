@@ -16,6 +16,19 @@ enum CodexProblem: Error, Equatable {
     }
 }
 
+/// A request from Codex that waits on Allow or Deny.
+struct ApprovalRequest: Equatable, Sendable, Identifiable {
+    let id: RPCID
+    let itemID: String
+    let reason: String?
+}
+
+enum TurnEvent: Equatable, Sendable {
+    case text(String)
+    case step(ToolStep)
+    case approval(ApprovalRequest)
+}
+
 /// Keeps one `codex app-server` child warm and speaks its newline-delimited JSON-RPC.
 @MainActor
 final class CodexClient {
@@ -33,7 +46,7 @@ final class CodexClient {
     private var threadID: String?
     private var nextID = 1
     private var pending: [Int: CheckedContinuation<Data, Error>] = [:]
-    private var active: AsyncThrowingStream<String, Error>.Continuation?
+    private var active: AsyncThrowingStream<TurnEvent, Error>.Continuation?
     private let defaults: UserDefaults
     private static let threadKey = "lastThreadID"
 
@@ -67,8 +80,8 @@ final class CodexClient {
         defaults.removeObject(forKey: Self.threadKey)
     }
 
-    func ask(_ question: String) -> AsyncThrowingStream<String, Error> {
-        let (stream, continuation) = AsyncThrowingStream<String, Error>.makeStream()
+    func ask(_ question: String) -> AsyncThrowingStream<TurnEvent, Error> {
+        let (stream, continuation) = AsyncThrowingStream<TurnEvent, Error>.makeStream()
         Task {
             do {
                 try await start()
@@ -85,6 +98,10 @@ final class CodexClient {
         return stream
     }
 
+    func decide(_ request: ApprovalRequest, _ decision: ApprovalDecision) {
+        write(CodexOutgoing.decision(id: request.id, decision))
+    }
+
     /// Codex writes the note on an ephemeral fork of the current thread, so the thread itself
     /// gets no extra turn and the fork is never saved.
     func writeHandoff() async throws -> String {
@@ -94,10 +111,11 @@ final class CodexClient {
             "threadId": threadID, "ephemeral": true, "excludeTurns": true,
             "cwd": FileManager.default.homeDirectoryForCurrentUser.path, "sandbox": "read-only", "approvalPolicy": "never",
         ]))
-        let (stream, continuation) = AsyncThrowingStream<String, Error>.makeStream()
+        let (stream, continuation) = AsyncThrowingStream<TurnEvent, Error>.makeStream()
         try await startTurn(Self.handoffPrompt, on: fork.thread.id, into: continuation)
         var answer = ""
-        for try await delta in stream { answer += delta }
+        // The fork runs with approvalPolicy "never", so no approval waits on this loop.
+        for try await case .text(let delta) in stream { answer += delta }
         return try Self.handoffNote(from: answer)
     }
 
@@ -109,7 +127,7 @@ final class CodexClient {
     }
 
     private func startTurn(
-        _ text: String, on threadID: String, into continuation: AsyncThrowingStream<String, Error>.Continuation
+        _ text: String, on threadID: String, into continuation: AsyncThrowingStream<TurnEvent, Error>.Continuation
     ) async throws {
         active = continuation
         do {
@@ -144,7 +162,7 @@ final class CodexClient {
             threadID = saved
             do {
                 let resumed: ThreadResumeResult = try decode(await send("thread/resume", [
-                    "threadId": saved, "cwd": home.path, "sandbox": "read-only", "approvalPolicy": "never",
+                    "threadId": saved, "cwd": home.path, "sandbox": "read-only", "approvalPolicy": "on-request",
                 ]))
                 restoredExchanges = resumed.exchanges
                 return
@@ -160,7 +178,7 @@ final class CodexClient {
 
     private func startThread() async throws -> String {
         let started: ThreadStartResult = try decode(await send("thread/start", [
-            "cwd": FileManager.default.homeDirectoryForCurrentUser.path, "sandbox": "read-only", "approvalPolicy": "never",
+            "cwd": FileManager.default.homeDirectoryForCurrentUser.path, "sandbox": "read-only", "approvalPolicy": "on-request",
         ]))
         return started.thread.id
     }
@@ -238,10 +256,19 @@ final class CodexClient {
             pending.removeValue(forKey: id)?.resume(returning: result)
         case .failure(let id, let text):
             pending.removeValue(forKey: id)?.resume(throwing: CodexProblem.failed(text))
-        case .request(let id):
+        case .request(let id, .approval(let itemID, let reason)):
+            if let active {
+                active.yield(.approval(ApprovalRequest(id: id, itemID: itemID, reason: reason)))
+            } else {
+                // No card can show this request, so nothing runs.
+                write(CodexOutgoing.decision(id: id, .decline))
+            }
+        case .request(let id, .other):
             write(CodexOutgoing.unsupported(id: id))
         case .notification(.agentMessageDelta(let text)):
-            active?.yield(text)
+            active?.yield(.text(text))
+        case .notification(.step(let step)):
+            active?.yield(.step(step))
         case .notification(.turnCompleted(nil)):
             active?.finish()
             active = nil

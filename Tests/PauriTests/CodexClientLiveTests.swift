@@ -16,8 +16,12 @@ import Testing
 
 @MainActor private func answer(_ client: CodexClient, _ question: String) async throws -> String {
     var answer = ""
-    for try await delta in client.ask(question) { answer += delta }
+    for try await case .text(let delta) in client.ask(question) { answer += delta }
     return answer
+}
+
+@MainActor private func waitUntil(_ condition: () -> Bool) async throws {
+    while !condition() { try await Task.sleep(for: .milliseconds(50)) }
 }
 
 @Suite struct CodexClientLiveTests {
@@ -32,7 +36,7 @@ import Testing
         for question in ["Reply with just the word hi.", "Reply with just the word bye."] {
             let sent = ContinuousClock.now
             var answer = ""
-            for try await delta in client.ask(question) {
+            for try await case .text(let delta) in client.ask(question) {
                 if answer.isEmpty { print("first token after \(ContinuousClock.now - sent)") }
                 answer += delta
             }
@@ -119,5 +123,54 @@ import Testing
         #expect(!(try await answer(second, "Reply with just the word bye.")).isEmpty)
         try await quit(first)
         try await quit(second)
+    }
+
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["PAURI_LIVE"] == "1"))
+    @MainActor func liveReadRunsWithNoApproval() async throws {
+        let client = CodexClient(defaults: freshDefaults("pauri-live-read"))
+        let repo = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        var events: [TurnEvent] = []
+        for try await event in client.ask("How many Swift files are in \(repo.path)? Use a shell command to count them.") {
+            events.append(event)
+        }
+        #expect(!events.contains { if case .approval = $0 { true } else { false } })
+        #expect(events.contains { if case .step(let step) = $0 { step.status == .completed } else { false } })
+        try await quit(client)
+    }
+
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["PAURI_LIVE"] == "1"))
+    @MainActor func liveAllowForThisChatCoversOnlyThisChat() async throws {
+        let client = CodexClient(defaults: freshDefaults("pauri-live-allow-for-chat"))
+        let chat = Chat(client: client)
+        chat.warmUp()
+        try await waitUntil { !chat.isStarting }
+        let files = (0..<3).map { _ in FileManager.default.temporaryDirectory.appendingPathComponent("pauri-\(UUID().uuidString).txt") }
+        defer { for file in files { try? FileManager.default.removeItem(at: file) } }
+        func create(_ file: URL) -> String { "Create the file \(file.path) containing hi. Use a shell command." }
+
+        chat.send(create(files[0]))
+        try await waitUntil { !chat.approvals.isEmpty || !chat.isAnswering }
+        let first = try #require(chat.approvals.first)
+        chat.decide(first, .allowForChat)
+        try await waitUntil { !chat.isAnswering }
+        #expect(FileManager.default.fileExists(atPath: files[0].path))
+
+        chat.send(create(files[1]))
+        while chat.isAnswering {
+            #expect(chat.approvals.isEmpty)
+            try await Task.sleep(for: .milliseconds(50))
+        }
+        #expect(FileManager.default.fileExists(atPath: files[1].path))
+
+        chat.newChat()
+        chat.send(create(files[2]))
+        try await waitUntil { !chat.approvals.isEmpty || !chat.isAnswering }
+        let third = try #require(chat.approvals.first)
+        chat.decide(third, .deny)
+        try await waitUntil { !chat.isAnswering }
+        #expect(!FileManager.default.fileExists(atPath: files[2].path))
+        #expect(chat.notice == nil)
+        #expect(!(chat.exchanges.last?.answer.isEmpty ?? true))
+        try await quit(client)
     }
 }
