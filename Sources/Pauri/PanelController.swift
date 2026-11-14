@@ -31,10 +31,7 @@ final class PanelController {
         panel.center()
     }
 
-    /// Hides only when the panel has focus; a press while another app has focus brings it back.
-    func toggle() {
-        panel.isKeyWindow ? hide() : show()
-    }
+    var isKey: Bool { panel.isKeyWindow }
 
     /// No `NSApp.activate`: the app behind stays the active app.
     func show() {

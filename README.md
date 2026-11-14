@@ -6,7 +6,7 @@ The name: P from *Proxima*, the rest from *Centauri*. The nearest star, always c
 
 ## Status
 
-The panel opens on a hotkey. Type a question and press Return: the answer streams in from your own `codex app-server`. A chat keeps going across questions, comes back when you reopen the panel or relaunch Pauri, and Cmd+N starts a new one. The model picker and tool steps come next. The design is in [docs/spec.md](docs/spec.md) and the work queue is in GitHub Issues.
+The panel opens on a hotkey. Type a question and press Return: the answer streams in from your own `codex app-server`. A chat keeps going across questions, comes back when you reopen the panel or relaunch Pauri, and Cmd+N starts a new one. The text selected in the front app comes along with the question. The model picker and tool steps come next. The design is in [docs/spec.md](docs/spec.md) and the work queue is in GitHub Issues.
 
 ## Requirements
 
@@ -23,6 +23,7 @@ You need Command Line Tools (`xcode-select --install`) or Xcode.
 - New chat: Cmd+N, or the pencil button at the top right of the panel.
 - Change the shortcut: click the gear at the top right of the panel, click the shortcut, and press the new one. Esc cancels.
 - Change the transparency: click the gear and drag the Transparency slider between Solid and Glass. Reset it with `defaults delete io.github.godfreyponce.pauri transparency`.
+- Attach selected text: select text in any app, then press the shortcut. A chip above the input shows it, and the x removes it. The first time, Pauri asks for Accessibility access. Turn it on or off in System Settings > Privacy & Security > Accessibility. After a rebuild, macOS forgets the grant: run `tccutil reset Accessibility io.github.godfreyponce.pauri` and allow it again.
 - If the shortcut stops working: run `open build/Pauri.app` again to show the panel, or reset the shortcut with `defaults delete io.github.godfreyponce.pauri hotKey`.
 - Quit: `pkill -x Pauri`. Pauri has no Dock icon and no menu.
 - Test: `./scripts/test.sh`.

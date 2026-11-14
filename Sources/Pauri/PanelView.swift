@@ -49,6 +49,7 @@ struct PanelView: View {
                 Text(notice)
                     .foregroundStyle(.secondary)
             }
+            SelectionBar(chat: chat)
             HStack {
                 TextField("Ask Pauri", text: $draft)
                     .textFieldStyle(.roundedBorder)
