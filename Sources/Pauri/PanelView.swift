@@ -6,7 +6,15 @@ struct PanelView: View {
     let chat: Chat
     @State private var draft = ""
     @State private var showsSettings = false
+    @State private var sends = 0
     @FocusState private var focused: Bool
+
+    private func submit() {
+        if chat.send(draft) {
+            draft = ""
+            sends += 1
+        }
+    }
 
     var body: some View {
         VStack {
@@ -27,10 +35,16 @@ struct PanelView: View {
                 Text(notice)
                     .foregroundStyle(.secondary)
             }
-            TextField("Ask Pauri", text: $draft)
-                .textFieldStyle(.roundedBorder)
-                .focused($focused)
-                .onSubmit { if chat.send(draft) { draft = "" } }
+            HStack {
+                TextField("Ask Pauri", text: $draft)
+                    .textFieldStyle(.roundedBorder)
+                    .focused($focused)
+                    .onSubmit(submit)
+                SendOrb(sends: sends,
+                        isEnabled: !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !chat.isAnswering,
+                        isAnswering: chat.isAnswering,
+                        action: submit)
+            }
         }
         .padding()
         // The panel becomes key on every show. The settings popover is a window that also becomes
