@@ -3,6 +3,22 @@
 Accepted-work archive. One section per accepted ticket, appended at the accept-time docs commit.
 Newest first.
 
+## #7 Screenshot button (2026-11-14)
+
+- A camera button left of the mic takes one ScreenCaptureKit screenshot of the screen the panel
+  is on, at its point size, with no cursor. A filter leaves out Pauri's own app, so the panel
+  stays up and is not in the shot. The PNG goes to $TMPDIR/pauri-screenshot-<UUID>.png and
+  shows as a thumbnail chip; a second press replaces it.
+- Send passes it to Codex as a turn/start `localImage` item after the text (codex-cli 0.169.0
+  takes it; the session file stores the image inline, so a follow-up still sees it after the
+  file is gone). Chat deletes the file when the answer ends, or on remove or replace. The sent
+  turn shows a Screenshot marker; restored turns do not.
+- Access: CGPreflightScreenCaptureAccess before any ScreenCaptureKit call; the first press calls
+  CGRequestScreenCaptureAccess, and the row names the Privacy pane and the relaunch.
+- Tests 70/70 in the worktree, eleven live tests skipped (`./scripts/test.sh &&
+  ./scripts/build-app.sh`); live test liveImageIsDescribedAndOutlivesItsFile passed with
+  `PAURI_LIVE=1`. Commits bfd05c3, abdf3d8, merge c298cc2.
+
 ## #14 Stop an answer from the send orb's square (2026-11-14)
 
 - While an answer streams, a click on the orb's square sends `turn/interrupt` to the running
