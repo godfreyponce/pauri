@@ -38,6 +38,16 @@ struct CodexProtocolTests {
             == .notification(.turnCompleted(errorMessage: "Model overloaded")))
     }
 
+    @Test func turnStartedCarriesTheTurnID() throws {
+        #expect(try incoming(#"{"method":"turn/started","params":{"threadId":"t","turn":{"id":"u","items":[],"status":"inProgress","error":null}}}"#)
+            == .notification(.turnStarted(threadID: "t", turnID: "u")))
+    }
+
+    @Test func interruptedTurnEndsWithoutAnError() throws {
+        #expect(try incoming(#"{"method":"turn/completed","params":{"threadId":"t","turn":{"id":"u","items":[],"status":"interrupted","error":null}}}"#)
+            == .notification(.turnCompleted(errorMessage: nil)))
+    }
+
     @Test func errorNotificationCarriesRetryFlag() throws {
         #expect(try incoming(#"{"method":"error","params":{"error":{"message":"Reconnecting","codexErrorInfo":null,"additionalDetails":null},"willRetry":true,"threadId":"t","turnId":"u"}}"#)
             == .notification(.error(message: "Reconnecting", willRetry: true)))

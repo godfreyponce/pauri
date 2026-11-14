@@ -85,7 +85,7 @@ struct PanelView: View {
                         isEnabled: !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                             && !chat.isAnswering && !chat.isWritingHandoff,
                         isAnswering: chat.isAnswering,
-                        action: submit)
+                        action: { chat.isAnswering ? chat.stop() : submit() })
             }
         }
         .padding()

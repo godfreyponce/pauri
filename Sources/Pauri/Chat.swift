@@ -141,6 +141,12 @@ final class Chat {
         return true
     }
 
+    /// The end of the stream in `send` then clears the approvals and sets `isAnswering` back.
+    func stop() {
+        guard isAnswering else { return }
+        client.stopAnswer()
+    }
+
     func decide(_ request: ApprovalRequest, _ choice: ApprovalChoice) {
         guard let index = approvals.firstIndex(of: request) else { return }
         approvals.remove(at: index)

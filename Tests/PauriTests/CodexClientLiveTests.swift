@@ -126,6 +126,44 @@ import Testing
     }
 
     @Test(.enabled(if: ProcessInfo.processInfo.environment["PAURI_LIVE"] == "1"))
+    @MainActor func liveStopKeepsTheTextAndTheNextQuestionAnswers() async throws {
+        let client = CodexClient(defaults: freshDefaults("pauri-live-stop"))
+        var text = ""
+        for try await case .text(let delta) in client.ask("Count from 1 to 300, one number per line, nothing else.") {
+            if text.isEmpty { client.stopAnswer() }
+            text += delta
+        }
+        #expect(!text.isEmpty)
+        #expect(!text.contains("300"))
+        #expect(try await answer(client, "Reply with just the word hi.").lowercased().contains("hi"))
+        try await quit(client)
+    }
+
+    /// The click during the launch start, before `turn/start` has replied with the turn's id.
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["PAURI_LIVE"] == "1"))
+    @MainActor func liveStopBeforeTheTurnStartsEndsTheAnswer() async throws {
+        let client = CodexClient(defaults: freshDefaults("pauri-live-stop-early"))
+        let stream = client.ask("Count from 1 to 300, one number per line, nothing else.")
+        client.stopAnswer()
+        var text = ""
+        for try await case .text(let delta) in stream { text += delta }
+        #expect(!text.contains("300"))
+        try await quit(client)
+    }
+
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["PAURI_LIVE"] == "1"))
+    @MainActor func liveHandoffAfterAStopWritesTheNote() async throws {
+        let client = CodexClient(defaults: freshDefaults("pauri-live-stop-handoff"))
+        var text = ""
+        for try await case .text(let delta) in client.ask("My favorite color is teal. Then count from 1 to 300, one number per line.") {
+            if text.isEmpty { client.stopAnswer() }
+            text += delta
+        }
+        #expect(try await client.writeHandoff().localizedCaseInsensitiveContains("teal"))
+        try await quit(client)
+    }
+
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["PAURI_LIVE"] == "1"))
     @MainActor func liveReadRunsWithNoApproval() async throws {
         let client = CodexClient(defaults: freshDefaults("pauri-live-read"))
         let repo = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
