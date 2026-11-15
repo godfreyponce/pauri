@@ -45,7 +45,7 @@ final class CodexClient {
     private var starting: Task<Void, Error>?
     private var process: Process?
     private var input: FileHandle?
-    private var threadID: String?
+    private(set) var threadID: String?
     private var nextID = 1
     private var pending: [Int: CheckedContinuation<Data, Error>] = [:]
     private var active: AsyncThrowingStream<TurnEvent, Error>.Continuation?
@@ -97,6 +97,18 @@ final class CodexClient {
         let ids = rememberedThreadIDs
         guard !ids.contains(threadID) else { return }
         defaults.set(ids + [threadID], forKey: Self.historyKey)
+    }
+
+    func forget(_ threadID: String) {
+        defaults.set(rememberedThreadIDs.filter { $0 != threadID }, forKey: Self.historyKey)
+    }
+
+    /// Deletes the thread in Codex for good. The ID is forgotten only after Codex replies, so a
+    /// failed delete keeps the chat in the list. The open thread stays set; `Chat` decides.
+    func delete(_ threadID: String) async throws {
+        try await start()
+        _ = try await send("thread/delete", ["threadId": threadID])
+        forget(threadID)
     }
 
     /// Pauri's remembered threads that Codex still lists, last updated first.

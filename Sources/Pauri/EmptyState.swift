@@ -1,9 +1,11 @@
 import SwiftUI
 
 /// A new chat before its first question: variant C of `design-directions/issue-21.html`, a short
-/// list of what the panel can do. Plain rows; nothing here is a button yet.
+/// list of what the panel can do. Only the past-chats row is a button.
 struct EmptyState: View {
     let shortcut: Shortcut
+    let openHistory: () -> Void
+    @State private var isHistoryHovered = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
@@ -15,6 +17,15 @@ struct EmptyState: View {
                 .padding(.bottom, 6)
             row("quote.opening", "Select text first, then press the hotkey to quote it.")
             row("paperclip", "The paperclip attaches a screenshot of this screen.")
+            // No shortcut here: the header's search button owns Cmd+K.
+            Button(action: openHistory) {
+                row("clock.arrow.circlepath", "Open your past chats.", keys: ["⌘", "K"])
+                    .background(isHistoryHovered ? AnyShapeStyle(.primary.opacity(0.08)) : AnyShapeStyle(.clear),
+                                in: RoundedRectangle(cornerRadius: 6))
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .onHover { isHistoryHovered = $0 }
             row("return", "Bring Pauri back from any app.", keys: Self.keyCaps(shortcut))
         }
         .padding(.bottom, 4)
@@ -44,7 +55,7 @@ struct EmptyState: View {
     }
 }
 
-private struct KeyCap: View {
+struct KeyCap: View {
     let key: String
 
     var body: some View {

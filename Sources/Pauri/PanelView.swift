@@ -47,14 +47,22 @@ struct PanelView: View {
 
     var body: some View {
         VStack {
-            // Variant C of design-directions/issue-21.html; its chat title comes with #22.
+            // Variant C of design-directions/issue-21.html: the chat's title, then the past-chats palette.
             HStack(spacing: 4) {
-                Spacer()
-                Button { showsHistory = true } label: { Image(systemName: "clock").font(.system(size: 12)) }
+                Text(chat.title)
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                Text("⌘K")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.tertiary)
+                    .padding(.trailing, 4)
+                Button { showsHistory.toggle() } label: { Image(systemName: "magnifyingglass").font(.system(size: 12)) }
                     .buttonStyle(.borderless)
                     .help("Past chats (⌘K)")
                     .keyboardShortcut("k", modifiers: .command)
-                    .popover(isPresented: $showsHistory) { HistoryList(chat: chat) { showsHistory = false } }
                 Button { chat.newChat() } label: { Image(systemName: "square.and.pencil").font(.system(size: 12)) }
                     .buttonStyle(.borderless)
                     .help("New chat")
@@ -68,7 +76,7 @@ struct PanelView: View {
             .frame(height: 26)
             ScrollView {
                 if chat.exchanges.isEmpty && !chat.isStarting {
-                    EmptyState(shortcut: hotKey.shortcut)
+                    EmptyState(shortcut: hotKey.shortcut) { showsHistory = true }
                         .containerRelativeFrame(.vertical, alignment: .bottom)
                 } else {
                     VStack(alignment: .leading, spacing: 0) {
@@ -186,7 +194,7 @@ struct PanelView: View {
                     .help(dictation.isListening ? "Stop dictation" : dictation.problem?.message ?? "Dictate")
                     SendOrb(sends: sends,
                             isEnabled: !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                                && !chat.isAnswering && !chat.isWritingHandoff,
+                                && !chat.isAnswering && !chat.isWritingHandoff && !chat.isOpening,
                             isAnswering: chat.isAnswering,
                             action: { chat.isAnswering ? chat.stop() : submit() })
                 }
@@ -196,6 +204,11 @@ struct PanelView: View {
             .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(.separator))
         }
         .padding(12)
+        .overlay {
+            if showsHistory {
+                HistoryList(chat: chat) { showsHistory = false }
+            }
+        }
         .background {
             Color(nsColor: .windowBackgroundColor).opacity(1 - transparency).ignoresSafeArea()
         }
@@ -205,7 +218,14 @@ struct PanelView: View {
             if note.object is FloatingPanel { focused = true }
         }
         .onReceive(NotificationCenter.default.publisher(for: NSWindow.didResignKeyNotification)) { note in
-            if note.object is FloatingPanel { dictation.stop() }
+            // Closed on hide, or the next hotkey would focus the input under the palette.
+            if note.object is FloatingPanel {
+                dictation.stop()
+                showsHistory = false
+            }
+        }
+        .onChange(of: showsHistory) { _, shows in
+            if !shows { focused = true }
         }
         .onChange(of: draft) { _, new in
             if dictation.isListening && new != dictated { dictation.stop() }
