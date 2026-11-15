@@ -3,6 +3,27 @@
 Accepted-work archive. One section per accepted ticket, appended at the accept-time docs commit.
 Newest first.
 
+## #21 Whole-panel redesign, variant C (2026-11-14)
+
+- `design-directions/issue-21.html` shows four whole-panel shapes on one data set: A no header
+  bar, B toolbar and sidebar, C command palette, D home screen, each with its Cmd+K history
+  surface. The owner picked C, with no mix. The page stays as the record.
+- The panel is C: a slim 26 pt header with new chat and settings at the top right, the user's
+  message as a row with a "YOU" label in a 44 pt column, the steps, approval card, and answer
+  indented under it, a divider and 12 pt between exchanges, 12.5 pt answers with 2.5 pt line
+  spacing, code at 11 pt, step rows at 11.5 pt, panel padding 12. The orb, input area, and
+  model picker are unchanged (#10, #17). `QuestionBubble` is replaced by `QuestionRow`.
+- New `EmptyState.swift`: a list of plain rows (quote text, paperclip, the saved hotkey as key
+  caps), shown when the chat has no exchanges and Codex has finished starting, so a restored
+  chat never flashes it at launch. It takes the `Shortcut`, so a changed hotkey shows.
+- Left for #22 (comment on #22): the chat title and the Cmd+K search button in the header, the
+  palette that covers the panel, and the "Open your past chats" row, which waits for #20.
+- Deferred from the final review: the transcript's 12.5 pt reaches the approval card (the page
+  has 13); after a failed Codex start the empty state shows though the old chat is still live;
+  `keyCaps`'s doc comment shows `⌘⇧Space` where `displayName` gives `⇧⌘Space`.
+- Tests 100/100, fourteen live tests skipped (`./scripts/test.sh && ./scripts/build-app.sh`).
+  Hand checks by the owner at gate 2. Commits 296f78d, 4ed0036, c26d910.
+
 ## #18 Live screenshot test passes at the default effort (2026-11-14)
 
 - The cause was the test, not `CodexClient`. At low effort the model read the 64x64 test image
