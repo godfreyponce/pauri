@@ -32,6 +32,8 @@ final class Chat {
     private(set) var isWritingHandoff = false
     /// A chat from the list is being reopened.
     private(set) var isOpening = false
+    /// The open chat is being deleted; a question now would go to the deleted thread.
+    private(set) var isDeletingOpenChat = false
     /// Read when a question is sent, so a pick applies from the next message on. nil sends no
     /// model, so Codex uses its own default.
     var model: ModelChoice?
@@ -127,9 +129,12 @@ final class Chat {
         }
     }
 
-    /// Deleting the open chat starts a new one. On failure nothing changes.
+    /// Deleting the open chat starts a new one, and no question can be sent until it ends. On
+    /// failure nothing changes.
     func delete(_ threadID: String) async throws {
         let wasOpen = client.threadID == threadID
+        if wasOpen { isDeletingOpenChat = true }
+        defer { if wasOpen { isDeletingOpenChat = false } }
         try await client.delete(threadID)
         if wasOpen { newChat() }
     }
@@ -166,7 +171,7 @@ final class Chat {
     @discardableResult
     func send(_ question: String) -> Bool {
         let question = question.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !question.isEmpty, !isAnswering, !isWritingHandoff, !isOpening else { return false }
+        guard !question.isEmpty, !isAnswering, !isWritingHandoff, !isOpening, !isDeletingOpenChat else { return false }
         let prompt = Self.prompt(question, selection: selection)
         selection = nil
         let image = screenshot

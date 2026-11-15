@@ -194,7 +194,8 @@ struct PanelView: View {
                     .help(dictation.isListening ? "Stop dictation" : dictation.problem?.message ?? "Dictate")
                     SendOrb(sends: sends,
                             isEnabled: !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                                && !chat.isAnswering && !chat.isWritingHandoff && !chat.isOpening,
+                                && !chat.isAnswering && !chat.isWritingHandoff && !chat.isOpening
+                                && !chat.isDeletingOpenChat,
                             isAnswering: chat.isAnswering,
                             action: { chat.isAnswering ? chat.stop() : submit() })
                 }

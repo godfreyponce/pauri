@@ -345,4 +345,63 @@ private func redBlueImage() throws -> CGImage {
         #expect(try await answer(client, "what is 5+5").contains("10"))
         try await quit(client)
     }
+
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["PAURI_LIVE"] == "1"))
+    @MainActor func liveSendWaitsWhileTheOpenChatIsDeleted() async throws {
+        let client = CodexClient(defaults: freshDefaults("pauri-live-delete-send"))
+        let chat = Chat(client: client)
+        chat.warmUp()
+        try await waitUntil { !chat.isStarting }
+        #expect(chat.send("what is 2+2"))
+        try await waitUntil { !chat.isAnswering }
+        let open = try #require(client.threadID)
+
+        let deleting = Task { try await chat.delete(open) }
+        // Main actor: one yield runs the delete up to its wait on Codex's reply.
+        await Task.yield()
+        #expect(chat.isDeletingOpenChat)
+        #expect(!chat.send("what is 3+3"))
+        try await deleting.value
+
+        #expect(!chat.isDeletingOpenChat)
+        #expect(chat.exchanges.isEmpty)
+        #expect(client.threadID == nil)
+        #expect(chat.send("what is 5+5"))
+        try await waitUntil { !chat.isAnswering }
+        let next = try #require(client.threadID)
+        #expect(next != open)
+        #expect(chat.exchanges.count == 1)
+        #expect(chat.exchanges[0].answer.contains("10"))
+        try await quit(client)
+    }
+
+    /// The palette's own delete lock is lost when it closes, so a second delete can overlap the first.
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["PAURI_LIVE"] == "1"))
+    @MainActor func liveDeletingAnotherChatKeepsSendWaiting() async throws {
+        let client = CodexClient(defaults: freshDefaults("pauri-live-delete-two"))
+        let chat = Chat(client: client)
+        chat.warmUp()
+        try await waitUntil { !chat.isStarting }
+        #expect(chat.send("what is 2+2"))
+        try await waitUntil { !chat.isAnswering }
+        let other = try #require(client.threadID)
+        chat.newChat()
+        #expect(chat.send("what is 3+3"))
+        try await waitUntil { !chat.isAnswering }
+        let open = try #require(client.threadID)
+
+        let deletingOpen = Task { try await chat.delete(open) }
+        await Task.yield()
+        let deletingOther = Task { try await chat.delete(other) }
+        await Task.yield()
+        #expect(chat.isDeletingOpenChat)
+        #expect(!chat.send("what is 5+5"))
+        try await deletingOther.value
+        try await deletingOpen.value
+
+        #expect(!chat.isDeletingOpenChat)
+        #expect(chat.exchanges.isEmpty)
+        #expect(client.threadID == nil)
+        try await quit(client)
+    }
 }
