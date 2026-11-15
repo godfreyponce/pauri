@@ -3,6 +3,20 @@
 Accepted-work archive. One section per accepted ticket, appended at the accept-time docs commit.
 Newest first.
 
+## #23 Model picker label without "GPT" (2026-11-14)
+
+- New `ModelPicker.label(_:)`: a name that starts with "GPT-" or "GPT " (any case) and has text
+  after it loses that prefix, so "GPT-6.1-Sol Fast" next to the Blossom reads "6.1-Sol Fast".
+  Any other name, and a bare "GPT" or "GPT-", shows unchanged; no model shows "Codex default".
+- The capsule's button and every menu row use it, so the two agree. The menu still checks the
+  current model by id. `ModelChoice` is untouched, so `turn/start` still sends the full id.
+- New `ModelPickerTests` (5 tests). No visual-rule variants: the owner set the exact text.
+- Deferred from the final review: whitespace after the prefix survives ("GPT- 5" shows " 5");
+  a model named exactly "GPT" with the fast tier would show "Fast"; VoiceOver now hears the name
+  without "GPT" or "OpenAI", since the logo is hidden from it.
+- Tests 105/105, fourteen live tests skipped (`./scripts/test.sh && ./scripts/build-app.sh`).
+  Hand check by the owner at gate 2. Commit 593e31e.
+
 ## #21 Whole-panel redesign, variant C (2026-11-14)
 
 - `design-directions/issue-21.html` shows four whole-panel shapes on one data set: A no header
