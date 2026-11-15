@@ -3,6 +3,35 @@
 Accepted-work archive. One section per accepted ticket, appended at the accept-time docs commit.
 Newest first.
 
+## #22 History palette with search and delete (2026-11-15)
+
+- Cmd+K, the header's search button, or the empty state's new "Open your past chats." row
+  opens variant C of `design-directions/issue-21.html`: a palette over the whole panel with a
+  search field, one row per Pauri chat (title, date, trash on the selected row), and a footer
+  of key caps that are buttons with key equivalents (`↑` `↓` move, `↩` open, `⌘⌫` delete,
+  `esc` back). It replaces #20's popover and closes when the panel hides.
+- Search runs in Pauri, not Codex: `HistoryEntry.matches(_:)` checks the title or the first
+  message (`preview`), case- and accent-blind. Codex's `searchTerm` matches titles only.
+- Delete takes two presses: the trash or Cmd+Delete asks `Delete for good?` in the row; the
+  row's `Delete` or a second Cmd+Delete sends `thread/delete`. Cancel, Esc, a selection change,
+  or a search change drops the ask, and a held Cmd+Delete (key repeat) never confirms.
+  `CodexClient.delete(_:)` forgets the ID only after Codex replies, so a failed delete keeps
+  the row and shows the error under the search field. Deleting the open chat starts a new one.
+  The probe (codex-cli 0.169.0) showed the delete is permanent: `thread/resume` then fails.
+- The header shows `Chat.title` (the first line of the first question, or "New chat"), a
+  `⌘K` hint, the search button, the pencil, and the gear. The send orb is disabled while a
+  chat reopens (carried over from #20).
+- The pointer selects a row only when it moves, so a row that scrolls under a still pointer
+  does not take the selection from the arrow keys.
+- Deferred from the final review: `Chat.delete` can leave a deleted thread open if a question
+  starts mid-delete; a delete error stays until the next delete; a finished delete clears an
+  ask raised on another row meanwhile; Cmd+N still works under the open palette.
+  `history()` still reads every page on each Cmd+K.
+- New tests `forgetDropsOnlyThatThread`, `searchMatchesTitleOrText`, and live test
+  `liveDeleteDropsTheChatAndTheOpenOneStartsNew` (passed with `PAURI_LIVE=1`). Tests 112/112,
+  sixteen live tests skipped (`./scripts/test.sh && ./scripts/build-app.sh`). Hand checks by
+  the owner at gate 2. Commits 54c27d5, 010ae49, e1c20b5.
+
 ## #20 Pauri remembers its chats; Cmd+K opens a plain list (2026-11-15)
 
 - `CodexClient` records every thread it asks in under `threadIDs` in `UserDefaults` (oldest
