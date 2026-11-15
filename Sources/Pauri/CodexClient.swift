@@ -56,6 +56,7 @@ final class CodexClient {
     private var stopRequested = false
     private let defaults: UserDefaults
     private static let threadKey = "lastThreadID"
+    private static let historyKey = "threadIDs"
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -87,6 +88,53 @@ final class CodexClient {
         defaults.removeObject(forKey: Self.threadKey)
     }
 
+    /// Every thread Pauri asked in, oldest first.
+    var rememberedThreadIDs: [String] {
+        defaults.stringArray(forKey: Self.historyKey) ?? []
+    }
+
+    func remember(_ threadID: String) {
+        let ids = rememberedThreadIDs
+        guard !ids.contains(threadID) else { return }
+        defaults.set(ids + [threadID], forKey: Self.historyKey)
+    }
+
+    /// Pauri's remembered threads that Codex still lists, last updated first.
+    func history() async throws -> [HistoryEntry] {
+        try await start()
+        let remembered = Set(rememberedThreadIDs)
+        var entries: [HistoryEntry] = []
+        var cursor: String?
+        repeat {
+            // No sourceKinds: Codex records app-server threads as "vscode", so ["appServer"]
+            // matches none. 100 is the server's page cap (codex-cli 0.169.0).
+            var params: [String: Any] = ["limit": 100, "sortKey": "updated_at"]
+            if let cursor { params["cursor"] = cursor }
+            let page: ThreadListResult = try decode(await send("thread/list", params))
+            entries += page.entries(remembered: remembered)
+            cursor = page.nextCursor
+        } while cursor != nil
+        return entries
+    }
+
+    /// Switches the warm process to another thread and returns its turns. On failure the current
+    /// thread stays.
+    func resume(_ threadID: String) async throws -> [Exchange] {
+        try await start()
+        let previous = self.threadID
+        // Set before the resume: the usage Codex sends right after its reply can arrive first,
+        // and would be dropped as another thread's.
+        self.threadID = threadID
+        do {
+            let resumed: ThreadResumeResult = try decode(await send("thread/resume", Self.resumeParams(threadID)))
+            defaults.set(threadID, forKey: Self.threadKey)
+            return resumed.exchanges
+        } catch {
+            self.threadID = previous
+            throw error
+        }
+    }
+
     /// Web search is always on. Codex has no per-turn web search flag; it is a config key set per
     /// thread, so every thread is started and resumed with it (codex-cli 0.169.0).
     nonisolated static var threadConfig: [String: Any] { ["web_search": "live"] }
@@ -108,6 +156,7 @@ final class CodexClient {
                 // Codex writes a thread to disk only at its first turn; an id saved before that
                 // cannot be resumed.
                 defaults.set(threadID, forKey: Self.threadKey)
+                remember(threadID)
             } catch {
                 continuation.finish(throwing: error)
             }

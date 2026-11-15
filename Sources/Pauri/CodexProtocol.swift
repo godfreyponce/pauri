@@ -369,6 +369,37 @@ struct ThreadResumeResult: Decodable {
     }
 }
 
+struct HistoryEntry: Equatable, Sendable, Identifiable {
+    let id: String
+    let title: String
+    let updatedAt: Date
+}
+
+/// One page of `thread/list`.
+struct ThreadListResult: Decodable {
+    private struct Thread: Decodable {
+        let id: String
+        let name: String?
+        let preview: String
+        /// Seconds since 1970.
+        let updatedAt: Int
+    }
+
+    private let data: [Thread]
+    let nextCursor: String?
+
+    /// Keeps the reply's order. Codex does not name app-server threads, so the title falls back
+    /// to the preview, the first user message.
+    func entries(remembered: Set<String>) -> [HistoryEntry] {
+        data.filter { remembered.contains($0.id) }.map { thread in
+            let name = thread.name ?? ""
+            return HistoryEntry(
+                id: thread.id, title: name.isEmpty ? thread.preview : name,
+                updatedAt: Date(timeIntervalSince1970: TimeInterval(thread.updatedAt)))
+        }
+    }
+}
+
 struct ThreadRef: Decodable {
     let id: String
 }
