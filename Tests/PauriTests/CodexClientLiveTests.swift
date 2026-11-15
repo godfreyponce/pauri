@@ -22,11 +22,11 @@ import Testing
 
 /// The text and steps of one answer. Declines every approval, so no card can leave a test waiting.
 @MainActor private func run(
-    _ client: CodexClient, _ question: String, model: ModelChoice? = nil
+    _ client: CodexClient, _ question: String, image: URL? = nil, model: ModelChoice? = nil
 ) async throws -> (text: String, steps: [ToolStep]) {
     var text = ""
     var steps: [ToolStep] = []
-    for try await event in client.ask(question, model: model) {
+    for try await event in client.ask(question, image: image, model: model) {
         switch event {
         case .text(let delta): text += delta
         case .step(let step): steps.append(step)
@@ -44,16 +44,16 @@ private func searched(_ steps: [ToolStep]) -> Bool {
     while !condition() { try await Task.sleep(for: .milliseconds(50)) }
 }
 
-/// 64x64, left half red, right half blue.
+/// 512x512, left half red, right half blue. At 64x64 the low-effort default swapped the halves (#18).
 private func redBlueImage() throws -> CGImage {
     let sRGB = try #require(CGColorSpace(name: CGColorSpace.sRGB))
     let context = try #require(CGContext(
-        data: nil, width: 64, height: 64, bitsPerComponent: 8, bytesPerRow: 0, space: sRGB,
+        data: nil, width: 512, height: 512, bitsPerComponent: 8, bytesPerRow: 0, space: sRGB,
         bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
     context.setFillColor(red: 1, green: 0, blue: 0, alpha: 1)
-    context.fill(CGRect(x: 0, y: 0, width: 32, height: 64))
+    context.fill(CGRect(x: 0, y: 0, width: 256, height: 512))
     context.setFillColor(red: 0, green: 0, blue: 1, alpha: 1)
-    context.fill(CGRect(x: 32, y: 0, width: 32, height: 64))
+    context.fill(CGRect(x: 256, y: 0, width: 256, height: 512))
     return try #require(context.makeImage())
 }
 
@@ -276,17 +276,18 @@ private func redBlueImage() throws -> CGImage {
     @Test(.enabled(if: ProcessInfo.processInfo.environment["PAURI_LIVE"] == "1"))
     @MainActor func liveImageIsDescribedAndOutlivesItsFile() async throws {
         let client = CodexClient(defaults: freshDefaults("pauri-live-image"))
+        try await client.start()
+        let models = try #require(client.models)
+        let choice = try #require(ModelChoice.menu(models).first)
         let file = FileManager.default.temporaryDirectory.appending(path: "pauri-live-\(UUID()).png")
         try ScreenCapture.writePNG(redBlueImage(), to: file)
-        var first = ""
-        for try await case .text(let delta) in client.ask(
-            "What two colors are in the attached image, left then right? Five words or fewer.", image: file, model: nil) {
-            first += delta
-        }
-        #expect(first.lowercased().contains("red") && first.lowercased().contains("blue"))
+        let left = try await run(
+            client, "What color is the left half of the attached image? One word.", image: file, model: choice
+        ).text.lowercased()
+        #expect(left.contains("red") && !left.contains("blue"))
         try FileManager.default.removeItem(at: file)
-        let second = try await answer(client, "Name the left color of that image again, one word.")
-        #expect(second.lowercased().contains("red"))
+        let right = try await run(client, "What color is the right half of that image? One word.", model: choice).text.lowercased()
+        #expect(right.contains("blue") && !right.contains("red"))
         try await quit(client)
     }
 }
