@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 /// Pauri's past chats as a palette over the whole panel: variant C of
@@ -14,6 +15,9 @@ struct HistoryList: View {
     @State private var confirming: String?
     @State private var isDeleting = false
     @FocusState private var searchFocused: Bool
+    /// Where the pointer was when it last selected a row. A row that scrolls under a still pointer
+    /// must not take the selection from the arrow keys.
+    @State private var pointer = NSEvent.mouseLocation
 
     private var shown: [HistoryEntry] {
         (entries ?? []).filter { $0.matches(query) }
@@ -147,7 +151,11 @@ struct HistoryList: View {
                     in: RoundedRectangle(cornerRadius: 6))
         .contentShape(Rectangle())
         .id(entry.id)
-        .onHover { if $0 { selected = index } }
+        .onHover { inside in
+            guard inside, NSEvent.mouseLocation != pointer else { return }
+            pointer = NSEvent.mouseLocation
+            selected = index
+        }
         .onTapGesture { open() }
     }
 
@@ -196,7 +204,7 @@ struct HistoryList: View {
     }
 
     private func open() {
-        guard confirming == nil, chat.canStartNewChat, let entry = selectedEntry else { return }
+        guard confirming == nil, !isDeleting, chat.canStartNewChat, let entry = selectedEntry else { return }
         chat.open(entry.id)
         close()
     }
@@ -211,6 +219,9 @@ struct HistoryList: View {
 
     /// The first press asks; a second press on the same row deletes.
     private func pressDelete() {
+        // A held Cmd+Delete repeats; one physical press must never both ask and delete.
+        // isARepeat raises on a mouse event, such as a click on the key cap.
+        if let event = NSApp.currentEvent, event.type == .keyDown, event.isARepeat { return }
         guard chat.canStartNewChat, let entry = selectedEntry else { return }
         if confirming == entry.id {
             delete()
