@@ -3,6 +3,26 @@
 Accepted-work archive. One section per accepted ticket, appended at the accept-time docs commit.
 Newest first.
 
+## #18 Live screenshot test passes at the default effort (2026-11-14)
+
+- The cause was the test, not `CodexClient`. At low effort the model read the 64x64 test image
+  with its halves swapped in 2 of 5 probe runs, and the first check did not test order, so the
+  swap showed up as a wrong follow-up. A 512x512 image read right 8 of 8 times at low effort.
+  The follow-up never lost the image: both turns send the same model, effort, and tier.
+- `liveImageIsDescribedAndOutlivesItsFile` now sends Pauri's default entry,
+  `ModelChoice.menu(models).first` (the `isDefault` model at low effort), on both turns, on a
+  512x512 red-left, blue-right image. Turn 1 asks for the left half and must say red and not
+  blue; turn 2, after the file is deleted, asks for the right half and must say blue and not
+  red, so it has to read the image, not the first answer. The `run` helper takes an optional
+  `image`. `Sources/` is not touched. No effort raise for screenshots (gate 1).
+- The plan's nested `#require` did not compile (recursive macro expansion); it is split into
+  two lines, as in `liveModelListGivesADefaultThatAnswers`.
+- Deferred from the final review: when turn 1 runs shell commands to decode the PNG (1 of 13
+  probe runs), their output stays in the thread, so turn 2 could answer from text in that run;
+  `contains("red")` also matches words like "colored".
+- Live test passed 4 of 4 with `PAURI_LIVE=1`. Tests 100/100, fourteen live tests skipped
+  (`./scripts/test.sh && ./scripts/build-app.sh`). Commit 263a01c.
+
 ## #17 Roomier input, Blossom model picker with effort bars, web search always on (2026-11-14)
 
 - The input is one rounded box, variant A of `design-directions/issue-17.html` (the owner's
