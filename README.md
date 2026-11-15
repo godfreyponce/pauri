@@ -21,6 +21,7 @@ You need Command Line Tools (`xcode-select --install`) or Xcode.
 - Run: `open build/Pauri.app`.
 - Show the panel: Cmd+Shift+Space. Press it again, or Esc, to hide the panel.
 - New chat: Cmd+N, or the pencil button at the top right of the panel.
+- Past chats: Cmd+K, or the clock button at the top right of the panel. Click a chat to reopen it. The list shows chats from this version on.
 - See the context banner in a short chat: `defaults write io.github.godfreyponce.pauri contextBannerDebug -bool YES`, then ask one question. Turn it off with `defaults delete io.github.godfreyponce.pauri contextBannerDebug`.
 - Change the shortcut: click the gear at the top right of the panel, click the shortcut, and press the new one. Esc cancels.
 - Change the transparency: click the gear and drag the Transparency slider between Solid and Glass. Reset it with `defaults delete io.github.godfreyponce.pauri transparency`.
