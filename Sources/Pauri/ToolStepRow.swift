@@ -24,7 +24,7 @@ struct ToolStepRow: View {
                         .lineLimit(1)
                         .truncationMode(.middle)
                 }
-                .font(.system(size: 12))
+                .font(.system(size: 11.5))
                 .foregroundStyle(.secondary)
                 .contentShape(Rectangle())
             }
@@ -69,6 +69,6 @@ func stepLabel(_ label: String) -> AttributedString {
         return AttributedString(label)
     }
     var code = AttributedString(label[label.index(after: open)..<close])
-    code.font = .system(size: 11, design: .monospaced)
+    code.font = .system(size: 10.5, design: .monospaced)
     return AttributedString(label[..<open]) + code + AttributedString(label[label.index(after: close)...])
 }

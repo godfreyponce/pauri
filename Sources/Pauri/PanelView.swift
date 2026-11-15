@@ -46,7 +46,8 @@ struct PanelView: View {
 
     var body: some View {
         VStack {
-            HStack {
+            // Variant C of design-directions/issue-21.html; its chat title and history button come with #20 and #22.
+            HStack(spacing: 4) {
                 Spacer()
                 Button { chat.newChat() } label: { Image(systemName: "square.and.pencil") }
                     .buttonStyle(.borderless)
@@ -58,31 +59,43 @@ struct PanelView: View {
                     .help("Settings")
                     .popover(isPresented: $showsSettings) { SettingsView(hotKey: hotKey) }
             }
+            .font(.system(size: 12))
+            .frame(height: 26)
             ScrollView {
-                VStack(alignment: .leading, spacing: 12) {
-                    ForEach(chat.exchanges.indices, id: \.self) { index in
-                        let exchange = chat.exchanges[index]
-                        VStack(alignment: .leading, spacing: 4) {
-                            if exchange.hasScreenshot {
-                                Label("Screenshot", systemImage: "photo").foregroundStyle(.secondary)
-                                    .frame(maxWidth: .infinity, alignment: .trailing)
+                if chat.exchanges.isEmpty && !chat.isStarting {
+                    EmptyState(shortcut: hotKey.shortcut)
+                        .containerRelativeFrame(.vertical, alignment: .bottom)
+                } else {
+                    VStack(alignment: .leading, spacing: 0) {
+                        ForEach(chat.exchanges.indices, id: \.self) { index in
+                            let exchange = chat.exchanges[index]
+                            if index > 0 {
+                                Divider().padding(.bottom, 12)
                             }
-                            QuestionBubble(question: exchange.question)
-                            ForEach(exchange.steps) { ToolStepRow(step: $0) }
-                            if index == chat.exchanges.count - 1, let request = chat.approvals.first {
-                                ApprovalCard(request: request,
-                                             step: exchange.steps.first { $0.id == request.itemID },
-                                             decide: { chat.decide(request, $0) })
-                                    .padding(.leading, 15)
+                            VStack(alignment: .leading, spacing: 4) {
+                                QuestionRow(question: exchange.question, hasScreenshot: exchange.hasScreenshot)
+                                VStack(alignment: .leading, spacing: 4) {
+                                    ForEach(exchange.steps) { ToolStepRow(step: $0) }
+                                    if index == chat.exchanges.count - 1, let request = chat.approvals.first {
+                                        ApprovalCard(request: request,
+                                                     step: exchange.steps.first { $0.id == request.itemID },
+                                                     decide: { chat.decide(request, $0) })
+                                            .padding(.leading, 15)
+                                    }
+                                    MarkdownView(markdown: exchange.answer,
+                                                 isStreaming: chat.isAnswering && index == chat.exchanges.count - 1)
+                                        .equatable()
+                                }
+                                .padding(.leading, QuestionRow.labelWidth)
                             }
-                            MarkdownView(markdown: exchange.answer,
-                                         isStreaming: chat.isAnswering && index == chat.exchanges.count - 1)
-                                .equatable()
                         }
                     }
+                    .font(.system(size: 12.5))
+                    // The page's line-height 1.4 at 12.5 pt, less SF's own line height of about 1.2.
+                    .lineSpacing(2.5)
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .textSelection(.enabled)
-                .frame(maxWidth: .infinity, alignment: .leading)
             }
             .defaultScrollAnchor(.bottom)
             .frame(maxHeight: .infinity)
@@ -178,7 +191,7 @@ struct PanelView: View {
             .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 12))
             .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(.separator))
         }
-        .padding()
+        .padding(12)
         .background {
             Color(nsColor: .windowBackgroundColor).opacity(1 - transparency).ignoresSafeArea()
         }
@@ -196,21 +209,30 @@ struct PanelView: View {
     }
 }
 
-/// The user's message, set apart from answers: variant A of `design-directions/issue-16.html`.
+/// The user's message as a labeled row, not a bubble: variant C of `design-directions/issue-21.html`.
 /// Plain text, not Markdown, so `2*3*4` stays as typed.
-struct QuestionBubble: View {
-    let question: String
+struct QuestionRow: View {
+    static let labelWidth: CGFloat = 44
 
-    @Environment(\.colorScheme) private var colorScheme
+    let question: String
+    let hasScreenshot: Bool
 
     var body: some View {
-        Text(question)
-            .foregroundStyle(.white)
-            .padding(.vertical, 7)
-            .padding(.horizontal, 11)
-            .background(colorScheme == .dark ? Color(hex: 0x4A3DB8) : Color(hex: 0x5B4BD0),
-                        in: RoundedRectangle(cornerRadius: 14))
-            .containerRelativeFrame(.horizontal, alignment: .trailing) { width, _ in width * 0.75 }
-            .frame(maxWidth: .infinity, alignment: .trailing)
+        HStack(alignment: .firstTextBaseline, spacing: 0) {
+            Text("YOU")
+                .font(.system(size: 10.5, weight: .semibold))
+                .kerning(0.5)
+                .foregroundStyle(.secondary)
+                .frame(width: Self.labelWidth, alignment: .leading)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(question)
+                    .fontWeight(.medium)
+                if hasScreenshot {
+                    Label("Screenshot", systemImage: "photo")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
     }
 }
