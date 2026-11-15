@@ -47,7 +47,7 @@ struct MarkdownView: View, Equatable {
             .padding(.leading, 18 * CGFloat(depth))
         case .code:
             ScrollView(.horizontal) {
-                text.font(.system(size: 11.5, design: .monospaced))
+                text.font(.system(size: 11, design: .monospaced))
                     .padding(.vertical, 8)
                     .padding(.horizontal, 10)
             }
