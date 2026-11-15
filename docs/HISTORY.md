@@ -3,6 +3,33 @@
 Accepted-work archive. One section per accepted ticket, appended at the accept-time docs commit.
 Newest first.
 
+## #16 Markdown answers and the user's messages (2026-11-14)
+
+- Answers render Markdown with native SwiftUI `Text`, no web view and no new dependency.
+  Foundation's `AttributedString(markdown:)` with `.full` syntax parses the answer, and
+  `Markdown.blocks` groups its runs into blocks by each run's `presentationIntent`: headings,
+  paragraphs, list items (bullet or "N." marker, indent per depth), code blocks (a tinted
+  rounded box that scrolls sideways, monospaced, no copy button or syntax colors), quotes (a
+  side bar), rules, and table rows (cells joined by " | ", header bold). Images show their alt
+  text and load nothing. Selection now works within one block, not across the whole answer.
+- While an answer streams, `Markdown.streamingSafe` hides a dangling `**`, a dangling backtick,
+  and a half link in the last paragraph, so the marks do not flash raw. It counts indented and
+  `~~~` fences, and it skips `**` inside a code span (`x**2`). After Stop, the answer renders
+  from its full text, so an open `**` then shows raw.
+- `MarkdownView` is `Equatable` with a hand-written `nonisolated ==` (it reads the color scheme
+  from the environment), so finished answers skip their body while the last one streams.
+- The user's message is variant A of `design-directions/issue-16.html`, the owner's pick: plain
+  text in a right-aligned purple bubble (0x4A3DB8 dark, 0x5B4BD0 light, white text), at most
+  three quarters of the transcript's width. The Screenshot label moves to the right with it.
+  Links take the purple tint. Spec decision 14 updated.
+- Deferred from the final review: a streaming tail that ends in a newline is skipped; the parse
+  cost grows with the length of the streaming answer (about 1.4 ms per KB per delta); a code
+  block or quote inside a list item loses its indent; raw HTML blocks keep a trailing newline;
+  empty table cells are dropped.
+- Tests 95/95 on main after the merge, fourteen live tests skipped
+  (`./scripts/test.sh && ./scripts/build-app.sh`).
+  Commits f6cad66, 49f9c12, a86f996, 42adf92, 796ba63, merge 4903a25.
+
 ## #15 Default model from Codex's model list (2026-11-14)
 
 - No model id is written into Pauri any more. The picker's first entry comes from the model
