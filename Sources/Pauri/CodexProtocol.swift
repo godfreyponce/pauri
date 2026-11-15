@@ -234,13 +234,25 @@ struct ThreadStartResult: Decodable {
     let thread: ThreadRef
 }
 
+/// One reasoning level a model offers, as `model/list` reports it.
+struct ReasoningEffortOption: Decodable, Equatable, Sendable {
+    let reasoningEffort: String
+    let description: String
+}
+
+extension ReasoningEffortOption {
+    private enum CodingKeys: String, CodingKey { case reasoningEffort, description }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        reasoningEffort = try container.decode(String.self, forKey: .reasoningEffort)
+        description = try container.decodeIfPresent(String.self, forKey: .description) ?? ""
+    }
+}
+
 /// One page of `model/list`; Codex sends every model in one page (codex-cli 0.169.0).
 struct ModelListResult: Decodable {
     struct Model: Decodable {
-        struct EffortOption: Decodable {
-            let reasoningEffort: String
-        }
-
         struct ServiceTier: Decodable {
             let id: String
         }
@@ -250,7 +262,8 @@ struct ModelListResult: Decodable {
         let description: String
         let hidden: Bool
         let isDefault: Bool
-        let supportedReasoningEfforts: [EffortOption]
+        /// Lowest level first (codex-cli 0.169.0).
+        let supportedReasoningEfforts: [ReasoningEffortOption]
         let defaultReasoningEffort: String
         let serviceTiers: [ServiceTier]
     }
@@ -258,11 +271,32 @@ struct ModelListResult: Decodable {
     let data: [Model]
 }
 
+/// The levels are optional, so one entry without them never fails the decode, which would drop every model.
+extension ModelListResult.Model {
+    private enum CodingKeys: String, CodingKey {
+        case id, displayName, description, hidden, isDefault, supportedReasoningEfforts, defaultReasoningEffort, serviceTiers
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        displayName = try container.decode(String.self, forKey: .displayName)
+        description = try container.decode(String.self, forKey: .description)
+        hidden = try container.decode(Bool.self, forKey: .hidden)
+        isDefault = try container.decode(Bool.self, forKey: .isDefault)
+        supportedReasoningEfforts = try container.decodeIfPresent([ReasoningEffortOption].self, forKey: .supportedReasoningEfforts) ?? []
+        defaultReasoningEffort = try container.decode(String.self, forKey: .defaultReasoningEffort)
+        serviceTiers = try container.decode([ServiceTier].self, forKey: .serviceTiers)
+    }
+}
+
 /// What a turn runs on: sent as `model`, `effort`, and `serviceTierForTurn` on `turn/start`.
 struct ModelChoice: Equatable, Sendable, Identifiable {
     let model: String
     let name: String
-    let effort: String
+    var effort: String
+    /// The levels `model/list` reports for `model`, lowest first.
+    let efforts: [ReasoningEffortOption]
     /// "priority" is Codex's Fast tier; "default" is standard speed; nil sends no tier.
     let serviceTier: String?
     let help: String
@@ -276,16 +310,26 @@ struct ModelChoice: Equatable, Sendable, Identifiable {
         let visible = models.data.filter { !$0.hidden }
         let standard = visible.map {
             ModelChoice(model: $0.id, name: $0.displayName, effort: $0.defaultReasoningEffort,
-                        serviceTier: "default", help: $0.description)
+                        efforts: $0.supportedReasoningEfforts, serviceTier: "default", help: $0.description)
         }
         guard let model = visible.first(where: \.isDefault) else { return standard }
         let low = model.supportedReasoningEfforts.contains { $0.reasoningEffort == "low" }
         let fast = model.serviceTiers.contains { $0.id == "priority" }
         let entry = ModelChoice(
             model: model.id, name: fast ? model.displayName + " Fast" : model.displayName,
-            effort: low ? "low" : model.defaultReasoningEffort, serviceTier: fast ? "priority" : nil,
+            effort: low ? "low" : model.defaultReasoningEffort, efforts: model.supportedReasoningEfforts,
+            serviceTier: fast ? "priority" : nil,
             help: low && fast ? "Fast answers at low reasoning effort." : model.description)
         return [entry] + (fast ? standard : standard.filter { $0.model != model.id })
+    }
+
+    /// The level after `effort`, wrapping to the lowest; an unlisted `effort` goes to the lowest.
+    func nextEffort() -> ModelChoice {
+        guard !efforts.isEmpty else { return self }
+        let levels = efforts.map(\.reasoningEffort)
+        var next = self
+        next.effort = levels.firstIndex(of: effort).map { levels[($0 + 1) % levels.count] } ?? levels[0]
+        return next
     }
 }
 

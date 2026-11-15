@@ -32,7 +32,6 @@ final class Chat {
     /// Read when a question is sent, so a pick applies from the next message on. nil sends no
     /// model, so Codex uses its own default.
     var model: ModelChoice?
-    var searchesWeb = true
     private(set) var modelChoices: [ModelChoice] = []
 
     var isContextFull: Bool {
@@ -86,7 +85,6 @@ final class Chat {
         allowsEverythingInThisChat = false
         contextUsage = nil
         model = modelChoices.first
-        searchesWeb = true
         client.forgetThread()
     }
 
@@ -133,7 +131,7 @@ final class Chat {
         let sent = ContinuousClock.now
         Task {
             do {
-                for try await event in client.ask(prompt, image: image, model: model, searchesWeb: searchesWeb) {
+                for try await event in client.ask(prompt, image: image, model: model) {
                     showRestoredTurns()
                     let last = exchanges.count - 1
                     switch event {

@@ -133,63 +133,50 @@ struct PanelView: View {
                 ScreenshotChip(url: url) { chat.removeScreenshot() }
             }
             SelectionBar(chat: chat)
-            HStack {
+            // Variant A of design-directions/issue-17.html, with a paperclip for the + menu.
+            VStack(alignment: .leading, spacing: 6) {
                 TextField("Ask Pauri", text: $draft, axis: .vertical)
-                    .lineLimit(1...8)
-                    .textFieldStyle(.roundedBorder)
+                    .lineLimit(2...8)
+                    .textFieldStyle(.plain)
                     .focused($focused)
                     .onSubmit(submit)
-                Group {
-                    Menu {
-                        ForEach(chat.modelChoices) { choice in
-                            Toggle(choice.name, isOn: Binding(get: { chat.model == choice }, set: { _ in chat.model = choice }))
-                                .help(choice.help)
+                HStack(spacing: 6) {
+                    Button(action: captureScreenshot) { Image(systemName: "paperclip") }
+                        .buttonStyle(.borderless)
+                        .disabled(isCapturing)
+                        .help(screenshotProblem?.message ?? "Attach a screenshot")
+                        .accessibilityLabel("Attach a screenshot")
+                    ModelPicker(chat: chat)
+                    Spacer()
+                    Button {
+                        if dictation.isListening {
+                            dictation.stop()
+                        } else {
+                            dictationPrefix = draft
+                            dictation.start { spoken in
+                                dictated = Dictation.joined(dictationPrefix, spoken)
+                                draft = dictated
+                            }
                         }
                     } label: {
-                        Label(chat.model?.name ?? "Codex default", systemImage: "cpu")
-                    }
-                    .menuStyle(.borderlessButton)
-                    .fixedSize()
-                    .help("Model")
-                    .disabled(chat.modelChoices.isEmpty)
-                    Button { chat.searchesWeb.toggle() } label: {
-                        Image(systemName: "globe").foregroundStyle(chat.searchesWeb ? Color.accentColor : .secondary)
-                    }
-                    .buttonStyle(.borderless)
-                    .help(chat.searchesWeb ? "Web search on" : "Web search off")
-                    .accessibilityLabel(chat.searchesWeb ? "Web search on" : "Web search off")
-                }
-                // A change mid-turn would not reach the running turn.
-                .disabled(chat.isAnswering || chat.isWritingHandoff)
-                Button(action: captureScreenshot) { Image(systemName: "camera.viewfinder") }
-                    .buttonStyle(.borderless)
-                    .disabled(isCapturing)
-                    .help(screenshotProblem?.message ?? "Attach a screenshot")
-                Button {
-                    if dictation.isListening {
-                        dictation.stop()
-                    } else {
-                        dictationPrefix = draft
-                        dictation.start { spoken in
-                            dictated = Dictation.joined(dictationPrefix, spoken)
-                            draft = dictated
+                        if dictation.isListening {
+                            Image(systemName: "mic.fill").foregroundStyle(.red)
+                        } else {
+                            Image(systemName: dictation.problem == nil ? "mic" : "mic.slash")
                         }
                     }
-                } label: {
-                    if dictation.isListening {
-                        Image(systemName: "mic.fill").foregroundStyle(.red)
-                    } else {
-                        Image(systemName: dictation.problem == nil ? "mic" : "mic.slash")
-                    }
+                    .buttonStyle(.borderless)
+                    .help(dictation.isListening ? "Stop dictation" : dictation.problem?.message ?? "Dictate")
+                    SendOrb(sends: sends,
+                            isEnabled: !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                                && !chat.isAnswering && !chat.isWritingHandoff,
+                            isAnswering: chat.isAnswering,
+                            action: { chat.isAnswering ? chat.stop() : submit() })
                 }
-                .buttonStyle(.borderless)
-                .help(dictation.isListening ? "Stop dictation" : dictation.problem?.message ?? "Dictate")
-                SendOrb(sends: sends,
-                        isEnabled: !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                            && !chat.isAnswering && !chat.isWritingHandoff,
-                        isAnswering: chat.isAnswering,
-                        action: { chat.isAnswering ? chat.stop() : submit() })
             }
+            .padding(10)
+            .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 12))
+            .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(.separator))
         }
         .padding()
         .background {

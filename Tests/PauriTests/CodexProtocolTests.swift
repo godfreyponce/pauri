@@ -24,6 +24,11 @@ private func modelJSON(
     return #"{"id":"\#(id)","model":"\#(id)","displayName":"\#(name)","description":"\#(name) model.","hidden":\#(hidden),"supportedReasoningEfforts":[\#(effortList)],"defaultReasoningEffort":"medium","serviceTiers":[\#(tierList)],"isDefault":\#(isDefault)}"#
 }
 
+/// The levels `modelJSON` writes, which have empty descriptions.
+private func levels(_ efforts: [String]) -> [ReasoningEffortOption] {
+    efforts.map { ReasoningEffortOption(reasoningEffort: $0, description: "") }
+}
+
 private func modelList(_ entries: [String]) throws -> ModelListResult {
     let reply = #"{"data":[\#(entries.joined(separator: ","))],"nextCursor":null}"#
     return try JSONDecoder().decode(ModelListResult.self, from: Data(reply.utf8))
@@ -206,10 +211,12 @@ struct CodexProtocolTests {
             modelJSON("gamma", efforts: ["low"], tiers: ["priority"], hidden: true),
         ])
         #expect(ModelChoice.menu(models) == [
-            ModelChoice(model: "alpha", name: "Alpha Fast", effort: "low", serviceTier: "priority",
-                        help: "Fast answers at low reasoning effort."),
-            ModelChoice(model: "beta", name: "Beta", effort: "medium", serviceTier: "default", help: "Beta model."),
-            ModelChoice(model: "alpha", name: "Alpha", effort: "medium", serviceTier: "default", help: "Alpha model."),
+            ModelChoice(model: "alpha", name: "Alpha Fast", effort: "low", efforts: levels(["low", "medium", "high"]),
+                        serviceTier: "priority", help: "Fast answers at low reasoning effort."),
+            ModelChoice(model: "beta", name: "Beta", effort: "medium", efforts: levels(["low", "medium"]),
+                        serviceTier: "default", help: "Beta model."),
+            ModelChoice(model: "alpha", name: "Alpha", effort: "medium", efforts: levels(["low", "medium", "high"]),
+                        serviceTier: "default", help: "Alpha model."),
         ])
     }
 
@@ -220,8 +227,10 @@ struct CodexProtocolTests {
         ])
         let menu = ModelChoice.menu(models)
         #expect(menu == [
-            ModelChoice(model: "alpha", name: "Alpha", effort: "medium", serviceTier: nil, help: "Alpha model."),
-            ModelChoice(model: "beta", name: "Beta", effort: "medium", serviceTier: "default", help: "Beta model."),
+            ModelChoice(model: "alpha", name: "Alpha", effort: "medium", efforts: levels(["medium", "high"]),
+                        serviceTier: nil, help: "Alpha model."),
+            ModelChoice(model: "beta", name: "Beta", effort: "medium", efforts: levels(["low", "medium"]),
+                        serviceTier: "default", help: "Beta model."),
         ])
         let params = CodexClient.turnStartParams("hi", image: nil, model: menu[0], threadID: "t")
         #expect(params["model"] as? String == "alpha")
@@ -235,7 +244,8 @@ struct CodexProtocolTests {
             modelJSON("beta", efforts: ["low", "medium"], tiers: ["priority"]),
         ])
         #expect(ModelChoice.menu(models) == [
-            ModelChoice(model: "beta", name: "Beta", effort: "medium", serviceTier: "default", help: "Beta model."),
+            ModelChoice(model: "beta", name: "Beta", effort: "medium", efforts: levels(["low", "medium"]),
+                        serviceTier: "default", help: "Beta model."),
         ])
         #expect(ModelChoice.menu(try modelList([])).isEmpty)
     }
@@ -246,6 +256,43 @@ struct CodexProtocolTests {
         #expect(params["model"] == nil)
         #expect(params["effort"] == nil)
         #expect(params["serviceTierForTurn"] == nil)
+    }
+
+    /// One entry without the levels, or a level without its description, must not empty the whole picker.
+    @Test func modelListWithoutLevelsStillDecodes() throws {
+        let reply = #"{"data":[{"id":"a","displayName":"A","description":"d","hidden":false,"isDefault":true,"defaultReasoningEffort":"low","serviceTiers":[]},{"id":"b","displayName":"B","description":"d","hidden":false,"isDefault":false,"defaultReasoningEffort":"low","serviceTiers":[],"supportedReasoningEfforts":[{"reasoningEffort":"low"}]}]}"#
+        let models = try JSONDecoder().decode(ModelListResult.self, from: Data(reply.utf8))
+        #expect(models.data.map(\.supportedReasoningEfforts) == [[], levels(["low"])])
+    }
+
+    private func choice(_ effort: String, levels: [String]) -> ModelChoice {
+        ModelChoice(model: "m", name: "M", effort: effort,
+                    efforts: levels.map { ReasoningEffortOption(reasoningEffort: $0, description: $0 + " text") },
+                    serviceTier: "default", help: "h")
+    }
+
+    @Test func nextEffortStepsUpAndWraps() {
+        let start = choice("low", levels: ["low", "medium", "high"])
+        let first = start.nextEffort(), second = first.nextEffort(), third = second.nextEffort()
+        #expect([first.effort, second.effort, third.effort] == ["medium", "high", "low"])
+        #expect(third == start)
+    }
+
+    @Test func nextEffortWithNoLevelsKeepsTheEffort() {
+        let none = choice("low", levels: [])
+        #expect(none.nextEffort() == none)
+    }
+
+    @Test func nextEffortFromAnUnlistedLevelGoesToTheFirst() {
+        #expect(choice("minimal", levels: ["low", "medium"]).nextEffort().effort == "low")
+    }
+
+    @Test func turnStartParamsCarryTheSteppedEffort() {
+        let params = CodexClient.turnStartParams("hi", image: nil, model: choice("low", levels: ["low", "medium"]).nextEffort(), threadID: "t")
+        #expect(params["effort"] as? String == "medium")
+        #expect(params["model"] as? String == "m")
+        #expect(params["serviceTierForTurn"] as? String == "default")
+        #expect(params["threadId"] as? String == "t")
     }
 
     @Test func webSearchItemIsAStep() throws {
@@ -259,9 +306,9 @@ struct CodexProtocolTests {
             == "Searched the web")
     }
 
-    @Test func webSearchConfigMapsTheGlobe() {
-        #expect(CodexClient.webSearchConfig(true)["web_search"] as? String == "live")
-        #expect(CodexClient.webSearchConfig(false)["web_search"] as? String == "disabled")
+    @Test func everyThreadLoadsWithLiveWebSearch() {
+        #expect((CodexClient.threadStartParams()["config"] as? [String: Any])?["web_search"] as? String == "live")
+        #expect((CodexClient.resumeParams("t")["config"] as? [String: Any])?["web_search"] as? String == "live")
     }
 
     @Test func lookupSkipsShellNoise() {
