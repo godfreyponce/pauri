@@ -29,7 +29,36 @@ import Testing
         let page = try JSONDecoder().decode(ThreadListResult.self, from: Data(reply.utf8))
         let entries = page.entries(remembered: ["n", "x", "e"])
         #expect(entries.map(\.title) == ["Trip plan", "what is 2+2", "hello"])
+        #expect(entries.map(\.preview) == ["plan a trip", "what is 2+2", "hello"])
         #expect(entries[0].updatedAt == Date(timeIntervalSince1970: 1794720526))
         #expect(page.nextCursor == nil)
+    }
+
+    @Test @MainActor func forgetDropsOnlyThatThread() {
+        let defaults = UserDefaults(suiteName: "pauri-test-forget")!
+        defaults.removePersistentDomain(forName: "pauri-test-forget")
+        let client = CodexClient(defaults: defaults)
+        client.remember("a"); client.remember("b"); client.remember("c")
+        client.forget("b")
+        client.forget("never")
+        #expect(client.rememberedThreadIDs == ["a", "c"])
+        #expect(CodexClient(defaults: defaults).rememberedThreadIDs == ["a", "c"])
+    }
+
+    @Test func searchMatchesTitleOrText() {
+        let date = Date(timeIntervalSince1970: 1794720526)
+        let entries = [
+            HistoryEntry(id: "n", title: "Trip plan", preview: "plan a trip", updatedAt: date),
+            HistoryEntry(id: "x", title: "what is 2+2", preview: "what is 2+2", updatedAt: date),
+            HistoryEntry(id: "c", title: "Café hours", preview: "when does it open", updatedAt: date),
+        ]
+        func ids(_ query: String) -> [String] { entries.filter { $0.matches(query) }.map(\.id) }
+        #expect(ids("") == ["n", "x", "c"])
+        #expect(ids("  ") == ["n", "x", "c"])
+        #expect(ids("TRIP") == ["n"])
+        #expect(ids("2+2") == ["x"])
+        #expect(ids("cafe") == ["c"])
+        #expect(ids("open") == ["c"])
+        #expect(ids("zzz") == [])
     }
 }

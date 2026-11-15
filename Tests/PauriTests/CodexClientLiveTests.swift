@@ -315,4 +315,34 @@ private func redBlueImage() throws -> CGImage {
         #expect(relaunched.restoredExchanges.map(\.question) == ["what is 2+2", "times 3"])
         try await quit(relaunched)
     }
+
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["PAURI_LIVE"] == "1"))
+    @MainActor func liveDeleteDropsTheChatAndTheOpenOneStartsNew() async throws {
+        let client = CodexClient(defaults: freshDefaults("pauri-live-delete"))
+        let chat = Chat(client: client)
+        chat.warmUp()
+        try await waitUntil { !chat.isStarting }
+        #expect(chat.send("what is 2+2"))
+        try await waitUntil { !chat.isAnswering }
+        let other = try #require(client.threadID)
+        chat.newChat()
+        #expect(chat.send("what is 3+3"))
+        try await waitUntil { !chat.isAnswering }
+        let open = try #require(client.threadID)
+
+        try await chat.delete(other)
+        #expect(chat.exchanges.count == 1)
+        #expect(client.rememberedThreadIDs == [open])
+
+        try await chat.delete(open)
+        #expect(chat.exchanges.isEmpty)
+        #expect(chat.title == "New chat")
+        #expect(client.threadID == nil)
+        #expect(client.rememberedThreadIDs.isEmpty)
+        #expect(try await client.history().isEmpty)
+        await #expect(throws: CodexProblem.self) { try await client.resume(other) }
+        // The process still answers after its loaded thread was deleted.
+        #expect(try await answer(client, "what is 5+5").contains("10"))
+        try await quit(client)
+    }
 }

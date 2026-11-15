@@ -37,6 +37,15 @@ final class Chat {
     var model: ModelChoice?
     private(set) var modelChoices: [ModelChoice] = []
 
+    /// The first line of the chat's first question. Codex never names Pauri's chats, so this is
+    /// also the chat's title in the list.
+    var title: String {
+        exchanges.first?.question
+            .split(whereSeparator: \.isNewline)
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .first { !$0.isEmpty } ?? "New chat"
+    }
+
     var isContextFull: Bool {
         guard let contextUsage else { return false }
         return ContextLimit.isFull(contextUsage, debug: UserDefaults.standard.bool(forKey: ContextLimit.debugKey))
@@ -116,6 +125,13 @@ final class Chat {
             }
             isOpening = false
         }
+    }
+
+    /// Deleting the open chat starts a new one. On failure nothing changes.
+    func delete(_ threadID: String) async throws {
+        let wasOpen = client.threadID == threadID
+        try await client.delete(threadID)
+        if wasOpen { newChat() }
     }
 
     /// On success the chat is already new and the note is for the input box; it is never sent here.

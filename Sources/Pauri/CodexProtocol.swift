@@ -372,7 +372,15 @@ struct ThreadResumeResult: Decodable {
 struct HistoryEntry: Equatable, Sendable, Identifiable {
     let id: String
     let title: String
+    /// The first user message.
+    let preview: String
     let updatedAt: Date
+
+    /// Case- and accent-blind, on the title or the first message. An empty query matches all.
+    func matches(_ query: String) -> Bool {
+        let query = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        return query.isEmpty || title.localizedStandardContains(query) || preview.localizedStandardContains(query)
+    }
 }
 
 /// One page of `thread/list`.
@@ -394,7 +402,7 @@ struct ThreadListResult: Decodable {
         data.filter { remembered.contains($0.id) }.map { thread in
             let name = thread.name ?? ""
             return HistoryEntry(
-                id: thread.id, title: name.isEmpty ? thread.preview : name,
+                id: thread.id, title: name.isEmpty ? thread.preview : name, preview: thread.preview,
                 updatedAt: Date(timeIntervalSince1970: TimeInterval(thread.updatedAt)))
         }
     }
