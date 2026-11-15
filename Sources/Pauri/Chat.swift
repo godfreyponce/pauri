@@ -1,7 +1,8 @@
 import Foundation
 import Observation
 
-struct Exchange: Equatable, Sendable {
+struct Exchange: Equatable, Sendable, Identifiable {
+    let id = UUID()
     let question: String
     var answer: String
     /// Shown in the panel only; nothing sends them back to the model.

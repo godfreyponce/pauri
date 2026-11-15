@@ -66,8 +66,7 @@ struct PanelView: View {
                         .containerRelativeFrame(.vertical, alignment: .bottom)
                 } else {
                     VStack(alignment: .leading, spacing: 0) {
-                        ForEach(chat.exchanges.indices, id: \.self) { index in
-                            let exchange = chat.exchanges[index]
+                        ForEach(Array(chat.exchanges.enumerated()), id: \.element.id) { index, exchange in
                             if index > 0 {
                                 Divider().padding(.bottom, 12)
                             }
