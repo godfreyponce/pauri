@@ -3,6 +3,35 @@
 Accepted-work archive. One section per accepted ticket, appended at the accept-time docs commit.
 Newest first.
 
+## #17 Roomier input, Blossom model picker with effort bars, web search always on (2026-11-14)
+
+- The input is one rounded box, variant A of `design-directions/issue-17.html` (the owner's
+  pick, with a paperclip in place of the + menu): the text across the full width, 2 to 8
+  lines, and a row under it with the paperclip (one click takes the screenshot, as the camera
+  did), the model picker, the mic, and the send orb. No globe, no camera.
+- The picker (`ModelPicker.swift`) shows the official OpenAI Blossom (black file in light
+  appearance, white in dark, unmodified, whole 716 canvas) and the model name on a
+  `.regularMaterial` capsule, then one bar per level `model/list` reports in
+  `supportedReasoningEfforts` (six, or five on Luna). A click on the bars steps to the next
+  level and wraps; it applies from the next message. The menu checks by `id`, so the model
+  stays checked at any effort. Each menu entry, #15's default entry included, carries its
+  model's levels; when `model/list` fails the picker reads "Codex default" with no bars.
+- The SVGs ship in `Support/` and `scripts/build-app.sh` copies them to
+  `Contents/Resources`; no remote asset. README carries the trademark line and the link to
+  https://openai.com/brand/.
+- Web search is always on: every `thread/start` and `thread/resume` sends
+  `config.web_search = "live"`. `turn/start` has no such field (codex-cli 0.169.0). The globe's
+  thread reload (`thread/unsubscribe`, `thread/resume`) is gone.
+- A `model/list` entry without levels, or a level without a description, decodes as empty
+  instead of failing the whole list (final review finding).
+- Main was merged into `issue-17` after #15 and #16 landed: #15's default entry, optional
+  model, and optional tier stay; #17 adds the levels to them and keeps #15's
+  `turnStartParams` name.
+- Spec decisions 7, 8, 14 updated. Tests 100/100, fourteen live tests skipped
+  (`./scripts/test.sh && ./scripts/build-app.sh`); live test liveWebSearchIsAlwaysOn passed
+  with `PAURI_LIVE=1` before and after the merge. Commits 18953d3, cd9d502, 00ebf59, c051a3b,
+  merge 6d3198c, merge 880c615.
+
 ## #16 Markdown answers and the user's messages (2026-11-14)
 
 - Answers render Markdown with native SwiftUI `Text`, no web view and no new dependency.
