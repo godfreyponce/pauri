@@ -16,6 +16,15 @@ struct ModelPicker: View {
         Bundle.main.url(forResource: name, withExtension: "svg").flatMap(NSImage.init(contentsOf:))
     }
 
+    /// The Blossom already says OpenAI, so a leading "GPT" is dropped. Display only: Codex still gets the model's id.
+    nonisolated static func label(_ name: String?) -> String {
+        guard let name else { return "Codex default" }
+        for prefix in ["GPT-", "GPT "] where name.count > prefix.count && name.uppercased().hasPrefix(prefix) {
+            return String(name.dropFirst(prefix.count))
+        }
+        return name
+    }
+
     var body: some View {
         HStack(spacing: 6) {
             HStack(spacing: 3) {
@@ -29,11 +38,11 @@ struct ModelPicker: View {
                 Menu {
                     ForEach(chat.modelChoices) { choice in
                         // By id, so the current model stays checked after an effort change.
-                        Toggle(choice.name, isOn: Binding(get: { chat.model?.id == choice.id }, set: { _ in chat.model = choice }))
+                        Toggle(Self.label(choice.name), isOn: Binding(get: { chat.model?.id == choice.id }, set: { _ in chat.model = choice }))
                             .help(choice.help)
                     }
                 } label: {
-                    Text(chat.model?.name ?? "Codex default")
+                    Text(Self.label(chat.model?.name))
                 }
                 .menuStyle(.borderlessButton)
                 .fixedSize()
