@@ -30,6 +30,8 @@ final class Chat {
     private(set) var screenshot: URL?
     private(set) var contextUsage: ContextUsage?
     private(set) var isWritingHandoff = false
+    /// A chat from the list is being reopened.
+    private(set) var isOpening = false
     /// Read when a question is sent, so a pick applies from the next message on. nil sends no
     /// model, so Codex uses its own default.
     var model: ModelChoice?
@@ -42,8 +44,9 @@ final class Chat {
 
     /// Off during the start at launch, which would set the resumed thread after a new chat
     /// forgot it, during an answer, which would stream into the blank chat, and while the
-    /// handoff note is written, which ends in a new chat of its own.
-    var canStartNewChat: Bool { !isAnswering && !isStarting && !isWritingHandoff }
+    /// handoff note is written, which ends in a new chat of its own, and while a chat from the
+    /// list opens, whose turns would replace the new one.
+    var canStartNewChat: Bool { !isAnswering && !isStarting && !isWritingHandoff && !isOpening }
 
     private let client: CodexClient
     /// Set once the resumed thread's old turns are shown, so a later restart never shows them twice.
@@ -89,6 +92,32 @@ final class Chat {
         client.forgetThread()
     }
 
+    func history() async throws -> [HistoryEntry] {
+        try await client.history()
+    }
+
+    /// On failure the current chat stays, with the error as the notice.
+    func open(_ threadID: String) {
+        guard canStartNewChat else { return }
+        isOpening = true
+        notice = nil
+        // Cleared before the resume: the reopened thread's usage can arrive before its reply.
+        contextUsage = nil
+        Task {
+            do {
+                let turns = try await client.resume(threadID)
+                // A start that failed at launch must never insert its turns later.
+                showRestoredTurns()
+                exchanges = turns
+                allowsEverythingInThisChat = false
+                model = modelChoices.first
+            } catch {
+                notice = Self.message(for: error)
+            }
+            isOpening = false
+        }
+    }
+
     /// On success the chat is already new and the note is for the input box; it is never sent here.
     /// On failure the old chat stays, with the error as the notice.
     func writeHandoff() async -> String? {
@@ -121,7 +150,7 @@ final class Chat {
     @discardableResult
     func send(_ question: String) -> Bool {
         let question = question.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !question.isEmpty, !isAnswering, !isWritingHandoff else { return false }
+        guard !question.isEmpty, !isAnswering, !isWritingHandoff, !isOpening else { return false }
         let prompt = Self.prompt(question, selection: selection)
         selection = nil
         let image = screenshot
@@ -201,7 +230,7 @@ final class Chat {
         return quote + "\n\n" + question
     }
 
-    private static func message(for error: Error) -> String {
+    static func message(for error: Error) -> String {
         (error as? CodexProblem)?.message ?? error.localizedDescription
     }
 }

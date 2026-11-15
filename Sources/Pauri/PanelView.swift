@@ -6,6 +6,7 @@ struct PanelView: View {
     let chat: Chat
     @State private var draft = ""
     @State private var showsSettings = false
+    @State private var showsHistory = false
     @State private var sends = 0
     @State private var dictation = Dictation()
     /// The draft as it was when the mic started; speech is added after it.
@@ -46,9 +47,14 @@ struct PanelView: View {
 
     var body: some View {
         VStack {
-            // Variant C of design-directions/issue-21.html; its chat title and history button come with #20 and #22.
+            // Variant C of design-directions/issue-21.html; its chat title comes with #22.
             HStack(spacing: 4) {
                 Spacer()
+                Button { showsHistory = true } label: { Image(systemName: "clock").font(.system(size: 12)) }
+                    .buttonStyle(.borderless)
+                    .help("Past chats (⌘K)")
+                    .keyboardShortcut("k", modifiers: .command)
+                    .popover(isPresented: $showsHistory) { HistoryList(chat: chat) { showsHistory = false } }
                 Button { chat.newChat() } label: { Image(systemName: "square.and.pencil").font(.system(size: 12)) }
                     .buttonStyle(.borderless)
                     .help("New chat")

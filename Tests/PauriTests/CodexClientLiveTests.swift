@@ -290,4 +290,29 @@ private func redBlueImage() throws -> CGImage {
         #expect(right.contains("blue") && !right.contains("red"))
         try await quit(client)
     }
+
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["PAURI_LIVE"] == "1"))
+    @MainActor func liveHistoryListsOnlyThisListsChatsAndReopensOne() async throws {
+        let defaults = freshDefaults("pauri-live-history")
+        let client = CodexClient(defaults: defaults)
+        try await client.start()
+        _ = try await answer(client, "what is 2+2")
+        client.forgetThread()
+        _ = try await answer(client, "what is 3+3")
+        #expect(client.rememberedThreadIDs.count == 2)
+
+        let history = try await client.history()
+        #expect(history.map(\.id) == Array(client.rememberedThreadIDs.reversed()))
+        #expect(history.map(\.title) == ["what is 3+3", "what is 2+2"])
+
+        #expect(try await client.resume(history[1].id).map(\.question) == ["what is 2+2"])
+        await #expect(throws: CodexProblem.self) { try await client.resume("01a1ddad-0000-7563-b4eb-097d99638604") }
+        #expect(try await answer(client, "times 3").contains("12"))
+        try await quit(client)
+
+        let relaunched = CodexClient(defaults: defaults)
+        try await relaunched.start()
+        #expect(relaunched.restoredExchanges.map(\.question) == ["what is 2+2", "times 3"])
+        try await quit(relaunched)
+    }
 }
