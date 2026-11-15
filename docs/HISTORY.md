@@ -3,6 +3,24 @@
 Accepted-work archive. One section per accepted ticket, appended at the accept-time docs commit.
 Newest first.
 
+## #24 Send waits while the open chat is deleted (2026-11-15)
+
+- New `Chat.isDeletingOpenChat`: `delete(_:)` sets it only for the open chat and clears it in a
+  `defer`, so a failed delete leaves sending as it was. `send` refuses while it is set, the
+  same way it refuses while `isOpening` (#20), and the send orb is off; the typed text stays.
+- A delete of another chat leaves the flag alone, so an overlapping second delete cannot clear
+  it early. The palette's own `isDeleting` does not block that: it resets when the palette
+  closes and reopens (found in the final review).
+- Kept out of `canStartNewChat`, so the palette's rows and keys do not dim during the delete
+  (#22's look stays) and the delete's own `newChat()` still runs.
+- Deferred from the final review: a handoff written, or a chat opened from a reopened palette,
+  during the open chat's delete can still race it.
+- New live tests `liveSendWaitsWhileTheOpenChatIsDeleted` and
+  `liveDeletingAnotherChatKeepsSendWaiting` (passed with `PAURI_LIVE=1`). No test for a failed
+  delete: `CodexClient` has no fake transport. Tests 114/114, eighteen live tests skipped
+  (`./scripts/test.sh && ./scripts/build-app.sh`). Hand check by the owner at gate 2.
+  Commit 38a6421.
+
 ## #22 History palette with search and delete (2026-11-15)
 
 - Cmd+K, the header's search button, or the empty state's new "Open your past chats." row
