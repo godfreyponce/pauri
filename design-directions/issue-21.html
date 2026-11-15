@@ -1,0 +1,548 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Pauri #21: the whole panel, four shapes</title>
+<script>
+// Shared data: every variant below reads only this object and its own row of `sizes`.
+const data = {
+  emptyState: {
+    greeting: "Ask about anything on your screen.",
+    hotkey: ["⌘", "⇧", "Space"],
+    hints: [
+      { icon: "quote", text: "Select text first, then press the hotkey to quote it.", keys: [] },
+      { icon: "clip",  text: "The paperclip attaches a screenshot of this screen.", keys: [] },
+      { icon: "clock", text: "Open your past chats.", keys: ["⌘", "K"] }
+    ]
+  },
+  short: {
+    question: "What does orderOut do to a key window?",
+    answer: "It removes the window from the screen list. If it was key, AppKit makes the next window in order key, or none if the app has no other window."
+  },
+  long: {
+    question: "Why does the panel lose focus when I open the settings popover, and how do I keep the text field focused?",
+    answer: [
+      "### Why focus moves",
+      "",
+      "The settings popover is its own window. When it opens it becomes key, so `NSWindow.didBecomeKeyNotification` fires for the popover, not for the panel.",
+      "",
+      "1. Check the notification's `object` before you move focus.",
+      "2. Set `focused = true` only when the object is the `FloatingPanel`.",
+      "3. Leave the popover alone while it is key; closing it hands key back to the panel.",
+      "",
+      "```swift",
+      ".onReceive(NotificationCenter.default.publisher(",
+      "    for: NSWindow.didBecomeKeyNotification)) { note in",
+      "    // The popover is a window too.",
+      "    guard note.object is FloatingPanel else { return }",
+      "    focused = true",
+      "}",
+      ".onReceive(NotificationCenter.default.publisher(",
+      "    for: NSWindow.didResignKeyNotification)) { note in",
+      "    if note.object is FloatingPanel {",
+      "        dictation.stop()",
+      "    }",
+      "}",
+      "```",
+      "",
+      "With this, the popover stays open, and the field gets focus back as soon as the panel is key again."
+    ].join("\n")
+  },
+  step: {
+    label: "Ran `git status --short`",
+    output: " M Sources/Pauri/PanelView.swift\n?? design-directions/issue-21.html"
+  },
+  approval: {
+    label: "Edit `Sources/Pauri/PanelView.swift`",
+    detail: "Sources/Pauri/PanelView.swift",
+    diff: "-        .padding()\n+        .padding(14)\n-            VStack(alignment: .leading, spacing: 12) {\n+            VStack(alignment: .leading, spacing: 18) {",
+    reason: "Codex wants to change a file.",
+    buttons: ["Deny", "Allow for this chat", "Allow"]
+  },
+  // The exact copy of ContextBanner.swift.
+  banner: {
+    text: "This chat is getting long. Codex may start to lose track of earlier parts.",
+    write: "Write a handoff draft",
+    newChat: "New chat"
+  },
+  // Dates as the list would show them: a time for today, then "Yesterday", then the day.
+  chats: [
+    { title: "Settings popover steals focus",      date: "10:42 AM",  snippet: "Why does the panel lose focus when I open the settings popover?" },
+    { title: "orderOut and the key window",         date: "9:15 AM",   snippet: "What does orderOut do to a key window?" },
+    { title: "Swift 6 main actor error in init",    date: "8:03 AM",   snippet: "My Swift 6 build fails in the panel controller with this error" },
+    { title: "Rename a git branch on the remote",   date: "Yesterday", snippet: "How do I rename a branch that is already pushed?" },
+    { title: "Explain this regex",                  date: "Yesterday", snippet: "What does ^(?:\\d{3}-){2}\\d{4}$ match?" },
+    { title: "SwiftUI ScrollView anchor at bottom", date: "Nov 11",    snippet: "How do I keep a ScrollView pinned to the newest message?" },
+    { title: "Summarize the release notes",         date: "Nov 7",     snippet: "Summarize the selected release notes in five bullets." },
+    { title: "Disk usage by folder",                date: "Nov 3",     snippet: "Which folders in my home use the most space?" }
+  ],
+  model: { name: "GPT-6.1-Sol Fast", effort: "low", levels: ["low", "medium", "high", "xhigh", "max", "ultra"] },
+  // The <path> of the official OAI_OpenAI-Blossom_White.svg, as in issue-17.html, drawn on its whole 716 canvas.
+  blossom: `<path d="M508.749 317.399C516.777 287.314 508.991 253.884 485.389 230.282C461.788 206.681 428.36 198.895 398.273 206.923C376.231 184.928 343.39 174.956 311.148 183.596C278.906 192.234 255.45 217.292 247.36 247.361C217.291 255.451 192.233 278.91 183.595 311.149C174.957 343.391 184.927 376.232 206.924 398.274C198.896 428.359 206.683 461.789 230.284 485.391C253.885 508.992 287.313 516.779 317.401 508.75C339.442 530.745 372.286 540.717 404.525 532.079C436.767 523.441 460.223 498.384 468.313 468.315C498.383 460.224 523.44 436.766 532.078 404.526C540.716 372.285 530.747 339.443 508.749 317.402V317.399ZM470.899 244.776C486.892 260.77 493.488 282.601 490.687 303.412L415.577 260.046C412.411 258.218 408.509 258.218 405.345 260.046L317.401 310.82V277.526C317.401 275.191 318.652 273.005 320.676 271.837L387.644 233.174C414.178 218.353 448.346 222.223 470.901 244.776H470.899ZM357.837 311.144L398.275 334.491V381.185L357.837 404.532L317.398 381.185V334.491L357.837 311.144ZM264.776 269.693C265.207 239.305 285.644 211.649 316.453 203.393C338.3 197.54 360.505 202.744 377.127 215.573L302.014 258.937C298.848 260.764 296.898 264.144 296.898 267.798V369.346L268.065 352.699C266.043 351.531 264.776 349.353 264.776 347.017V269.691V269.693ZM203.391 316.454C209.244 294.608 224.854 277.978 244.276 269.999V356.73C244.276 360.384 246.226 363.763 249.392 365.591L337.337 416.365L308.503 433.013C306.481 434.181 303.961 434.188 301.939 433.02L234.971 394.357C208.868 378.789 195.138 347.261 203.391 316.454ZM244.775 470.9C228.781 454.906 222.186 433.075 224.986 412.264L300.096 455.63C303.263 457.457 307.164 457.457 310.328 455.63L398.273 404.856V438.149C398.273 440.485 397.022 442.671 394.997 443.839L328.029 482.502C301.495 497.322 267.327 493.452 244.772 470.9H244.775ZM450.897 445.982C450.466 476.371 430.029 504.027 399.22 512.283C377.373 518.136 355.168 512.932 338.547 500.102L413.659 456.738C416.826 454.911 418.775 451.532 418.775 447.877V346.329L447.609 362.977C449.631 364.145 450.897 366.323 450.897 368.659V445.985V445.982ZM512.282 399.221C506.429 421.068 490.819 437.697 471.397 445.676V358.946C471.397 355.292 469.448 351.912 466.281 350.085L378.336 299.311L407.17 282.663C409.192 281.495 411.712 281.487 413.734 282.655L480.702 321.318C506.805 336.887 520.536 368.415 512.282 399.221Z" fill="white"/>`,
+  selection: "NotificationCenter.default.addObserver(forName: NSApplication.didResignActiveNotification,"
+};
+
+// Sizes per variant, in points. Task 2 copies the winner's row into SwiftUI.
+// questionMaxWidth is a fraction of the transcript width; lineSpacing is a CSS line-height factor.
+const sizes = {
+  A: { panelPadding: 16, headerHeight: 0,  exchangeGap: 22, innerGap: 8,  bodyFont: 13.5, lineSpacing: 1.5,  questionMaxWidth: 0.7,  questionRadius: 18, codeFont: 11.5, stepFont: 12 },
+  B: { panelPadding: 14, headerHeight: 36, exchangeGap: 16, innerGap: 6,  bodyFont: 13,   lineSpacing: 1.45, questionMaxWidth: 0.75, questionRadius: 14, codeFont: 11.5, stepFont: 12 },
+  C: { panelPadding: 12, headerHeight: 26, exchangeGap: 12, innerGap: 4,  bodyFont: 12.5, lineSpacing: 1.4,  questionMaxWidth: 1,    questionRadius: 0,  codeFont: 11,   stepFont: 11.5 },
+  D: { panelPadding: 20, headerHeight: 30, exchangeGap: 28, innerGap: 10, bodyFont: 14,   lineSpacing: 1.55, questionMaxWidth: 1,    questionRadius: 0,  codeFont: 12,   stepFont: 12 }
+};
+</script>
+<style>
+  :root { color-scheme: dark; }
+  body {
+    margin: 0; padding: 32px; background: #15171c; color: #e8e8ea;
+    font: 13px/1.4 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+  }
+  h1 { font-size: 18px; margin: 0 0 4px; }
+  .lede { color: #9a9ca3; margin: 0 0 16px; max-width: 1000px; }
+  .lede a { color: #8fb4ff; }
+  .refs { display: flex; gap: 24px; align-items: flex-start; margin: 0 0 28px; }
+  .refs figure { margin: 0; color: #9a9ca3; font-size: 12px; }
+  .refs img { display: block; max-width: 420px; max-height: 240px; border-radius: 8px; border: 1px solid #2a2d35; margin-bottom: 4px; }
+  .row { display: flex; gap: 28px; overflow-x: auto; padding-bottom: 16px; }
+  .col { flex: 0 0 560px; }
+  .col h2 { font-size: 14px; margin: 0 0 2px; }
+  .col p.note { margin: 0 0 10px; color: #9a9ca3; min-height: 54px; }
+  .col p.where { margin: 8px 0 0; color: #c9b98a; font-size: 12px; min-height: 34px; }
+  .states { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
+  .states button { font: inherit; font-size: 11px; color: #c9c9cc; background: #262930; border: 1px solid #353943; border-radius: 6px; padding: 3px 9px; cursor: pointer; }
+  .states button.on { background: #3a4152; border-color: #5a6378; color: #fff; }
+
+  /* The busy desktop behind the glass panel. */
+  .desk {
+    position: relative; padding: 20px; border-radius: 12px; overflow: hidden;
+    background:
+      radial-gradient(circle at 18% 22%, #ffb347 0 46px, transparent 47px),
+      radial-gradient(circle at 82% 78%, #4fd1c5 0 70px, transparent 71px),
+      repeating-linear-gradient(45deg, rgba(255,255,255,0.10) 0 6px, transparent 6px 18px),
+      linear-gradient(120deg, #c2410c, #7c3aed 45%, #0ea5e9 75%, #16a34a);
+  }
+  .desk::before {
+    content: "func application(_ app: NSApplication) { panel.orderOut(nil) }  // busy window text  ";
+    position: absolute; inset: 0; color: rgba(255,255,255,0.35); font: 11px/1.6 ui-monospace, Menlo, monospace;
+    white-space: pre-wrap; word-break: break-all; padding: 8px; pointer-events: none;
+  }
+  .panel {
+    position: relative; width: 520px; height: 680px; box-sizing: border-box; overflow: hidden;
+    display: flex; flex-direction: column; gap: 8px;
+    background: rgba(36, 37, 41, 0.62); backdrop-filter: blur(22px) saturate(1.3);
+    -webkit-backdrop-filter: blur(22px) saturate(1.3);
+    border: 1px solid rgba(255,255,255,0.14); border-radius: 12px;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.45);
+  }
+  .icon { width: 16px; height: 16px; color: #c9c9cc; flex: none; display: block; }
+  .ibtn { border: 0; background: none; color: #c9c9cc; cursor: pointer; padding: 3px; display: inline-flex; border-radius: 6px; }
+  .ibtn:hover { background: rgba(255,255,255,0.08); }
+  .ibtn.on { background: rgba(255,255,255,0.14); }
+  .kc {
+    display: inline-block; min-width: 16px; padding: 0 4px; height: 18px; line-height: 18px; text-align: center;
+    border-radius: 4px; background: rgba(255,255,255,0.10); border: 1px solid rgba(255,255,255,0.16);
+    border-bottom-width: 2px; font-size: 11px; color: #dcdce0; margin-right: 2px; box-sizing: border-box;
+  }
+  .muted { color: #9a9ca3; }
+
+  /* The transcript, shared; sizes come from the variant's row. */
+  .transcript {
+    flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column;
+    gap: var(--exchangeGap); font-size: var(--bodyFont); line-height: var(--lineSpacing);
+  }
+  .transcript .fill { flex: 1; }
+  .exchange { display: flex; flex-direction: column; gap: var(--innerGap); }
+  .answer p { margin: 0 0 8px; }
+  .answer p:last-child { margin-bottom: 0; }
+  .answer h3 { font-size: calc(var(--bodyFont) + 1px); margin: 4px 0 6px; }
+  .answer ol { margin: 0 0 8px; padding-left: 20px; }
+  .answer code { font: var(--codeFont)/1 ui-monospace, Menlo, monospace; background: rgba(255,255,255,0.08); padding: 1px 4px; border-radius: 4px; }
+  .answer pre {
+    margin: 0 0 8px; padding: 8px 10px; border-radius: 8px; background: rgba(255,255,255,0.08);
+    font: var(--codeFont)/1.45 ui-monospace, Menlo, monospace; overflow-x: auto; white-space: pre;
+  }
+  .answer pre code { background: none; padding: 0; font: inherit; }
+  .step { font-size: var(--stepFont); color: #9a9ca3; cursor: pointer; display: flex; gap: 5px; align-items: center; }
+  .step code { font: calc(var(--stepFont) - 1px) ui-monospace, Menlo, monospace; }
+  .step .chev { display: inline-block; width: 10px; font-size: 9px; transition: transform .15s; }
+  .step.open .chev { transform: rotate(90deg); }
+  .stepout { margin-left: 15px; font: 11px/1.45 ui-monospace, Menlo, monospace; background: rgba(255,255,255,0.06); border-radius: 6px; padding: 6px 8px; white-space: pre; color: #b9bbc2; }
+  .approval { margin-left: 15px; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; padding: 10px; display: flex; flex-direction: column; gap: 6px; font-size: 13px; line-height: 1.4; }
+  .approval .lbl { font-weight: 600; }
+  .approval .lbl code, .approval .box6 { font: 11px/1.45 ui-monospace, Menlo, monospace; }
+  .approval .box6 { background: rgba(255,255,255,0.06); border-radius: 6px; padding: 6px 8px; white-space: pre; }
+  .approval .add { color: #5bd17a; } .approval .del { color: #ff6b6b; }
+  .approval .btns { display: flex; justify-content: flex-end; gap: 6px; }
+  .mbtn { font: inherit; font-size: 12px; color: #e8e8ea; background: rgba(255,255,255,0.12); border: 0; border-radius: 6px; padding: 3px 10px; }
+  .mbtn.prom { background: #2f6fde; }
+  .banner {
+    position: sticky; top: 0; z-index: 3; margin: 8px 24px 0; padding: 14px; border-radius: 16px;
+    background: rgba(70, 64, 30, 0.92); border: 1px solid rgba(234, 200, 60, 0.45);
+    box-shadow: 0 6px 24px rgba(0,0,0,0.3); font-size: 13px; line-height: 1.4;
+  }
+  .banner b { display: block; margin-bottom: 10px; }
+  .shotlabel { align-self: flex-end; color: #9a9ca3; font-size: 12px; }
+
+  /* The input area: variant A of issue-17.html as the built app has it (paperclip for the + menu).
+     Drawn the same in all four variants. */
+  .chips { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; background: rgba(255,255,255,0.10); border-radius: 999px; padding: 3px 8px 3px 10px; color: #dcdce0; font-size: 12px; }
+  .chip .t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+  .inbox { background: rgba(0,0,0,0.28); border: 1px solid rgba(255,255,255,0.16); border-radius: 12px; padding: 10px; display: flex; flex-direction: column; gap: 6px; flex: none; }
+  .inbox .ph { color: #7e8088; height: 36px; line-height: 18px; }
+  .deck { display: flex; align-items: center; gap: 6px; }
+  .deck .spacer { flex: 1; }
+  .capsule { display: inline-flex; align-items: center; gap: 3px; color: #e8e8ea; background: rgba(60,62,70,0.72); border-radius: 999px; padding: 0 9px 0 1px; height: 24px; }
+  .capsule .caret { color: #9a9ca3; font-size: 10px; margin-left: 2px; }
+  .blossom { display: block; flex: none; }
+  .bars { display: inline-flex; align-items: flex-end; padding: 3px 4px; }
+  .bar { background: rgba(255,255,255,0.22); border-radius: 1px; width: 3px; margin-left: 2px; }
+  .bar:first-child { margin-left: 0; }
+  .bar.on { background: #e8e8ea; }
+  .level { color: #9a9ca3; font-size: 11px; }
+  .orb {
+    width: 32px; height: 32px; border-radius: 50%; flex: none; position: relative; overflow: hidden;
+    background: radial-gradient(circle at 35% 30%, #4d5fb0, #1c2350 60%, #0b0f26);
+    box-shadow: 0 0 0 1px rgba(255,255,255,0.18), 0 2px 8px rgba(0,0,0,0.4);
+  }
+  .orb::after {
+    content: ""; position: absolute; inset: 0;
+    background:
+      radial-gradient(circle at 22% 62%, #fff 0 0.8px, transparent 1.4px),
+      radial-gradient(circle at 70% 28%, #fff 0 0.9px, transparent 1.5px),
+      radial-gradient(circle at 58% 74%, #dfe6ff 0 0.7px, transparent 1.3px),
+      radial-gradient(circle at 40% 40%, #fff 0 0.6px, transparent 1.2px);
+  }
+
+  /* History lists, shared parts. */
+  .search { display: flex; align-items: center; gap: 6px; background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.14); border-radius: 8px; padding: 5px 8px; }
+  .search input { flex: 1; min-width: 0; font: inherit; color: #ececef; background: transparent; border: 0; outline: 0; padding: 0; }
+  .search input::placeholder { color: #7e8088; }
+  .hlist { overflow-y: auto; min-height: 0; }
+  .hgroup { font-size: 11px; font-weight: 600; color: #8a8c94; text-transform: uppercase; letter-spacing: .04em; padding: 10px 8px 4px; }
+  .hrow { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 6px; cursor: default; }
+  .hrow:hover, .hrow.sel { background: rgba(255,255,255,0.08); }
+  .hrow .txt { flex: 1; min-width: 0; }
+  .hrow .ttl { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .hrow .snip { font-size: 11.5px; color: #8a8c94; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .hrow .date { font-size: 11px; color: #8a8c94; flex: none; }
+  .hrow .trash { visibility: hidden; border: 0; background: none; color: #c9c9cc; cursor: pointer; padding: 2px; border-radius: 4px; display: inline-flex; }
+  .hrow:hover .trash, .hrow.sel .trash { visibility: visible; }
+  .hrow .trash:hover { color: #ff6b6b; background: rgba(255,255,255,0.08); }
+  .hempty { color: #8a8c94; padding: 16px 8px; }
+
+  /* A. No header bar */
+  .A .transcript { padding-top: 34px; -webkit-mask: linear-gradient(transparent 0, #000 40px); mask: linear-gradient(transparent 0, #000 40px); }
+  .A .banner { top: 40px; }
+  .A .pill { position: absolute; top: 10px; right: 12px; z-index: 4; display: flex; gap: 2px; padding: 3px; border-radius: 999px; background: rgba(50,52,58,0.85); border: 1px solid rgba(255,255,255,0.12); box-shadow: 0 4px 14px rgba(0,0,0,0.3); }
+  .A .q { align-self: flex-end; max-width: calc(var(--qmax) * 100%); background: rgba(255,255,255,0.12); border-radius: var(--qr); padding: 8px 13px; }
+  .A .empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; }
+  .A .empty .g { font-size: 20px; font-weight: 600; }
+  .A .empty .hint { display: flex; gap: 10px; align-items: center; color: #b9bbc2; width: 340px; padding: 4px 0; }
+  .A .pop { position: absolute; z-index: 6; top: 44px; right: 12px; width: 310px; max-height: 430px; display: flex; flex-direction: column; gap: 6px; padding: 8px; border-radius: 12px; background: rgba(40,42,48,0.97); border: 1px solid rgba(255,255,255,0.14); box-shadow: 0 14px 40px rgba(0,0,0,0.55); }
+  .A .pop::before { content: ""; position: absolute; top: -6px; right: 62px; width: 10px; height: 10px; background: rgba(40,42,48,0.97); border-left: 1px solid rgba(255,255,255,0.14); border-top: 1px solid rgba(255,255,255,0.14); transform: rotate(45deg); }
+
+  /* B. Toolbar and sidebar */
+  .B .bar-top { display: flex; align-items: center; gap: 6px; height: var(--headerHeight); margin: calc(-1 * var(--pp)) calc(-1 * var(--pp)) 0; padding: 0 10px; border-bottom: 1px solid rgba(255,255,255,0.09); flex: none; }
+  .B .bar-top .title { flex: 1; text-align: center; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .B .q { align-self: flex-end; max-width: calc(var(--qmax) * 100%); background: #4A3DB8; color: #fff; border-radius: var(--qr); padding: 7px 11px; }
+  .B .empty { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 12px; padding: 0 8px; }
+  .B .empty .g { font-size: 22px; font-weight: 600; }
+  .B .empty .hint { color: #b9bbc2; display: flex; gap: 8px; align-items: center; }
+  .B .scrim { position: absolute; inset: var(--headerHeight) 0 0 0; background: rgba(0,0,0,0.35); z-index: 5; }
+  .B .side { position: absolute; z-index: 6; top: var(--headerHeight); bottom: 0; left: 0; width: 240px; display: flex; flex-direction: column; gap: 6px; padding: 10px 8px; background: rgba(32,34,39,0.97); border-right: 1px solid rgba(255,255,255,0.12); box-shadow: 8px 0 24px rgba(0,0,0,0.35); animation: slide .18s ease-out; }
+  @keyframes slide { from { transform: translateX(-100%); } }
+
+  /* C. Command palette */
+  .C .bar-top { display: flex; align-items: center; gap: 4px; height: var(--headerHeight); flex: none; font-size: 12px; }
+  .C .bar-top .title { flex: 1; color: #b9bbc2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .C .bar-top .icon { width: 14px; height: 14px; }
+  .C .bar-top .k { font-size: 11px; color: #8a8c94; margin-right: 4px; }
+  .C .exchange { border-top: 1px solid rgba(255,255,255,0.07); padding-top: var(--exchangeGap); }
+  .C .fill + .exchange { border-top: 0; padding-top: 0; }
+  .C .transcript { gap: 0; }
+  .C .q { display: grid; grid-template-columns: 44px 1fr; color: #ececef; font-weight: 500; }
+  .C .who { font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: #8a8c94; padding-top: 2px; }
+  .C .rest { margin-left: 44px; display: flex; flex-direction: column; gap: var(--innerGap); }
+  .C .empty { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; gap: 2px; padding-bottom: 4px; }
+  .C .empty .g { color: #8a8c94; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; padding: 0 8px 6px; }
+  .C .empty .act { display: flex; align-items: center; gap: 10px; padding: 7px 8px; border-radius: 6px; }
+  .C .empty .act:hover { background: rgba(255,255,255,0.08); }
+  .C .empty .act span.t { flex: 1; }
+  .C .pal { position: absolute; inset: 0; z-index: 6; display: flex; flex-direction: column; background: rgba(28,30,35,0.97); border-radius: 12px; }
+  .C .pal .search { border: 0; border-bottom: 1px solid rgba(255,255,255,0.1); border-radius: 0; background: none; padding: 14px 14px; font-size: 15px; }
+  .C .pal .hlist { flex: 1; padding: 6px; }
+  .C .pal .foot { display: flex; gap: 14px; padding: 8px 14px; border-top: 1px solid rgba(255,255,255,0.1); color: #8a8c94; font-size: 11px; }
+
+  /* D. Home screen */
+  .D .bar-top { display: flex; align-items: center; height: var(--headerHeight); flex: none; }
+  .D .bar-top .spacer { flex: 1; }
+  .D .q { font-size: calc(var(--bodyFont) + 3px); font-weight: 600; line-height: 1.3; }
+  .D .exchange + .exchange { border-top: 1px solid rgba(255,255,255,0.08); padding-top: var(--exchangeGap); }
+  .D .transcript { gap: 0; }
+  .D .exchange { padding-bottom: 4px; }
+  .D .home { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 12px; padding-top: 28px; }
+  .D .home .g { font-size: 22px; font-weight: 600; text-align: center; }
+  .D .home .sub { color: #9a9ca3; text-align: center; margin-top: -6px; }
+  .D .home .hlist { flex: 1; }
+</style>
+</head>
+<body>
+<h1>The whole panel: four shapes</h1>
+<p class="lede">Issue #21. Each mock is the 520 x 680 pt Pauri panel on glass, over a busy desktop, with the same
+chats, the same answers, and the same input area. The input box, chips, model picker, mic, and orb are drawn the same
+in all four (picked in #10 and #17); only the chrome around them differs: the header, the message list, the empty
+state, spacing, and type. Under each panel, the buttons switch its state: Empty, Short (one exchange), Long (a tool
+step, an approval card, and a long Markdown answer with code), Context full (the long-chat banner over the long chat),
+and History. Press Cmd+K with the pointer over a panel to open its history, Esc to close it. Search filters the list
+and the trash icon deletes a chat. This ticket wires only the panel; the history surface is built in #22.
+References, for feel and not layout: the ChatGPT window (below) and Raycast AI chat
+(<a href="https://www.raycast.com/core-features/ai">raycast.com</a>). No Raycast screenshot was sent at gate 1, so it is
+named here only.</p>
+<div class="refs">
+  <figure><img src="../docs/reference/chatgpt-window.png" alt="ChatGPT window">ChatGPT window (docs/reference/chatgpt-window.png)</figure>
+</div>
+<div class="row" id="row"></div>
+
+<script>
+const ico = (d, extra = "") => `<svg class="icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" ${extra}>${d}</svg>`;
+const icons = {
+  pencil: ico('<rect x="1.5" y="3" width="10" height="11" rx="2"/><path d="M7 9.5l.4-2L13 2l1.6 1.6L9 9.1z"/>'),
+  gear: ico('<circle cx="8" cy="8" r="2.2"/><path d="M8 1.5v2M8 12.5v2M1.5 8h2M12.5 8h2M3.4 3.4l1.4 1.4M11.2 11.2l1.4 1.4M3.4 12.6l1.4-1.4M11.2 4.8l1.4-1.4"/>'),
+  clock: ico('<path d="M2.2 8a5.8 5.8 0 1 0 1.7-4.1"/><path d="M1.8 2.5v2.3h2.3M8 4.8V8l2.2 1.4"/>'),
+  sidebar: ico('<rect x="1.5" y="2.5" width="13" height="11" rx="2"/><path d="M6 2.5v11"/>'),
+  home: ico('<path d="M2 7.5L8 2.5l6 5M3.5 6.5v7h3.3V10h2.4v3.5h3.3v-7"/>'),
+  search: ico('<circle cx="7" cy="7" r="4.3"/><path d="M10.2 10.2l3.6 3.6"/>'),
+  trash: ico('<path d="M2.5 4h11M6 4V2.5h4V4M4 4l.7 9.5h6.6L12 4M6.8 6.5v4.5M9.2 6.5v4.5"/>', 'style="width:14px;height:14px"'),
+  quote: ico('<path d="M2 4h5v4.5c0 2-1.2 3.3-3.3 3.6l-.3-1.2C4.6 10.6 5 10 5 9H2zm7 0h5v4.5c0 2-1.2 3.3-3.3 3.6l-.3-1.2c1.2-.3 1.6-.9 1.6-1.9H9z" fill="currentColor" stroke="none"/>'),
+  clip: ico('<path d="M13 7.5l-5.2 5.2a3.2 3.2 0 0 1-4.5-4.5L8.8 2.7a2.1 2.1 0 0 1 3 3L6.3 11.2a1 1 0 0 1-1.5-1.5L9.8 4.7"/>'),
+  mic: ico('<rect x="5.5" y="1.5" width="5" height="8.5" rx="2.5"/><path d="M3 8a5 5 0 0 0 10 0M8 13v2"/>'),
+  enter: ico('<path d="M13 3v5H4M6.5 5.5L4 8l2.5 2.5"/>')
+};
+const esc = s => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+const inline = s => esc(s).replace(/`([^`]+)`/g, "<code>$1</code>");
+const keys = ks => ks.map(k => `<span class="kc">${k}</span>`).join("");
+
+// A small Markdown reader: headings, paragraphs, numbered lists, fenced code.
+function markdown(md) {
+  const out = [], lines = md.split("\n");
+  for (let i = 0; i < lines.length; i++) {
+    const l = lines[i];
+    if (l.startsWith("```")) {
+      const code = [];
+      while (++i < lines.length && !lines[i].startsWith("```")) code.push(lines[i]);
+      out.push(`<pre><code>${esc(code.join("\n"))}</code></pre>`);
+    } else if (l.startsWith("#")) {
+      out.push(`<h3>${inline(l.replace(/^#+\s*/, ""))}</h3>`);
+    } else if (/^\d+\.\s/.test(l)) {
+      const items = [];
+      for (; i < lines.length && /^\d+\.\s/.test(lines[i]); i++) items.push(`<li>${inline(lines[i].replace(/^\d+\.\s/, ""))}</li>`);
+      i--;
+      out.push(`<ol>${items.join("")}</ol>`);
+    } else if (l.trim()) {
+      out.push(`<p>${inline(l)}</p>`);
+    }
+  }
+  return `<div class="answer">${out.join("")}</div>`;
+}
+
+const group = date => /:/.test(date) ? "Today" : date === "Yesterday" ? "Yesterday" : "Earlier this month";
+
+// One list renderer; each variant picks the row shape.
+function historyList(st, row, grouped = true) {
+  const q = st.query.toLowerCase();
+  const list = st.chats.map((c, i) => ({ ...c, i })).filter(c => !q || (c.title + " " + c.snippet).toLowerCase().includes(q));
+  if (!list.length) return `<div class="hempty">No chat matches "${esc(st.query)}".</div>`;
+  let html = "", last = "";
+  list.forEach((c, k) => {
+    if (grouped && group(c.date) !== last) { last = group(c.date); html += `<div class="hgroup">${last}</div>`; }
+    html += row(c, k === st.sel);
+  });
+  return html;
+}
+const trash = c => `<button class="trash" data-act="del" data-i="${c.i}" title="Delete chat">${icons.trash}</button>`;
+const rowTitleDate = (c, sel) => `<div class="hrow${sel ? " sel" : ""}"><div class="txt"><div class="ttl">${esc(c.title)}</div></div><span class="date">${esc(c.date)}</span>${trash(c)}</div>`;
+const rowTitleSnip = (c, sel) => `<div class="hrow${sel ? " sel" : ""}"><div class="txt"><div class="ttl">${esc(c.title)}</div><div class="snip">${esc(c.snippet)}</div></div>${trash(c)}</div>`;
+const rowFull = (c, sel) => `<div class="hrow${sel ? " sel" : ""}"><div class="txt"><div class="ttl">${esc(c.title)}</div><div class="snip">${esc(c.snippet)}</div></div><span class="date">${esc(c.date)}</span>${trash(c)}</div>`;
+const searchField = (st, placeholder) => `<label class="search">${icons.search}<input data-search placeholder="${placeholder}" value="${esc(st.query)}"></label>`;
+
+// The shared exchange parts. Each variant only supplies how the user's message looks.
+function stepRow(st) {
+  return `<div class="step${st.stepOpen ? " open" : ""}" data-act="step"><span class="chev">›</span>${inline(data.step.label)}</div>` +
+    (st.stepOpen ? `<div class="stepout">${esc(data.step.output)}</div>` : "");
+}
+function approvalCard() {
+  const a = data.approval;
+  const diff = a.diff.split("\n").map(l => `<span class="${l[0] === "+" ? "add" : l[0] === "-" ? "del" : ""}">${esc(l)}</span>`).join("\n");
+  return `<div class="approval"><div class="lbl">${inline(a.label)}</div><div class="box6">${esc(a.detail)}</div><div class="box6">${diff}</div>
+    <div class="muted">${esc(a.reason)}</div>
+    <div class="btns">${a.buttons.map((b, i) => `<button class="mbtn${i === 2 ? " prom" : ""}">${b}</button>`).join("")}</div></div>`;
+}
+function bannerCard() {
+  return `<div class="banner"><b>${esc(data.banner.text)}</b><button class="mbtn prom">${data.banner.write}</button> <button class="mbtn">${data.banner.newChat}</button></div>`;
+}
+function exchanges(st, v) {
+  const shortEx = v.exchange(data.short.question, markdown(data.short.answer), "");
+  if (st.base === "short") return [shortEx];
+  return [shortEx, v.exchange(data.long.question, markdown(data.long.answer), stepRow(st) + approvalCard())];
+}
+function transcript(st, v) {
+  return `<div class="transcript">${st.base === "full" ? bannerCard() : ""}<div class="fill"></div>${exchanges(st, v).join("")}</div>`;
+}
+
+function inputArea(st) {
+  const m = data.model, i = m.levels.indexOf(m.effort);
+  const bars = m.levels.map((_, k) => `<span class="bar${k <= i ? " on" : ""}" style="height:${Math.round(12 * (0.45 + 0.55 * (k + 1) / m.levels.length))}px"></span>`).join("");
+  const chips = st.base === "short" ? `<div class="chips"><span class="chip">${icons.quote}<span class="t">${esc(data.selection)}</span><span class="muted">✕</span></span></div>` : "";
+  return chips + `<div class="inbox"><div class="ph">Ask Pauri</div><div class="deck">
+    <button class="ibtn" title="Attach a screenshot">${icons.clip}</button>
+    <span class="capsule"><svg class="blossom" width="22" height="22" viewBox="0 0 716 716" fill="none" role="img" aria-label="OpenAI">${data.blossom}</svg><span>${esc(m.name)}</span><span class="caret">▾</span></span>
+    <span class="bars">${bars}</span><span class="level">${m.effort}</span>
+    <span class="spacer"></span><button class="ibtn" title="Dictate">${icons.mic}</button><span class="orb" title="Send"></span></div></div>`;
+}
+
+const chatTitle = st => st.base === "empty" ? "New chat" : st.base === "short" ? data.chats[1].title : data.chats[0].title;
+
+const variants = [
+  {
+    key: "A", name: "A. No header bar",
+    note: "The transcript runs to the top edge and fades under a small floating pill: history, new chat, settings. Answers run the full width; your message is a soft gray bubble on the right, as in the ChatGPT window. Empty: one centered line and three hint rows.",
+    where: "History: a popover under the pill's clock. Cmd+K or the clock opens it; Esc, a click outside, or Cmd+K again closes it.",
+    exchange: (q, a, mid) => `<div class="exchange"><div class="q">${esc(q)}</div>${mid}${a}</div>`,
+    render: (st, v) =>
+      `<div class="pill"><button class="ibtn${st.history ? " on" : ""}" data-act="hist" title="Past chats (⌘K)">${icons.clock}</button><button class="ibtn" title="New chat (⌘N)">${icons.pencil}</button><button class="ibtn" title="Settings">${icons.gear}</button></div>` +
+      (st.base === "empty"
+        ? `<div class="empty"><div class="g">${esc(data.emptyState.greeting)}</div><div>${data.emptyState.hints.map(h => `<div class="hint">${icons[h.icon]}<span>${esc(h.text)}</span>${keys(h.keys)}</div>`).join("")}</div></div>`
+        : transcript(st, v)) +
+      inputArea(st) +
+      (st.history ? `<div class="pop" data-keep>${searchField(st, "Search chats")}<div class="hlist">${historyList(st, rowTitleDate)}</div></div>` : "")
+  },
+  {
+    key: "B", name: "B. Toolbar and sidebar",
+    note: "A real toolbar: the sidebar toggle on the left, the chat's title in the middle, new chat and settings on the right. Your message keeps today's purple bubble. Empty: a left-aligned greeting with the hotkey and Cmd+K as key caps.",
+    where: "History: a sidebar that slides in from the left, inside the panel, over the transcript. Cmd+K or the sidebar button opens it; Esc, the button, or a click on the dimmed transcript closes it.",
+    exchange: (q, a, mid) => `<div class="exchange"><div class="q">${esc(q)}</div>${mid}${a}</div>`,
+    render: (st, v) =>
+      `<div class="bar-top"><button class="ibtn${st.history ? " on" : ""}" data-act="hist" title="Past chats (⌘K)">${icons.sidebar}</button><span class="title">${esc(chatTitle(st))}</span><button class="ibtn" title="New chat (⌘N)">${icons.pencil}</button><button class="ibtn" title="Settings">${icons.gear}</button></div>` +
+      (st.base === "empty"
+        ? `<div class="empty"><div class="g">${esc(data.emptyState.greeting)}</div>
+             <div class="hint">Press ${keys(data.emptyState.hotkey)} from any app to bring Pauri back.</div>
+             ${data.emptyState.hints.map(h => `<div class="hint">${icons[h.icon]}<span>${esc(h.text)}</span>${keys(h.keys)}</div>`).join("")}</div>`
+        : transcript(st, v)) +
+      inputArea(st) +
+      (st.history ? `<div class="scrim" data-act="close"></div><div class="side" data-keep>${searchField(st, "Search")}<div class="hlist">${historyList(st, rowTitleSnip)}</div></div>` : "")
+  },
+  {
+    key: "C", name: "C. Command palette",
+    note: "Raycast-like and dense. A slim header: the chat's title on the left, small icons on the right. Messages are compact rows: your message is a labeled row, not a bubble, and the answer sits under it on the same indent. Empty: a short list of suggested actions.",
+    where: "History: a palette that covers the whole panel, keyboard first. Cmd+K or the search icon opens it; arrows move, Esc returns to the chat.",
+    exchange: (q, a, mid) => `<div class="exchange"><div class="q"><span class="who">You</span><span>${esc(q)}</span></div><div class="rest">${mid}${a}</div></div>`,
+    render: (st, v) =>
+      `<div class="bar-top"><span class="title">${esc(chatTitle(st))}</span><span class="k">⌘K</span><button class="ibtn" data-act="hist" title="Past chats (⌘K)">${icons.search}</button><button class="ibtn" title="New chat (⌘N)">${icons.pencil}</button><button class="ibtn" title="Settings">${icons.gear}</button></div>` +
+      (st.base === "empty"
+        ? `<div class="empty"><div class="g">${esc(data.emptyState.greeting)}</div>${data.emptyState.hints.map(h => `<div class="act">${icons[h.icon]}<span class="t">${esc(h.text)}</span>${keys(h.keys)}</div>`).join("")}<div class="act">${icons.enter}<span class="t">Bring Pauri back from any app.</span>${keys(data.emptyState.hotkey)}</div></div>`
+        : transcript(st, v)) +
+      inputArea(st) +
+      (st.history ? `<div class="pal" data-keep>${searchField(st, "Search past chats")}<div class="hlist">${historyList(st, rowFull, false)}</div>
+          <div class="foot"><span>${keys(["↑", "↓"])} move</span><span>${keys(["↩"])} open</span><span>${keys(["⌘", "⌫"])} delete</span><span>${keys(["esc"])} back</span></div></div>` : "")
+  },
+  {
+    key: "D", name: "D. Home screen",
+    note: "No title in the header: a home icon on the left (it also starts a new chat, Cmd+N) and settings on the right. The empty state is the home: a greeting, a search field, and your recent chats. In a chat, each question is a bold heading over its answer, the full width.",
+    where: "History: the home itself. Cmd+K or the home icon opens it with the search field focused; Esc returns to the chat you were in.",
+    exchange: (q, a, mid) => `<div class="exchange"><div class="q">${esc(q)}</div>${mid}${a}</div>`,
+    render: (st, v) => {
+      const home = st.base === "empty" || st.history;
+      return `<div class="bar-top"><button class="ibtn${home ? " on" : ""}" data-act="hist" title="Home and past chats (⌘K)">${icons.home}</button><span class="spacer"></span><button class="ibtn" title="Settings">${icons.gear}</button></div>` +
+        (home
+          ? `<div class="home" data-keep><div class="g">${esc(data.emptyState.greeting)}</div><div class="sub">Press ${keys(data.emptyState.hotkey)} from any app.</div>${searchField(st, "Search past chats")}<div class="hlist">${historyList(st, rowTitleDate)}</div></div>`
+          : transcript(st, v)) +
+        inputArea(st);
+    }
+  }
+];
+
+let hovered = null;
+const panels = [];
+const row = document.getElementById("row");
+variants.forEach(v => {
+  const s = sizes[v.key];
+  const st = { base: "long", history: false, stepOpen: false, query: "", sel: 0, chats: data.chats.slice() };
+  const col = document.createElement("div");
+  col.className = "col";
+  col.innerHTML = `<h2>${v.name}</h2><p class="note">${v.note}</p>
+    <div class="desk"><div class="panel ${v.key}"></div></div>
+    <div class="states">${[["empty", "Empty"], ["short", "Short"], ["long", "Long"], ["full", "Context full"], ["history", "History (⌘K)"]]
+      .map(([k, l]) => `<button data-state="${k}">${l}</button>`).join("")}</div>
+    <p class="where">${v.where}</p>`;
+  row.appendChild(col);
+  const panel = col.querySelector(".panel");
+  const p = panel.style;
+  p.setProperty("--pp", s.panelPadding + "px");
+  p.padding = s.panelPadding + "px";
+  if (v.key === "A") p.paddingTop = "0";
+  p.setProperty("--headerHeight", s.headerHeight + "px");
+  p.setProperty("--exchangeGap", s.exchangeGap + "px");
+  p.setProperty("--innerGap", s.innerGap + "px");
+  p.setProperty("--bodyFont", s.bodyFont + "px");
+  p.setProperty("--lineSpacing", s.lineSpacing);
+  p.setProperty("--qmax", s.questionMaxWidth);
+  p.setProperty("--qr", s.questionRadius + "px");
+  p.setProperty("--codeFont", s.codeFont + "px");
+  p.setProperty("--stepFont", s.stepFont + "px");
+
+  const draw = () => {
+    panel.innerHTML = v.render(st, v);
+    const t = panel.querySelector(".transcript");
+    if (t) t.scrollTop = t.scrollHeight;
+    col.querySelectorAll(".states button").forEach(b =>
+      b.classList.toggle("on", b.dataset.state === (st.history ? "history" : st.base)));
+    const input = panel.querySelector("[data-search]");
+    if (input && st.history) { input.focus({ preventScroll: true }); input.setSelectionRange(input.value.length, input.value.length); }
+  };
+  const redrawList = () => {
+    const list = panel.querySelector(".hlist");
+    const shape = { A: [rowTitleDate, true], B: [rowTitleSnip, true], C: [rowFull, false], D: [rowTitleDate, true] }[v.key];
+    if (list) list.innerHTML = historyList(st, shape[0], shape[1]);
+  };
+  const api = {
+    toggle() { st.history = !st.history; st.query = ""; st.sel = 0; draw(); },
+    close() { if (st.history) { st.history = false; st.query = ""; draw(); } },
+    move(d) { if (!st.history) return; st.sel = Math.min(st.chats.length - 1, Math.max(0, st.sel + d)); redrawList(); },
+    isOpen: () => st.history
+  };
+  panels.push(api);
+  panel.addEventListener("mouseenter", () => { hovered = api; });
+  panel.addEventListener("input", e => { if (e.target.matches("[data-search]")) { st.query = e.target.value; st.sel = 0; redrawList(); } });
+  panel.addEventListener("click", e => {
+    const el = e.target.closest("[data-act]");
+    if (el) {
+      const act = el.dataset.act;
+      if (act === "hist") return api.toggle();
+      if (act === "close") return api.close();
+      if (act === "step") { st.stepOpen = !st.stepOpen; return draw(); }
+      if (act === "del") { st.chats.splice(+el.dataset.i, 1); return redrawList(); }
+    }
+    // A: a click outside the popover closes it.
+    if (v.key === "A" && st.history && !e.target.closest("[data-keep]")) api.close();
+  });
+  col.querySelectorAll(".states button").forEach(b => b.addEventListener("click", () => {
+    if (b.dataset.state === "history") { st.history = true; st.query = ""; st.sel = 0; }
+    else { st.base = b.dataset.state; st.history = false; }
+    draw();
+  }));
+  draw();
+});
+
+document.addEventListener("keydown", e => {
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+    if (hovered) { e.preventDefault(); hovered.toggle(); }
+  } else if (e.key === "Escape") {
+    (hovered && hovered.isOpen() ? [hovered] : panels).forEach(p => p.close());
+  } else if (hovered && hovered.isOpen() && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
+    e.preventDefault(); hovered.move(e.key === "ArrowDown" ? 1 : -1);
+  }
+});
+</script>
+</body>
+</html>
