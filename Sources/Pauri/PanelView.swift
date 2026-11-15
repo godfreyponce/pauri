@@ -49,17 +49,16 @@ struct PanelView: View {
             // Variant C of design-directions/issue-21.html; its chat title and history button come with #20 and #22.
             HStack(spacing: 4) {
                 Spacer()
-                Button { chat.newChat() } label: { Image(systemName: "square.and.pencil") }
+                Button { chat.newChat() } label: { Image(systemName: "square.and.pencil").font(.system(size: 12)) }
                     .buttonStyle(.borderless)
                     .help("New chat")
                     .keyboardShortcut("n", modifiers: .command)
                     .disabled(!chat.canStartNewChat)
-                Button { showsSettings = true } label: { Image(systemName: "gearshape") }
+                Button { showsSettings = true } label: { Image(systemName: "gearshape").font(.system(size: 12)) }
                     .buttonStyle(.borderless)
                     .help("Settings")
                     .popover(isPresented: $showsSettings) { SettingsView(hotKey: hotKey) }
             }
-            .font(.system(size: 12))
             .frame(height: 26)
             ScrollView {
                 if chat.exchanges.isEmpty && !chat.isStarting {
