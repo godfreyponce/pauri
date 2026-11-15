@@ -3,6 +3,30 @@
 Accepted-work archive. One section per accepted ticket, appended at the accept-time docs commit.
 Newest first.
 
+## #20 Pauri remembers its chats; Cmd+K opens a plain list (2026-11-15)
+
+- `CodexClient` records every thread it asks in under `threadIDs` in `UserDefaults` (oldest
+  first, each once), next to the `lastThreadID` write after `turn/start`. Cmd+N does not
+  touch the list. Chats from before this build join it only when you ask in them again.
+- `history()` pages `thread/list` (`limit` 100, the server's cap; `sortKey` `updated_at`; no
+  `sourceKinds`, because Codex records app-server threads as `vscode`) and keeps only
+  remembered IDs, in the reply's order. Title is `name`, else `preview` (Codex never names
+  app-server threads). A remembered thread Codex no longer lists is left out.
+- `resume(_:)` switches the warm process to another thread with `thread/resume`, saves it as
+  `lastThreadID`, and returns its turns; on an error the current thread stays.
+- New `HistoryList.swift`: a plain popover list (title, date of last update, newest first),
+  "No chats yet." when empty. A clock button in the header, left of the pencil, opens it,
+  with Cmd+K. `Chat.open(_:)` reopens a chat; sends and new chats are refused while it runs
+  (`isOpening`), and rows are disabled while a new chat could not start. #22 restyles it and
+  adds search and delete.
+- Deferred from the final review: the send orb stays enabled during a reopen (a press does
+  nothing, the draft stays); a failed reopen hides a context-full banner until the next
+  answer; reopening the chat already open resets the model pick and allow-for-this-chat;
+  `history()` reads every page on each Cmd+K; no progress sign while a reopen runs.
+- New live test `liveHistoryListsOnlyThisListsChatsAndReopensOne` passed with `PAURI_LIVE=1`.
+  Tests 109/109, fifteen live tests skipped (`./scripts/test.sh && ./scripts/build-app.sh`).
+  Hand check 1 by the builder; checks 2 to 6 by the owner at gate 2. Commits 23dcbba, eeb3c92.
+
 ## #23 Model picker label without "GPT" (2026-11-14)
 
 - New `ModelPicker.label(_:)`: a name that starts with "GPT-" or "GPT " (any case) and has text
