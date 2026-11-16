@@ -3,6 +3,40 @@
 Accepted-work archive. One section per accepted ticket, appended at the accept-time docs commit.
 Newest first.
 
+## #28 Sparkle and the header update button (2026-11-16)
+
+- Sparkle 2.10.1 is a Swift package dependency (`Package.resolved` committed).
+  `scripts/build-app.sh` copies `Sparkle.framework` into `Contents/Frameworks` with `ditto`,
+  deletes its XPC services (Pauri is not sandboxed), adds the rpath
+  `@executable_path/../Frameworks`, and signs `Autoupdate`, `Updater.app`, the framework, and
+  the app, in that order, with the same identity. No `--deep`, no hardened runtime.
+  `build/Pauri.app` stays the last line.
+- `Support/Info.plist` has `SUFeedURL`
+  (`https://github.com/godfreyponce/pauri/releases/latest/download/appcast.xml`),
+  `SUEnableAutomaticChecks`, and `SUPublicEDKey`. No `PauriChecksForUpdates`: #29's release
+  script sets it, so a dev build never checks.
+- `Updater` is Sparkle's user driver and updater delegate. It shows no Sparkle UI. It starts
+  only when `PauriChecksForUpdates` is YES or the user default `PauriTestFeedURL` is set (the
+  test feed wins). It checks at launch, then on Sparkle's 24-hour schedule, and holds
+  Sparkle's "install?" reply until the click.
+- The header shows an `arrow.up.circle` button left of `⌘K` when an update is out. One click
+  downloads, installs, and restarts Pauri; a spinner shows meanwhile. Disabled while
+  `!chat.canStartNewChat`, tooltip `Update after the answer ends`. A failed download logs
+  `Pauri: update failed` and the button goes away until the next check.
+- The update key lives in the login keychain (account `ed25519`). Make, backup, restore:
+  `docs/superpowers/plans/2026-11-16-issue-28.md` ("Owner's one-time steps").
+- Deferred from the final review: a question sent during the download is cut off by the
+  restart; an information-only appcast item shows the button and a click just dismisses it;
+  after a long uptime the button installs the version found at the first check; release notes
+  are fetched if the appcast links them, and never shown.
+- After an update, Pauri relaunches with its panel hidden, so the click looks like a quit.
+- Pauri's `NSLog` lines show as `<private>` in `log show`, so `update failed` is unreadable
+  there: #31.
+- Tests 119/119, twenty live tests skipped (`./scripts/test.sh && ./scripts/build-app.sh`).
+  Hand check H1 to H9 passed on ad-hoc builds (0.1.0 to 0.1.1, one `codex app-server` after
+  the relaunch); the four permissions surviving an update is unproven until the certificate is
+  back. Commits 2fd86c6, e439dbe, f5e929d.
+
 ## #27 Rebuilds keep their permissions: one self-signed certificate (2026-11-16)
 
 - `scripts/build-app.sh` signs `build/Pauri.app` after every file is in it: with the
