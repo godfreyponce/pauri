@@ -13,6 +13,19 @@ The panel opens on a hotkey. Type a question and press Return: the answer stream
 - macOS
 - [Codex CLI](https://github.com/openai/codex) installed and logged in (`codex login`). Pauri runs your own `codex app-server` and never touches your OpenAI credentials.
 
+## Install
+
+Pauri is early, and Apple has not signed it, so macOS warns you the first time you open it. It runs on Apple Silicon Macs with macOS 14 or later, and it needs the Codex CLI installed and logged in (see [Requirements](#requirements)).
+
+1. Download [Pauri.zip](https://github.com/godfreyponce/pauri/releases/latest/download/Pauri.zip) from the latest release.
+2. Open the zip.
+3. Move `Pauri.app` to your Applications folder. Updates cannot replace it in Downloads.
+4. Open Pauri. macOS says it cannot check Pauri for malware. Click Done.
+5. Open System Settings > Privacy & Security and scroll down to Security. Next to the line about Pauri, click Open Anyway. Enter your password, then click Open Anyway again.
+6. Press Cmd+Shift+Space to show the panel.
+
+Pauri checks for updates in the background. When a new version is out, an up-arrow button at the top right of the panel installs it in one click.
+
 ## Build
 
 You need Command Line Tools (`xcode-select --install`) or Xcode.
