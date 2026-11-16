@@ -23,6 +23,8 @@ if [ -n "$HIGHEST" ] && [ "$(printf '%s\n%s\n' "$HIGHEST" "$VERSION" | sort -V |
   stop "$VERSION is not newer than v$HIGHEST. Sparkle would not offer it."
 fi
 if [ -z "$DRY_RUN" ]; then
+  gh repo view godfreyponce/homebrew-tap >/dev/null 2>&1 ||
+    stop "No tap repo godfreyponce/homebrew-tap. Make it first: gh repo create godfreyponce/homebrew-tap --public"
   git fetch -q origin main
   [ "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)" ] || stop "HEAD is not origin/main. Release from main after you push."
 fi
@@ -51,3 +53,5 @@ fi
 gh release create "$TAG" "$OUT/Pauri.zip" "$OUT/appcast.xml" --target "$(git rev-parse HEAD)" --title "$TAG" --notes "$TAG"
 git fetch -q origin tag "$TAG"
 echo "Released $TAG: https://github.com/godfreyponce/pauri/releases/tag/$TAG"
+./scripts/bump-cask.sh "$VERSION" ||
+  stop "$TAG is released, but the cask was not bumped. Fix the error above, then run scripts/bump-cask.sh $VERSION."
