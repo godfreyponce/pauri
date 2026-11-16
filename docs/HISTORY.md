@@ -3,6 +3,29 @@
 Accepted-work archive. One section per accepted ticket, appended at the accept-time docs commit.
 Newest first.
 
+## #25 Handoff and chat open no longer race the open chat's delete (2026-11-15)
+
+- `Chat.writeHandoff()` refuses while `isDeletingOpenChat` (#24), so a handoff never asks the
+  deleted thread and never blocks the delete's own `newChat()`. The banner keeps its look; a
+  click during the delete does nothing.
+- `Chat.delete(_:)` starts a new chat only if the deleted thread is still `client.threadID` when
+  the delete ends. A chat opened from a reopened palette during the delete has already moved it
+  (`CodexClient.resume` sets it before it awaits), so that chat stays. Open is not blocked: the
+  palette closes on open, and dimming its rows would change #22's look.
+- Not covered (gate 1 decisions): a resume of another chat that fails after the delete has ended
+  puts the deleted thread back as the open one. Reopening the chat that is being deleted ends on
+  a new chat only if its resume finished first; if the resume is still waiting when the delete
+  ends, `newChat()` is skipped while `isOpening`, as before #25, and the panel stays on the
+  deleted thread.
+- Deferred from the final review: the same check also starts a new chat when a chat that was
+  not open at the delete's start is opened during it, and `isDeletingOpenChat` is not set on
+  that path, so a question sent in that window can still go to the deleted thread.
+- New live tests `liveHandoffWaitsWhileTheOpenChatIsDeleted` and
+  `liveChatOpenedDuringTheOpenChatsDeleteStays` (passed with `PAURI_LIVE=1`). The second was
+  never seen red: in three runs before the fix Codex answered the delete first each time.
+  Tests 116/116, twenty live tests skipped (`./scripts/test.sh && ./scripts/build-app.sh`).
+  Hand check by the owner at gate 2. Commit 2098fd5.
+
 ## #24 Send waits while the open chat is deleted (2026-11-15)
 
 - New `Chat.isDeletingOpenChat`: `delete(_:)` sets it only for the open chat and clears it in a
