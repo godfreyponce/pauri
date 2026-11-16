@@ -3,6 +3,30 @@
 Accepted-work archive. One section per accepted ticket, appended at the accept-time docs commit.
 Newest first.
 
+## #27 Rebuilds keep their permissions: one self-signed certificate (2026-11-16)
+
+- `scripts/build-app.sh` signs `build/Pauri.app` after every file is in it: with the
+  `Pauri Self-Signed` certificate when `security find-identity -p codesigning` lists it, else
+  ad-hoc (`codesign --force --sign -`). It prints which, and `build/Pauri.app` stays the last
+  line. The lookup has no `-v`, because macOS never counts a self-signed certificate as valid;
+  an expired certificate is still found, and then `codesign` stops the build instead of a silent
+  ad-hoc build. No hardened runtime, no entitlements, no `--deep`.
+- A signed build's designated requirement is `identifier "io.github.godfreyponce.pauri" and
+  certificate leaf = H"..."`, the same on every rebuild, so macOS keeps the four grants. An
+  ad-hoc build's is its `cdhash`, new each build.
+- Before: `codesign --verify --strict` failed on every build (`code has no resources but
+  signature indicates they must be present`). Now it passes for both kinds.
+- README `## Build`: the Build bullet says which signing a build uses and gives the one-time
+  `tccutil reset All` after the switch to signed builds; the three reset sentences now say
+  "After an ad-hoc rebuild".
+- The certificate's make, backup, and restore steps: `docs/superpowers/plans/2026-11-16-issue-27.md`
+  ("Owner's one-time steps"). Losing the `.p12` makes the next build a new identity.
+- Deferred from the final review: two keychain identities with the exact name
+  `Pauri Self-Signed` make `codesign` stop as ambiguous (only at certificate rotation).
+- Tests 116/116, twenty live tests skipped (`./scripts/test.sh && ./scripts/build-app.sh`).
+  Ad-hoc path proven by the builder; signed path and the four-permission hand check by the owner
+  at gate 2. Commit 581e9f7.
+
 ## #25 Handoff and chat open no longer race the open chat's delete (2026-11-15)
 
 - `Chat.writeHandoff()` refuses while `isDeletingOpenChat` (#24), so a handoff never asks the

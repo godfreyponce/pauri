@@ -1,7 +1,7 @@
 ---
 glass: pauri
 status: in-progress
-last_worked_on: 2026-11-15
+last_worked_on: 2026-11-16
 next_action: "none: no ticket is ready-for-agent"
 blocked_on: ""
 phase: "Bootstrapped 2026-11-13. Tickets #1-#12 cut from docs/spec.md, none green-lit."
@@ -29,4 +29,4 @@ Archive: `docs/HISTORY.md`. Queue: GitHub Issues (`gh issue list`). Protocol: `A
 - A GUI app does not get the shell's `PATH`. On the owner's Mac `codex` lives under `~/.nvm`.
 - `codex app-server` protocol types: `codex app-server generate-ts --out <dir>`. They change between codex versions.
 - Public repo: no env values, credentials, or owner personal data in commits or issues.
-- The app is ad-hoc signed, so every rebuild loses the Accessibility grant (System Settings still shows it on). Reset: tccutil reset Accessibility io.github.godfreyponce.pauri && defaults delete io.github.godfreyponce.pauri askedForSelectionAccess, then press the shortcut and click Allow.
+- Builds signed with the `Pauri Self-Signed` certificate keep the four permissions across rebuilds; the build prints which signing it used. An ad-hoc build loses them; reset: tccutil reset All io.github.godfreyponce.pauri && defaults delete io.github.godfreyponce.pauri askedForSelectionAccess, then press the shortcut and click Allow. The certificate's backup and restore steps: `docs/superpowers/plans/2026-11-16-issue-27.md`.
