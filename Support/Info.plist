@@ -22,5 +22,9 @@
 	<string>Pauri listens only while the mic button is on, and types what you say into the question box.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>Pauri turns your speech into text on this Mac. Nothing is sent to a server.</string>
+	<key>SUEnableAutomaticChecks</key>
+	<true/>
+	<key>SUFeedURL</key>
+	<string>https://github.com/godfreyponce/pauri/releases/latest/download/appcast.xml</string>
 </dict>
 </plist>
