@@ -3,6 +3,42 @@
 Accepted-work archive. One section per accepted ticket, appended at the accept-time docs commit.
 Newest first.
 
+## #30 Homebrew tap with a Pauri cask, and the update proof (2026-11-16)
+
+- Homebrew policy, checked 2026-11-16: official casks "must pass Homebrew's Gatekeeper checks"
+  (docs.brew.sh/Acceptable-Casks); "Casks without codesigning are deprecated" and
+  `--no-quarantine` is deprecated (brew.sh/2025/11/12/homebrew-5.0.0/); taps should be named
+  `homebrew-*` with casks in `Casks/` (docs.brew.sh/How-to-Create-and-Maintain-a-Tap);
+  "Installing a fully qualified formula or cask name trusts only that item"
+  (docs.brew.sh/Tap-Trust). So Pauri ships through the owner's tap, not the main cask list.
+- Cask `godfreyponce/homebrew-tap` `Casks/pauri.rb`: `url .../releases/download/v#{version}/Pauri.zip`,
+  `auto_updates true`, `depends_on arch: :arm64`, `depends_on macos: :sonoma`, `app "Pauri.app"`.
+- `scripts/bump-cask.sh X.Y.Z [--dry-run]` reads the sha256 from GitHub's `digest` for
+  `Pauri.zip` on release `vX.Y.Z` (no download), clones the tap into `build/tap/`, writes
+  `Casks/pauri.rb` and the tap's `README.md` from heredocs, commits `pauri X.Y.Z` and pushes to
+  `main`. With nothing to change it prints `The cask already has X.Y.Z.` and pushes nothing.
+  `--dry-run` writes into a fresh `git init` folder instead. Stops (`bump-cask:`, exit 1): usage;
+  no 64-hex digest ("Is the release out?"); clone fails.
+- `scripts/release.sh` checks `gh repo view godfreyponce/homebrew-tap` before the build (skipped
+  by `--dry-run`), and calls `bump-cask.sh` after `gh release create`; if it fails, it stops with
+  "vX.Y.Z is released, but the cask was not bumped ... run scripts/bump-cask.sh X.Y.Z".
+- README `## Install`: "Or install it with Homebrew" and `brew install --cask godfreyponce/tap/pauri`;
+  `brew upgrade` leaves Pauri alone because it updates itself.
+- Build-session proof (no v0.1.0 release and no certificate at the time): the stops ran for real;
+  the write, push and rerun paths ran with a stub `gh` and a local bare repo as the tap; offline
+  `brew audit --cask --strict` on that cask in a scratch tap passed; `--new` named the expected
+  "GitHub repository not notable enough" plus 404/livecheck errors from the missing release.
+  `release.sh 0.1.1 --dry-run` stopped at the certificate stop.
+- Owner's gate 2 steps (tap made, v0.1.0 cask, `brew install`, `--strict --online` audit): not
+  run before the accept. At landing, `gh repo view godfreyponce/homebrew-tap` and
+  `gh release view v0.1.0` both still failed, so they run with the update proof below.
+- Deferred from the final review: `release.sh`'s `git fetch origin tag` (from #29) sits before the
+  `bump-cask.sh` call, so a network drop there skips the rerun hint; stop messages in both
+  scripts can blame a missing release or repo for an auth or network failure.
+- The v0.1.0 to v0.1.1 update proof runs after the accept push; its result is on #30's close comment.
+- Tests 119/119, twenty live tests skipped (`./scripts/test.sh && ./scripts/build-app.sh`, on main
+  after the merge). Commits 53a8459, a2f5d5d, merge 4978c5e.
+
 ## #29 Release script and the first GitHub Release (v0.1.0) (2026-11-16)
 
 - `scripts/build-app.sh --release X.Y.Z` builds as usual, then sets
