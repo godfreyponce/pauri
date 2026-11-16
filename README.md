@@ -24,7 +24,13 @@ Pauri is early, and Apple has not signed it, so macOS warns you the first time y
 5. Open System Settings > Privacy & Security and scroll down to Security. Next to the line about Pauri, click Open Anyway. Enter your password, then click Open Anyway again.
 6. Press Cmd+Shift+Space to show the panel.
 
-Pauri checks for updates in the background. When a new version is out, an up-arrow button at the top right of the panel installs it in one click.
+Or install it with Homebrew, then follow steps 4 to 6:
+
+```bash
+brew install --cask godfreyponce/tap/pauri
+```
+
+Pauri checks for updates in the background. When a new version is out, an up-arrow button at the top right of the panel installs it in one click. Pauri updates itself, so `brew upgrade` leaves it alone.
 
 ## Build
 
