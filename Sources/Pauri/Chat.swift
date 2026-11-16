@@ -129,20 +129,21 @@ final class Chat {
         }
     }
 
-    /// Deleting the open chat starts a new one, and no question can be sent until it ends. On
-    /// failure nothing changes.
+    /// A chat still open when its delete ends is replaced by a new one; a chat opened during the
+    /// delete stays. No question or handoff can be sent while the open chat is deleted. On failure
+    /// nothing changes.
     func delete(_ threadID: String) async throws {
         let wasOpen = client.threadID == threadID
         if wasOpen { isDeletingOpenChat = true }
         defer { if wasOpen { isDeletingOpenChat = false } }
         try await client.delete(threadID)
-        if wasOpen { newChat() }
+        if client.threadID == threadID { newChat() }
     }
 
     /// On success the chat is already new and the note is for the input box; it is never sent here.
     /// On failure the old chat stays, with the error as the notice.
     func writeHandoff() async -> String? {
-        guard canStartNewChat else { return nil }
+        guard canStartNewChat, !isDeletingOpenChat else { return nil }
         isWritingHandoff = true
         notice = nil
         do {

@@ -404,4 +404,68 @@ private func redBlueImage() throws -> CGImage {
         #expect(client.threadID == nil)
         try await quit(client)
     }
+
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["PAURI_LIVE"] == "1"))
+    @MainActor func liveHandoffWaitsWhileTheOpenChatIsDeleted() async throws {
+        let client = CodexClient(defaults: freshDefaults("pauri-live-delete-handoff"))
+        let chat = Chat(client: client)
+        chat.warmUp()
+        try await waitUntil { !chat.isStarting }
+        #expect(chat.send("what is 2+2"))
+        try await waitUntil { !chat.isAnswering }
+        let open = try #require(client.threadID)
+
+        let deleting = Task { try await chat.delete(open) }
+        await Task.yield()
+        #expect(chat.isDeletingOpenChat)
+        let note = await chat.writeHandoff()
+        #expect(note == nil)
+        #expect(!chat.isWritingHandoff)
+        try await deleting.value
+
+        #expect(chat.notice == nil)
+        #expect(chat.exchanges.isEmpty)
+        #expect(client.threadID == nil)
+        #expect(chat.send("what is 5+5"))
+        try await waitUntil { !chat.isAnswering }
+        let next = try #require(client.threadID)
+        #expect(next != open)
+        #expect(chat.exchanges.count == 1)
+        #expect(chat.exchanges[0].answer.contains("10"))
+        try await quit(client)
+    }
+
+    /// Codex may reply to the delete or to the resume first; the chat opened must stay either way.
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["PAURI_LIVE"] == "1"))
+    @MainActor func liveChatOpenedDuringTheOpenChatsDeleteStays() async throws {
+        let client = CodexClient(defaults: freshDefaults("pauri-live-delete-open"))
+        let chat = Chat(client: client)
+        chat.warmUp()
+        try await waitUntil { !chat.isStarting }
+        #expect(chat.send("what is 2+2"))
+        try await waitUntil { !chat.isAnswering }
+        let other = try #require(client.threadID)
+        chat.newChat()
+        #expect(chat.send("what is 3+3"))
+        try await waitUntil { !chat.isAnswering }
+        let open = try #require(client.threadID)
+
+        let deleting = Task { try await chat.delete(open) }
+        await Task.yield()
+        #expect(chat.isDeletingOpenChat)
+        chat.open(other)
+        #expect(chat.isOpening)
+        try await waitUntil { !chat.isOpening }
+        try await deleting.value
+
+        #expect(chat.notice == nil)
+        #expect(client.threadID == other)
+        #expect(chat.exchanges.map(\.question) == ["what is 2+2"])
+        #expect(chat.send("what is 5+5"))
+        try await waitUntil { !chat.isAnswering }
+        #expect(client.threadID == other)
+        #expect(chat.exchanges.count == 2)
+        #expect(chat.exchanges[1].answer.contains("10"))
+        try await quit(client)
+    }
 }
