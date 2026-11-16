@@ -15,6 +15,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var panel: PanelController?
     private var hotKey: HotKey?
     private var chat: Chat?
+    private let updater = Updater()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         let chat = Chat(client: CodexClient())
@@ -22,7 +23,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self.chat = chat
         let hotKey = HotKey { [weak self] in self?.hotKeyPressed() }
         self.hotKey = hotKey
-        panel = PanelController(hotKey: hotKey, chat: chat)
+        updater.start()
+        panel = PanelController(hotKey: hotKey, chat: chat, updater: updater)
     }
 
     /// Hides only when the panel has focus; a press while another app has focus brings it back,

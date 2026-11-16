@@ -30,6 +30,7 @@ You need Command Line Tools (`xcode-select --install`) or Xcode.
 - Attach a screenshot: click the paperclip at the bottom left of the input box. Pauri takes one picture of the screen it is on, without its own window, and shows it as a chip above the input; the x removes it. It goes with your next question, and the file is deleted when the answer ends. The first time, macOS asks for Screen Recording access. Turn it on in System Settings > Privacy & Security > Screen & System Audio Recording, then quit and reopen Pauri. After an ad-hoc rebuild, reset it with `tccutil reset ScreenCapture io.github.godfreyponce.pauri`.
 - If the shortcut stops working: run `open build/Pauri.app` again to show the panel, or reset the shortcut with `defaults delete io.github.godfreyponce.pauri hotKey`.
 - Quit: `pkill -x Pauri`. Pauri has no Dock icon and no menu.
+- Update: a release build checks for a new version in the background. When one is out, an up-arrow button shows at the top right of the panel; one click installs it and restarts Pauri. The button waits while an answer is coming in. A build from `./scripts/build-app.sh` never checks. To test the button, point a build at a local feed with `defaults write io.github.godfreyponce.pauri PauriTestFeedURL http://localhost:<port>/appcast.xml`, and undo it with `defaults delete io.github.godfreyponce.pauri PauriTestFeedURL`.
 - Test: `./scripts/test.sh`.
 
 The OpenAI Blossom marks the model picker. It is a trademark of OpenAI, used per https://openai.com/brand/. Pauri is not affiliated with or endorsed by OpenAI.
