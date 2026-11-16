@@ -5,7 +5,7 @@ import SwiftUI
 final class PanelController {
     private let panel: FloatingPanel
 
-    init(hotKey: HotKey, chat: Chat) {
+    init(hotKey: HotKey, chat: Chat, updater: Updater) {
         panel = FloatingPanel(
             contentRect: NSRect(x: 0, y: 0, width: 520, height: 680),
             styleMask: [.nonactivatingPanel, .titled, .fullSizeContentView],
@@ -24,7 +24,7 @@ final class PanelController {
         // Pauri never becomes the active app; following the active state would draw the flat inactive look.
         glass.state = .active
         panel.contentView = glass
-        let content = NSHostingView(rootView: PanelView(hotKey: hotKey, chat: chat))
+        let content = NSHostingView(rootView: PanelView(hotKey: hotKey, chat: chat, updater: updater))
         content.frame = glass.bounds
         content.autoresizingMask = [.width, .height]
         glass.addSubview(content)

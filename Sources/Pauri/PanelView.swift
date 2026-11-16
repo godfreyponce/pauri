@@ -4,6 +4,7 @@ import SwiftUI
 struct PanelView: View {
     let hotKey: HotKey
     let chat: Chat
+    let updater: Updater
     @State private var draft = ""
     @State private var showsSettings = false
     @State private var showsHistory = false
@@ -55,6 +56,20 @@ struct PanelView: View {
                     .lineLimit(1)
                     .truncationMode(.tail)
                     .frame(maxWidth: .infinity, alignment: .leading)
+                if let version = updater.readyVersion {
+                    Button { updater.install() } label: {
+                        if updater.isInstalling {
+                            ProgressView().controlSize(.mini)
+                        } else {
+                            Image(systemName: "arrow.up.circle").font(.system(size: 12))
+                        }
+                    }
+                    .buttonStyle(.borderless)
+                    .disabled(updater.isInstalling || !chat.canStartNewChat)
+                    .help(updater.isInstalling ? "Updating to Pauri \(version)"
+                        : chat.canStartNewChat ? "Update to Pauri \(version) and restart"
+                        : "Update after the answer ends")
+                }
                 Text("⌘K")
                     .font(.system(size: 11))
                     .foregroundStyle(.tertiary)
