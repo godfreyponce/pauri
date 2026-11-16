@@ -3,6 +3,37 @@
 Accepted-work archive. One section per accepted ticket, appended at the accept-time docs commit.
 Newest first.
 
+## #29 Release script and the first GitHub Release (v0.1.0) (2026-11-16)
+
+- `scripts/build-app.sh --release X.Y.Z` builds as usual, then sets
+  `CFBundleShortVersionString` and `CFBundleVersion` to `X.Y.Z` and adds
+  `PauriChecksForUpdates = YES` in the bundle's Info.plist before it signs. With no
+  `Pauri Self-Signed` certificate it stops (exit 1) instead of signing ad-hoc. With no argument
+  it builds as before, and `build/Pauri.app` stays the last line.
+- `CFBundleVersion` is the version string. `Support/Info.plist` has `0.1.0`, not `1`, so a dev
+  build never looks newer than a `0.x` release.
+- `scripts/release.sh X.Y.Z [--dry-run]` stops with a `release:` message, in this order: usage;
+  working tree has changes (untracked files count); `git fetch --tags`, then tag `vX.Y.Z`
+  exists; `X.Y.Z` not newer than the highest `v*` tag (`sort -V`); HEAD is not `origin/main`
+  (skipped by `--dry-run`); the release build (certificate stop); `generate_keys -p` fails or
+  differs from `SUPublicEDKey`. Then it empties `build/release/`, zips with
+  `ditto -c -k --sequesterRsrc --keepParent`, and runs `generate_appcast` with the
+  `releases/download/vX.Y.Z/` prefix. `--dry-run` stops there. Otherwise one
+  `gh release create vX.Y.Z --target <HEAD sha>` makes the tag and the Release, with
+  `Pauri.zip` and a one-item `appcast.xml`; title and notes are the tag name.
+- `generate_appcast` with no private key exits 1 and writes no `appcast.xml` (probed with an
+  account that has no key), so the script stops before publishing.
+- README `## Install`: download `Pauri.zip` from the latest release, move it to Applications,
+  Open Anyway in Privacy & Security, Apple Silicon and macOS 14+, Codex CLI needed.
+- The certificate was not in the keychain during the build, so the session proved only the
+  certificate stop; the signed dry run was not run before the accept (the certificate was still missing).
+- Deferred from the final review: the certificate stop leaves an unsigned `build/Pauri.app`
+  until the next build; a denied keychain prompt shows "No Sparkle update key"; the Install
+  steps name the macOS 15 dialog buttons; a failed upload can leave a draft release.
+- v0.1.0 was not published at accept.
+- Tests 119/119, twenty live tests skipped (`./scripts/test.sh && ./scripts/build-app.sh`).
+  Commits ab82511, 0de435e, 39dd382.
+
 ## #28 Sparkle and the header update button (2026-11-16)
 
 - Sparkle 2.10.1 is a Swift package dependency (`Package.resolved` committed).
