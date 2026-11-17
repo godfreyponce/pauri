@@ -102,6 +102,13 @@ const data = {
   /* A macOS-like tooltip: shown on hover, or pinned by the variant. */
   .tip { display: none; position: absolute; z-index: 9; top: calc(100% + 6px); right: -40px; white-space: nowrap; font-size: 11px; color: #e8e8ea; background: rgba(54,56,62,0.98); border: 1px solid rgba(255,255,255,0.16); border-radius: 5px; padding: 3px 7px; box-shadow: 0 4px 12px rgba(0,0,0,0.4); pointer-events: none; }
   .ibtn:hover .tip, .tip.pin { display: block; }
+  .tip.l { right: auto; left: -6px; }
+  /* A3: the quiet states show only while the pointer is over the header. */
+  .hov .bar-top .stat.quiet { visibility: hidden; }
+  .hov .bar-top:hover .stat.quiet { visibility: visible; }
+  .bar-top .title.fit { flex: 0 1 auto; }
+  .bar-top .gap { flex: 1; }
+  h2.sec { font-size: 16px; margin: 36px 0 4px; }
 
   /* The header, variant C of issue-21.html as shipped. */
   .bar-top { display: flex; align-items: center; gap: 4px; height: 26px; flex: none; font-size: 12px; position: relative; }
@@ -176,6 +183,12 @@ opened by itself on the newer version: Checking for a moment, then up to date. E
 panel holds. Hover the icons for their tooltips; the gear opens settings in every variant. A check started from the
 mock takes a moment and finds nothing.</p>
 <div class="row" id="row"></div>
+<h2 class="sec">A, with less in the top right</h2>
+<p class="lede">The owner picked A and found the top right too full: status icon, ⌘K, search, new chat, settings.
+Four ways to thin it, each still A (one icon, words in its tooltip, a click checks now). Update ready stays today's
+up-arrow left of the search icon in all four. A1 and A4 drop the ⌘K label next to the search icon, a change to the
+shipped header: Cmd+K still works, and the search tooltip and the empty state still show it.</p>
+<div class="row" id="row2"></div>
 
 <script>
 const ico = (d, extra = "") => `<svg class="icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" ${extra}>${d}</svg>`;
@@ -243,10 +256,24 @@ function body(st, footer) {
 }
 
 // The header. `slot` sits left of ⌘K where the up-arrow goes; `title` replaces the chat title when set.
-function header(st, { slot = "", title = null } = {}) {
-  const t = title ?? `<span class="title">${esc(st.empty ? "New chat" : data.chatTitle)}</span>`;
+// `byTitle` puts a status icon right after the title instead; `kLabel: false` drops the ⌘K label.
+function header(st, { slot = "", title = null, byTitle = "", kLabel = true } = {}) {
+  const t = title ?? (byTitle && st.status !== "ready"
+    ? `<span class="title fit">${esc(st.empty ? "New chat" : data.chatTitle)}</span>${byTitle}<span class="gap"></span>`
+    : `<span class="title">${esc(st.empty ? "New chat" : data.chatTitle)}</span>`);
   const left = st.status === "ready" ? upArrow() : slot;
-  return `<div class="bar-top">${t}${left}<span class="k">⌘K</span><button class="ibtn" title="Past chats (⌘K)">${icons.search}</button><button class="ibtn" title="New chat">${icons.pencil}</button><button class="ibtn${st.settings ? " on" : ""}" data-act="gear" title="Settings">${icons.gear}</button></div>`;
+  return `<div class="bar-top">${t}${left}${kLabel ? `<span class="k">⌘K</span>` : ""}<button class="ibtn" title="Past chats (⌘K)">${icons.search}</button><button class="ibtn" title="New chat">${icons.pencil}</button><button class="ibtn${st.settings ? " on" : ""}" data-act="gear" title="Settings">${icons.gear}</button></div>`;
+}
+
+// A's status icon. `tipLeft` opens the tooltip to the right, for an icon near the left edge.
+function statusIcon(st, tipLeft = false) {
+  const w = words(st);
+  const tip = `tip${st.pinTip ? " pin" : ""}${tipLeft ? " l" : ""}`;
+  if (st.status === "upToDate") return `<button class="ibtn stat quiet" data-act="check">${icons.check}<span class="${tip}">${w.line}. ${w.sub}.</span></button>`;
+  if (st.status === "checking") return `<button class="ibtn stat" disabled style="opacity:1;padding:5px">${spinner}<span class="${tip}">${w.line}</span></button>`;
+  if (st.status === "couldNot") return `<button class="ibtn stat" data-act="check">${icons.warn}<span class="${tip}">${w.line}. Click to try again.</span></button>`;
+  if (st.status === "off") return `<button class="ibtn stat quiet" disabled>${icons.off}<span class="${tip}">${w.line}</span></button>`;
+  return "";
 }
 
 const variants = [
@@ -255,14 +282,7 @@ const variants = [
     note: "The header keeps its shape. When there is no update, a small status icon takes the up-arrow's slot left of ⌘K: a check when up to date, a spinner while checking, a warning when the check failed, a dim dash when updates are off. The words are in its tooltip. A click on the check or the warning checks now.",
     where: "Status: the icon left of ⌘K, words in its tooltip. Check now: click the icon. Seen on every panel, empty or mid-chat.",
     render(st) {
-      const w = words(st);
-      const pin = st.pinTip ? " pin" : "";
-      let slot = "";
-      if (st.status === "upToDate") slot = `<button class="ibtn" data-act="check">${icons.check}<span class="tip${pin}">${w.line}. ${w.sub}.</span></button>`;
-      if (st.status === "checking") slot = `<button class="ibtn" disabled style="opacity:1;padding:5px">${spinner}<span class="tip${pin}">${w.line}</span></button>`;
-      if (st.status === "couldNot") slot = `<button class="ibtn" data-act="check">${icons.warn}<span class="tip${pin}">${w.line}. Click to try again.</span></button>`;
-      if (st.status === "off") slot = `<button class="ibtn" disabled>${icons.off}<span class="tip${pin}">${w.line}</span></button>`;
-      return header(st, { slot }) + body(st) + inputArea() + (st.settings ? settingsPopover() : "");
+      return header(st, { slot: statusIcon(st) }) + body(st) + inputArea() + (st.settings ? settingsPopover() : "");
     }
   },
   {
@@ -332,15 +352,41 @@ const captions = {
   relaunch: `Pauri restarted on ${data.newer} and opened its panel by itself (#32). The launch check runs.`
 };
 
-const row = document.getElementById("row");
-variants.forEach(v => {
+const aVariants = [
+  {
+    key: "A1", name: "A1. Drop the ⌘K label",
+    note: "The status icon stays in the up-arrow's slot, and the ⌘K text next to the search icon goes. The top right is back to four items, as many as today.",
+    where: "Status: the icon left of the search icon. Check now: click it. Cmd+K: in the search icon's tooltip and the empty state.",
+    render: st => header(st, { slot: statusIcon(st), kLabel: false }) + body(st) + inputArea() + (st.settings ? settingsPopover() : "")
+  },
+  {
+    key: "A2", name: "A2. Status by the title",
+    note: "The status icon moves to the left, right after the chat's title. The top right is exactly today's: ⌘K, search, new chat, settings. Update ready still puts the up-arrow on the right, where it is today.",
+    where: "Status: the icon after the title. Check now: click it. The right side changes only when an update is ready.",
+    render: st => header(st, { byTitle: statusIcon(st, true) }) + body(st) + inputArea() + (st.settings ? settingsPopover() : "")
+  },
+  {
+    key: "A3", name: "A3. Only on hover",
+    note: "The icon stays in the up-arrow's slot, but up to date and updates off show only while the pointer is over the header. Checking and couldn't check stay visible, because they ask for attention. Most of the time the top right is today's.",
+    where: "Status: hover the header to see the icon left of ⌘K. Check now: click it. A failed check shows without a hover.",
+    render: st => header(st, { slot: statusIcon(st) }) + body(st) + inputArea() + (st.settings ? settingsPopover() : "")
+  },
+  {
+    key: "A4", name: "A4. By the title, no ⌘K label",
+    note: "A1 and A2 together: the icon after the title, and no ⌘K text. The top right is three icons: search, new chat, settings.",
+    where: "Status: the icon after the title. Check now: click it. Cmd+K: in the search icon's tooltip and the empty state.",
+    render: st => header(st, { byTitle: statusIcon(st, true), kLabel: false }) + body(st) + inputArea() + (st.settings ? settingsPopover() : "")
+  }
+];
+
+function mount(v, row) {
   const st = { status: "upToDate", version: data.installed, ago: data.checkedAgo, empty: true, settings: v.key === "B", notice: true, pinTip: v.key === "A", pressed: "upToDate" };
   let timers = [];
   const clear = () => { timers.forEach(clearTimeout); timers = []; };
   const later = (ms, f) => timers.push(setTimeout(() => { f(); draw(); }, ms));
 
   const col = document.createElement("div");
-  col.className = "col";
+  col.className = "col" + (v.key === "A3" ? " hov" : "");
   col.innerHTML = `<h2>${v.name}</h2><p class="note">${v.note}</p>
     <div class="desk"><div class="panel ${v.key}"></div></div>
     <p class="cap"></p>
@@ -391,7 +437,9 @@ variants.forEach(v => {
   col.querySelectorAll("[data-state]").forEach(b => b.addEventListener("click", () => set(b.dataset.state)));
   col.querySelectorAll("[data-view]").forEach(b => b.addEventListener("click", () => { st.empty = b.dataset.view === "empty"; draw(); }));
   set("upToDate");
-});
+}
+variants.forEach(v => mount(v, document.getElementById("row")));
+aVariants.forEach(v => mount(v, document.getElementById("row2")));
 </script>
 </body>
 </html>
