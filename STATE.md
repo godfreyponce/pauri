@@ -2,7 +2,7 @@
 glass: pauri
 status: in-progress
 last_worked_on: 2026-11-16
-next_action: "none: no ticket is ready-for-agent"
+next_action: "#30"
 blocked_on: ""
 phase: "Bootstrapped 2026-11-13. Tickets #1-#12 cut from docs/spec.md, none green-lit."
 ---
@@ -31,3 +31,4 @@ Archive: `docs/HISTORY.md`. Queue: GitHub Issues (`gh issue list`). Protocol: `A
 - Public repo: no env values, credentials, or owner personal data in commits or issues.
 - Builds signed with the `Pauri Self-Signed` certificate keep the four permissions across rebuilds; the build prints which signing it used. An ad-hoc build loses them; reset: tccutil reset All io.github.godfreyponce.pauri && defaults delete io.github.godfreyponce.pauri askedForSelectionAccess, then press the shortcut and click Allow. The certificate's backup and restore steps: `docs/superpowers/plans/2026-11-16-issue-27.md`.
 - Sparkle's update key lives in the login keychain (default account `ed25519`); its public half is `SUPublicEDKey` in `Support/Info.plist`. Losing it breaks updates for every installed copy. Backup and restore: `docs/superpowers/plans/2026-11-16-issue-28.md`. A dev build never checks for updates; the test hook is `defaults write io.github.godfreyponce.pauri PauriTestFeedURL <url>`.
+- Right after a release, GitHub's `releases/latest/download/appcast.xml` can still serve the old appcast (v0.1.1: old for 63 s or more). A check in that window finds nothing, and a running Pauri checks again only at relaunch or after 24 hours. Wait a few minutes before an update proof.

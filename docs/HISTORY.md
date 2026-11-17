@@ -3,6 +3,30 @@
 Accepted-work archive. One section per accepted ticket, appended at the accept-time docs commit.
 Newest first.
 
+## #33 Installed 0.1.0 found no update: GitHub served the old appcast (2026-11-16)
+
+- Cause: no fault in Pauri or Sparkle. At 23:26:44 UTC, 63 seconds after `gh release create
+  v0.1.1`, `releases/latest/download/appcast.xml` still redirected to the v0.1.0 appcast.
+  Sparkle compared 0.1.0 with 0.1.0, found nothing (`showUpdateNotFoundWithError` swallows it),
+  and checks again only at relaunch or after `SUScheduledCheckInterval` (default 86400 s,
+  sparkle-project.org/documentation/customization; Pauri does not set it).
+- Red command: Pauri's `NSURLCache` (`~/Library/Caches/io.github.godfreyponce.pauri/Cache.db`)
+  held the last check's response: `Date` 23:26:45 GMT, `Last-Modified` 23:13:24 GMT (the v0.1.0
+  asset), `<sparkle:version>0.1.0</sparkle:version>`. A `curl -sL` of the feed after that served
+  0.1.1. CFNetwork logged 302, 302, 200 at each launch; Sparkle logged no error.
+- Ruled out: translocation, architecture, `minimumSystemVersion`, a skipped version, a test feed,
+  the installed `Info.plist`.
+- `scripts/release.sh` prints one line after `Released ...` (not on `--dry-run`): GitHub can serve
+  the old appcast for a minute or more; test the update after that; a running Pauri checks again
+  only at relaunch or after 24 hours. No app change, no README change: 0.1.0 copies update fine.
+- Owner's update proof (H1, also #30's), 2026-11-16: relaunch at 18:03:21 local; the check got the
+  0.1.1 appcast (`Date` 00:03:22 GMT, `Last-Modified` 23:25:40). The owner saw the up-arrow and
+  clicked it; Pauri quit, and the owner reports opening it again (process start 18:05:45). The
+  installed copy is 0.1.1 (`CFBundleShortVersionString` 0.1.1, signed `Pauri Self-Signed`). The next launch checked at 00:05:46 GMT, got 0.1.1, and showed no arrow.
+  Sparkle logged nothing.
+- Tests 119/119, twenty live tests skipped (`./scripts/test.sh && ./scripts/build-app.sh`, on main
+  after the merge). Commit 3ced5d5.
+
 ## #30 Homebrew tap with a Pauri cask, and the update proof (2026-11-16)
 
 - Homebrew policy, checked 2026-11-16: official casks "must pass Homebrew's Gatekeeper checks"
