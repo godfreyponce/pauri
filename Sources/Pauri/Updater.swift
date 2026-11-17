@@ -1,8 +1,12 @@
 import AppKit
 import Sparkle
 
+enum UpdateStatus: Equatable {
+    case off, checking, upToDate(checkedAt: Date), couldNotCheck
+}
+
 /// Sparkle's user driver: it gets every "show the user X" call and shows nothing.
-/// The header button is the only UI; Sparkle's "install?" reply waits for its click.
+/// The header's up-arrow and status icon are the only UI; Sparkle's "install?" reply waits for its click.
 @MainActor
 @Observable
 final class Updater: NSObject, SPUUserDriver, SPUUpdaterDelegate {
@@ -27,12 +31,28 @@ final class Updater: NSObject, SPUUserDriver, SPUUpdaterDelegate {
         return relaunched
     }
 
+    /// Sparkle ends every check with an error; `SUNoUpdateError` is the "nothing newer" one, whatever its reason.
+    nonisolated static func status(afterCycleError error: (any Error)?, at now: Date) -> UpdateStatus? {
+        guard let error = error as NSError? else { return nil }
+        if error.domain == SUSparkleErrorDomain && error.code == Int(SUError.noUpdateError.rawValue) {
+            return .upToDate(checkedAt: now)
+        }
+        return .couldNotCheck
+    }
+
+    /// A local feed answers in milliseconds: hold Checking this long after a click so the spinner shows and a
+    /// second click lands on it and is ignored. A guess, not measured.
+    nonisolated static let minimumCheckingTime: Duration = .seconds(1)
+
+    let installedVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?"
+    private(set) var status: UpdateStatus = .off
     private(set) var readyVersion: String?
     private(set) var isInstalling = false
 
     @ObservationIgnored private var updater: SPUUpdater?
     @ObservationIgnored private var feed: String?
     @ObservationIgnored private var installReply: ((SPUUserUpdateChoice) -> Void)?
+    @ObservationIgnored private var checkNowStarted: ContinuousClock.Instant?
 
     func start() {
         feed = Self.feed(
@@ -48,8 +68,16 @@ final class Updater: NSObject, SPUUserDriver, SPUUpdaterDelegate {
             return
         }
         if updater.automaticallyChecksForUpdates {
+            status = .checking
             updater.checkForUpdatesInBackground()
         }
+    }
+
+    func checkNow() {
+        guard let updater, readyVersion == nil, status != .checking else { return }
+        status = .checking
+        checkNowStarted = .now
+        updater.checkForUpdates()
     }
 
     func install() {
@@ -65,6 +93,20 @@ final class Updater: NSObject, SPUUserDriver, SPUUpdaterDelegate {
 
     func updaterWillRelaunchApplication(_ updater: SPUUpdater) {
         Self.markRelaunching(.standard)
+    }
+
+    func updater(_ updater: SPUUpdater, didFinishUpdateCycleFor updateCheck: SPUUpdateCheck, error: (any Error)?) {
+        guard let status = Self.status(afterCycleError: error, at: .now) else { return }
+        let started = checkNowStarted
+        checkNowStarted = nil
+        guard let started, started.duration(to: .now) < Self.minimumCheckingTime else {
+            self.status = status
+            return
+        }
+        Task {
+            try? await Task.sleep(until: started + Self.minimumCheckingTime)
+            self.status = status
+        }
     }
 
     // MARK: SPUUserDriver

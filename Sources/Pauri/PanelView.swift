@@ -66,14 +66,15 @@ struct PanelView: View {
                     }
                     .buttonStyle(.borderless)
                     .disabled(updater.isInstalling || !chat.canStartNewChat)
-                    .help(updater.isInstalling ? "Updating to Pauri \(version)"
-                        : chat.canStartNewChat ? "Update to Pauri \(version) and restart"
-                        : "Update after the answer ends")
+                    // Stays up while installing: the click is about to quit and restart Pauri.
+                    .modifier(HoverLabel(
+                        text: updater.isInstalling ? "Updating to Pauri \(version). Pauri will restart."
+                            : chat.canStartNewChat ? "Update to Pauri \(version) and restart"
+                            : "Update after the answer ends",
+                        pinned: updater.isInstalling))
+                } else {
+                    UpdateStatusIcon(updater: updater)
                 }
-                Text("⌘K")
-                    .font(.system(size: 11))
-                    .foregroundStyle(.tertiary)
-                    .padding(.trailing, 4)
                 Button { showsHistory.toggle() } label: { Image(systemName: "magnifyingglass").font(.system(size: 12)) }
                     .buttonStyle(.borderless)
                     .help("Past chats (⌘K)")
@@ -89,6 +90,7 @@ struct PanelView: View {
                     .popover(isPresented: $showsSettings) { SettingsView(hotKey: hotKey) }
             }
             .frame(height: 26)
+            .zIndex(1)
             ScrollView {
                 if chat.exchanges.isEmpty && !chat.isStarting {
                     EmptyState(shortcut: hotKey.shortcut) { showsHistory = true }
@@ -274,5 +276,68 @@ struct QuestionRow: View {
                 }
             }
         }
+    }
+}
+
+/// Variant A1 of `design-directions/issue-34.html`: with no update ready, the up-arrow's slot shows the last
+/// check's result. A click on the check or the warning checks now.
+struct UpdateStatusIcon: View {
+    let updater: Updater
+
+    var body: some View {
+        Group {
+            switch updater.status {
+            case .off: icon("minus.circle").disabled(true)
+            case .checking: ProgressView().controlSize(.mini)
+            case .upToDate: icon("checkmark.circle")
+            case .couldNotCheck: icon("exclamationmark.circle")
+            }
+        }
+        .modifier(HoverLabel(text: words))
+    }
+
+    private var words: String {
+        let version = updater.installedVersion
+        switch updater.status {
+        case .off: return "Pauri \(version), updates off"
+        case .checking: return "Checking for updates"
+        case .upToDate(let checkedAt): return "Pauri \(version) is up to date. Checked \(Self.ago(checkedAt, now: .now))."
+        case .couldNotCheck: return "Pauri \(version), couldn't check for updates. Click to try again."
+        }
+    }
+
+    private func icon(_ symbol: String) -> some View {
+        Button { updater.checkNow() } label: { Image(systemName: symbol).font(.system(size: 12)) }
+            .buttonStyle(.borderless)
+    }
+
+    private static func ago(_ date: Date, now: Date) -> String {
+        now.timeIntervalSince(date) < 60 ? "just now" : date.formatted(.relative(presentation: .named))
+    }
+}
+
+/// A tooltip the panel draws itself, under the view. `.help` never shows here: AppKit draws tooltips only for the
+/// active app, and this panel never activates Pauri. `pinned` keeps it up without the pointer.
+struct HoverLabel: ViewModifier {
+    let text: String
+    var pinned = false
+    @State private var isHovered = false
+
+    func body(content: Content) -> some View {
+        content
+            .onHover { isHovered = $0 }
+            .overlay(alignment: .topTrailing) {
+                if isHovered || pinned {
+                    Text(text)
+                        .font(.system(size: 11))
+                        .fixedSize()
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 3)
+                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 5))
+                        .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(.primary.opacity(0.16)))
+                        .offset(y: 22)
+                        .allowsHitTesting(false)
+                }
+            }
     }
 }
