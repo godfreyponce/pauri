@@ -10,7 +10,7 @@ enum PanelSize {
     static let step = CGSize(width: 52, height: 68)
 
     /// Each side raised to `minimum`, then cut to `screen`: the screen wins when it is smaller than the minimum.
-    static func clamped(_ size: CGSize, to screen: CGSize) -> CGSize {
+    static func clamped(_ size: CGSize, to screen: CGSize, minimum: CGSize = PanelSize.minimum) -> CGSize {
         CGSize(width: min(max(size.width, minimum.width), screen.width),
                height: min(max(size.height, minimum.height), screen.height))
     }

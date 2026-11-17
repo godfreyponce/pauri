@@ -19,6 +19,11 @@ struct PanelSizeTests {
         #expect(PanelSize.clamped(CGSize(width: 100, height: 50), to: screen) == PanelSize.minimum)
     }
 
+    @Test func clampedRaisesToGivenMinimum() {
+        #expect(PanelSize.clamped(CGSize(width: 300, height: 300), to: screen, minimum: CGSize(width: 420, height: 420))
+            == CGSize(width: 420, height: 420))
+    }
+
     @Test func clampedCapsAtScreen() {
         #expect(PanelSize.clamped(CGSize(width: 3000, height: 2000), to: screen) == screen)
     }
