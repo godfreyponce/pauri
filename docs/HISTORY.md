@@ -60,6 +60,9 @@ Newest first.
   `bump-cask.sh` call, so a network drop there skips the rerun hint; stop messages in both
   scripts can blame a missing release or repo for an auth or network failure.
 - The v0.1.0 to v0.1.1 update proof runs after the accept push; its result is on #30's close comment.
+- Update proof passed 2026-11-16. The brew-installed 0.1.0 updated to 0.1.1 in one click (#33's
+  run). A second run, from the v0.1.0 release zip, proved Sparkle relaunches it (new process right
+  after the click, version 0.1.1). The relaunched app starts hidden, which is #32.
 - Tests 119/119, twenty live tests skipped (`./scripts/test.sh && ./scripts/build-app.sh`, on main
   after the merge). Commits 53a8459, a2f5d5d, merge 4978c5e.
 
