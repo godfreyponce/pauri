@@ -77,16 +77,16 @@ struct PanelView: View {
                 }
                 Button { showsHistory.toggle() } label: { Image(systemName: "magnifyingglass").font(.system(size: 12)) }
                     .buttonStyle(.borderless)
-                    .help("Past chats (⌘K)")
+                    .modifier(HoverLabel(text: "Past chats (⌘K)"))
                     .keyboardShortcut("k", modifiers: .command)
                 Button { chat.newChat() } label: { Image(systemName: "square.and.pencil").font(.system(size: 12)) }
                     .buttonStyle(.borderless)
-                    .help("New chat")
                     .keyboardShortcut("n", modifiers: .command)
                     .disabled(!chat.canStartNewChat)
+                    .modifier(HoverLabel(text: "New chat"))
                 Button { showsSettings = true } label: { Image(systemName: "gearshape").font(.system(size: 12)) }
                     .buttonStyle(.borderless)
-                    .help("Settings")
+                    .modifier(HoverLabel(text: "Settings"))
                     .popover(isPresented: $showsSettings) { SettingsView(hotKey: hotKey) }
             }
             .frame(height: 26)
