@@ -1,4 +1,5 @@
 import AppKit
+import Sparkle
 import Testing
 @testable import Pauri
 
@@ -42,5 +43,22 @@ struct UpdaterTests {
         Updater.markRelaunching(defaults)
         #expect(Updater.takeRelaunchedFromUpdate(defaults) == true)
         #expect(Updater.takeRelaunchedFromUpdate(defaults) == false)
+    }
+
+    @Test func noUpdateMeansUpToDate() {
+        let now = Date(timeIntervalSince1970: 1_000)
+        let error = NSError(domain: SUSparkleErrorDomain, code: Int(SUError.noUpdateError.rawValue))
+        #expect(Updater.status(afterCycleError: error, at: now) == .upToDate(checkedAt: now))
+    }
+
+    @Test func otherErrorMeansCouldNotCheck() {
+        let appcast = NSError(domain: SUSparkleErrorDomain, code: Int(SUError.appcastError.rawValue))
+        let offline = NSError(domain: NSURLErrorDomain, code: NSURLErrorNotConnectedToInternet)
+        #expect(Updater.status(afterCycleError: appcast, at: .now) == .couldNotCheck)
+        #expect(Updater.status(afterCycleError: offline, at: .now) == .couldNotCheck)
+    }
+
+    @Test func cleanFinishLeavesStatusAlone() {
+        #expect(Updater.status(afterCycleError: nil, at: .now) == nil)
     }
 }
