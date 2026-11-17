@@ -30,7 +30,7 @@ Or install it with Homebrew, then follow steps 4 to 6:
 brew install --cask godfreyponce/tap/pauri
 ```
 
-Pauri checks for updates in the background. When a new version is out, an up-arrow button at the top right of the panel installs it in one click. Pauri updates itself, so `brew upgrade` leaves it alone.
+Pauri checks for updates in the background. When a new version is out, an up-arrow button at the top right of the panel installs it in one click. Otherwise a check mark sits in its place: hover it to see which version runs and when Pauri last checked, or click it to check now. Pauri updates itself, so `brew upgrade` leaves it alone.
 
 ## Build
 
