@@ -3,6 +3,39 @@
 Accepted-work archive. One section per accepted ticket, appended at the accept-time docs commit.
 Newest first.
 
+## #34 Show that Pauri is up to date (2026-11-16)
+
+- Variant A1 of `design-directions/issue-34.html` (the owner picked A, then A1 from four ways
+  to thin A's header): with no update ready, a status icon takes the up-arrow's slot, and the
+  `⌘K` label next to the search icon is gone. Check mark: up to date. Spinner: checking.
+  Exclamation mark: couldn't check (offline, feed error, failed download). Dim dash: updates
+  off (dev build). A click on the check mark or the exclamation mark checks now. The up-arrow
+  still wins over every other state.
+- `Updater` gained `status` (`off`, `checking`, `upToDate(checkedAt:)`, `couldNotCheck`),
+  `installedVersion` (`CFBundleShortVersionString`) and `checkNow()`. The status comes from
+  `updater(_:didFinishUpdateCycleFor:error:)`: Sparkle's `SUNoUpdateError` (1001) is up to date,
+  any other error is couldn't check, and `nil` leaves the status alone.
+  `showUpdateNotFoundWithError` fires only for user-started checks, so it could not be the hook.
+- `.help` tooltips never show in the panel: AppKit draws tooltips only for the active app, and
+  the nonactivating panel never activates Pauri. The status words are a `HoverLabel` the panel
+  draws under the icon (`PanelView.swift`); the header has `.zIndex(1)` so the label draws over
+  the chat. At the owner's request the up-arrow got the same label, pinned while installing:
+  `Updating to Pauri X. Pauri will restart.` Search, new chat and settings still use `.help`,
+  which never shows.
+- After a Check now click, Checking holds for at least 1 s (`Updater.minimumCheckingTime`, a
+  guess): a local feed answers in milliseconds, so without it the spinner never showed and
+  every click started a new check.
+- Hand check on the local test feed, owner looking and clicking: H2 up to date at 0.1.2 on
+  hover; H3 one request per click, spinner then check mark; H4 server stopped, exclamation mark
+  and couldn't check (Sparkle error 2001); H5 0.1.0 showed the up-arrow and its hover label,
+  one click relaunched 0.1.2 with the panel open and up to date; H6 dev build, dim dash and
+  `Pauri 0.1.0, updates off`, no request in 30 s.
+- Deferred minors from the final review: a `nil`-error cycle end while Checking would leave the
+  spinner on; a hover label may stay up after the panel hides while hovered; the delayed status
+  write does not check for a newer cycle; a failed install reads "couldn't check for updates".
+- Tests 124/124, twenty live tests skipped (`./scripts/test.sh && ./scripts/build-app.sh`).
+  Commits a6f6b10, 7effe85, a097093, 4ab5bbd; merge 044f30f.
+
 ## #32 Show the panel after Pauri relaunches from an update (2026-11-16)
 
 - Just before Sparkle relaunches Pauri, the old process sets the user default
