@@ -1,4 +1,5 @@
 import AppKit
+import Carbon.HIToolbox
 import Testing
 @testable import Pauri
 
@@ -80,6 +81,42 @@ struct PanelZoomTests {
             defaults.set(1.5, forKey: PanelZoom.key)
             #expect(PanelZoom.saved(in: defaults) == 100)
         }
+    }
+
+    @MainActor
+    @Test func zoomViewGivesContentScaledRoom() {
+        let zoomView = ZoomView(frame: NSRect(x: 0, y: 0, width: 520, height: 680))
+        let content = NSView()
+        zoomView.addSubview(content)
+        zoomView.zoom = 1.25
+        #expect(content.frame.size == CGSize(width: 416, height: 544))
+        zoomView.zoom = 1.5
+        zoomView.setFrameSize(CGSize(width: 600, height: 750))
+        #expect(content.frame.size == CGSize(width: 400, height: 500))
+        zoomView.zoom = 1
+        #expect(content.frame.size == CGSize(width: 600, height: 750))
+    }
+
+    @MainActor
+    @Test func zoomKeysLeavePanelFrameAlone() {
+        let panel = FloatingPanel(
+            contentRect: NSRect(x: 0, y: 0, width: 520, height: 680),
+            styleMask: [.nonactivatingPanel, .titled, .fullSizeContentView, .resizable],
+            backing: .buffered,
+            defer: false)
+        let before = NSRect(x: 100, y: 100, width: 520, height: 680)
+        panel.setFrame(before, display: false)
+        var recorded: [PanelZoom.Command] = []
+        panel.onZoomKey = { recorded.append($0) }
+        for (key, code) in [("=", kVK_ANSI_Equal), ("0", kVK_ANSI_0)] {
+            let event = NSEvent.keyEvent(
+                with: .keyDown, location: .zero, modifierFlags: .command, timestamp: 0,
+                windowNumber: panel.windowNumber, context: nil,
+                characters: key, charactersIgnoringModifiers: key, isARepeat: false, keyCode: UInt16(code))!
+            #expect(panel.performKeyEquivalent(with: event))
+        }
+        #expect(recorded == [.zoomIn, .reset])
+        #expect(panel.frame == before)
     }
 
     @Test func outOfRangeSavedZoomIsClamped() {

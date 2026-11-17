@@ -41,7 +41,8 @@ You need Command Line Tools (`xcode-select --install`) or Xcode.
 - Show the panel: Cmd+Shift+Space. Press it again, or Esc, to hide the panel.
 - New chat: Cmd+N, or the pencil button at the top right of the panel.
 - Past chats: Cmd+K, or the search button at the top right of the panel. Type to search by title or text. Click a chat or press Return to reopen it. To delete a chat, click its trash or press Cmd+Delete, then press Delete or Cmd+Delete again to confirm; the chat is gone from Codex for good. Esc goes back. The list shows chats from this version on.
-- Resize: drag an edge or a corner of the panel, or press Cmd+ (or Cmd=) to make it bigger and Cmd- to make it smaller. Pauri keeps the size after a hide and after a relaunch. Reset it with `defaults delete io.github.godfreyponce.pauri panelSize`.
+- Resize: drag an edge or a corner of the panel. Pauri keeps the size after a hide and after a relaunch. Reset it with `defaults delete io.github.godfreyponce.pauri panelSize`.
+- Zoom: press Cmd+ (or Cmd=) to zoom the panel's content in and Cmd- to zoom it out, from 80% to 200% in steps of 10%. Cmd+0 goes back to 100%. Pauri keeps the zoom after a hide and after a relaunch. When the panel is too small for the next step, Cmd+ does nothing: make the panel bigger first.
 - See the context banner in a short chat: `defaults write io.github.godfreyponce.pauri contextBannerDebug -bool YES`, then ask one question. Turn it off with `defaults delete io.github.godfreyponce.pauri contextBannerDebug`.
 - Change the shortcut: click the gear at the top right of the panel, click the shortcut, and press the new one. Esc cancels.
 - Change the transparency: click the gear and drag the Transparency slider between Solid and Glass. Reset it with `defaults delete io.github.godfreyponce.pauri transparency`.
