@@ -53,5 +53,6 @@ fi
 gh release create "$TAG" "$OUT/Pauri.zip" "$OUT/appcast.xml" --target "$(git rev-parse HEAD)" --title "$TAG" --notes "$TAG"
 git fetch -q origin tag "$TAG"
 echo "Released $TAG: https://github.com/godfreyponce/pauri/releases/tag/$TAG"
+echo "GitHub can serve the old appcast for a minute or more (v0.1.1: still v0.1.0 63 seconds after release). Test the update after that; a running Pauri checks again only at relaunch or after 24 hours."
 ./scripts/bump-cask.sh "$VERSION" ||
   stop "$TAG is released, but the cask was not bumped. Fix the error above, then run scripts/bump-cask.sh $VERSION."
