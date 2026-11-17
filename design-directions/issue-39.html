@@ -1,0 +1,341 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Pauri #39: four ways to set your messages apart from answers</title>
+<script>
+// Shared data: every variant below reads only this object and its own row of `shapes`.
+const data = {
+  title: "Keep focus after the settings popover",
+  exchanges: [
+    {
+      key: "short",
+      question: "What does orderOut do to a key window?",
+      answer: "It removes the window from the screen list. If it was key, AppKit makes the next window in order key, or none if the app has no other window."
+    },
+    {
+      key: "boldFirst",
+      question: "Can I call orderOut from a background thread?",
+      answer: [
+        "**No. Call it on the main thread.**",
+        "",
+        "AppKit windows are main-thread only. From a background task, hop back with `await MainActor.run { panel.orderOut(nil) }`, or mark the function `@MainActor` so the compiler checks it for you."
+      ].join("\n")
+    },
+    {
+      key: "headingFirst",
+      question: "How do I keep a ScrollView pinned to the newest message?",
+      answer: [
+        "### Use a default scroll anchor",
+        "",
+        "- Add `.defaultScrollAnchor(.bottom)` to the `ScrollView`.",
+        "- Keep the messages in one `VStack`, so new rows grow at the bottom.",
+        "- Leave out `ScrollViewReader` unless you also need to jump to an older row."
+      ].join("\n")
+    },
+    {
+      key: "longQuestion",
+      question: "I have a panel that floats over fullscreen apps, and when the settings popover closes the text field loses keyboard focus, so I have to click into it again every single time before I can type the next question.\n\nIs there a way to hand key status back to the panel without taking focus away from the app underneath it?",
+      answer: "Yes. Make the panel an `NSPanel` with `.nonactivatingPanel` in its style mask, and call `makeKey()` on it when the popover's window resigns key. The panel becomes key, but the app under it stays active."
+    },
+    {
+      key: "screenshot",
+      question: "What is this error in the build log?",
+      hasScreenshot: true,
+      answer: "The linker cannot find `Sparkle.framework`. Copy it into the app's `Frameworks` folder in the build script, then sign the app again."
+    }
+  ],
+  model: { name: "GPT-6.1-Sol Fast", effort: "low", levels: ["low", "medium", "high", "xhigh", "max", "ultra"] },
+  // The <path> of the official OAI_OpenAI-Blossom_White.svg, as in issue-21.html, filled with the text color.
+  blossom: `<path d="M508.749 317.399C516.777 287.314 508.991 253.884 485.389 230.282C461.788 206.681 428.36 198.895 398.273 206.923C376.231 184.928 343.39 174.956 311.148 183.596C278.906 192.234 255.45 217.292 247.36 247.361C217.291 255.451 192.233 278.91 183.595 311.149C174.957 343.391 184.927 376.232 206.924 398.274C198.896 428.359 206.683 461.789 230.284 485.391C253.885 508.992 287.313 516.779 317.401 508.75C339.442 530.745 372.286 540.717 404.525 532.079C436.767 523.441 460.223 498.384 468.313 468.315C498.383 460.224 523.44 436.766 532.078 404.526C540.716 372.285 530.747 339.443 508.749 317.402V317.399ZM470.899 244.776C486.892 260.77 493.488 282.601 490.687 303.412L415.577 260.046C412.411 258.218 408.509 258.218 405.345 260.046L317.401 310.82V277.526C317.401 275.191 318.652 273.005 320.676 271.837L387.644 233.174C414.178 218.353 448.346 222.223 470.901 244.776H470.899ZM357.837 311.144L398.275 334.491V381.185L357.837 404.532L317.398 381.185V334.491L357.837 311.144ZM264.776 269.693C265.207 239.305 285.644 211.649 316.453 203.393C338.3 197.54 360.505 202.744 377.127 215.573L302.014 258.937C298.848 260.764 296.898 264.144 296.898 267.798V369.346L268.065 352.699C266.043 351.531 264.776 349.353 264.776 347.017V269.691V269.693ZM203.391 316.454C209.244 294.608 224.854 277.978 244.276 269.999V356.73C244.276 360.384 246.226 363.763 249.392 365.591L337.337 416.365L308.503 433.013C306.481 434.181 303.961 434.188 301.939 433.02L234.971 394.357C208.868 378.789 195.138 347.261 203.391 316.454ZM244.775 470.9C228.781 454.906 222.186 433.075 224.986 412.264L300.096 455.63C303.263 457.457 307.164 457.457 310.328 455.63L398.273 404.856V438.149C398.273 440.485 397.022 442.671 394.997 443.839L328.029 482.502C301.495 497.322 267.327 493.452 244.772 470.9H244.775ZM450.897 445.982C450.466 476.371 430.029 504.027 399.22 512.283C377.373 518.136 355.168 512.932 338.547 500.102L413.659 456.738C416.826 454.911 418.775 451.532 418.775 447.877V346.329L447.609 362.977C449.631 364.145 450.897 366.323 450.897 368.659V445.985V445.982ZM512.282 399.221C506.429 421.068 490.819 437.697 471.397 445.676V358.946C471.397 355.292 469.448 351.912 466.281 350.085L378.336 299.311L407.17 282.663C409.192 281.495 411.712 281.487 413.734 282.655L480.702 321.318C506.805 336.887 520.536 368.415 512.282 399.221Z" fill="currentColor"/>`
+};
+
+// Per variant: the question-to-answer gap in points (today 4; 10 is a starting guess, judged by eye),
+// and the colors Task 2 copies into SwiftUI. Purple is MarkdownView's link tint: 0x8F86FF dark, 0x4A3DB8 light.
+const shapes = {
+  A: { gap: 10, fillDark: "rgba(143,134,255,0.16)", fillLight: "rgba(74,61,184,0.10)", bandPadV: 6, bandPadH: 8, bandRadius: 8 },
+  B: { gap: 10, bar: 2, barX: 32 },
+  C: { gap: 10, pillFont: 9.5 },
+  D: { gap: 10, marker: 18, hairline: 1 }
+};
+</script>
+<style>
+  body {
+    margin: 0; padding: 32px; background: #15171c; color: #e8e8ea; color-scheme: dark;
+    font: 13px/1.4 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+  }
+  h1 { font-size: 18px; margin: 0 0 4px; }
+  .lede { color: #9a9ca3; margin: 0 0 16px; max-width: 1000px; }
+  .lede a { color: #8fb4ff; }
+  .refs { display: flex; gap: 24px; align-items: flex-start; margin: 0 0 28px; }
+  .refs figure { margin: 0; color: #9a9ca3; font-size: 12px; }
+  .refs img { display: block; max-width: 420px; max-height: 240px; border-radius: 8px; border: 1px solid #2a2d35; margin-bottom: 4px; }
+  .row { display: flex; gap: 28px; overflow-x: auto; padding-bottom: 16px; }
+  .col { flex: 0 0 560px; }
+  .col h2 { font-size: 14px; margin: 0 0 2px; }
+  .col p.note { margin: 0 0 10px; color: #9a9ca3; min-height: 72px; }
+  .col p.shape { margin: 8px 0 0; color: #c9b98a; font-size: 12px; }
+  .states { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; align-items: center; }
+  .states .sep { width: 1px; height: 16px; background: #353943; margin: 0 4px; }
+  .states button { font: inherit; font-size: 11px; color: #c9c9cc; background: #262930; border: 1px solid #353943; border-radius: 6px; padding: 3px 9px; cursor: pointer; }
+  .states button.on { background: #3a4152; border-color: #5a6378; color: #fff; }
+
+  /* The busy desktop behind the glass panel, as in issue-21.html. */
+  .desk {
+    position: relative; padding: 20px; border-radius: 12px; overflow: hidden;
+    background:
+      radial-gradient(circle at 18% 22%, #ffb347 0 46px, transparent 47px),
+      radial-gradient(circle at 82% 78%, #4fd1c5 0 70px, transparent 71px),
+      repeating-linear-gradient(45deg, rgba(255,255,255,0.10) 0 6px, transparent 6px 18px),
+      linear-gradient(120deg, #c2410c, #7c3aed 45%, #0ea5e9 75%, #16a34a);
+  }
+  .desk::before {
+    content: "func application(_ app: NSApplication) { panel.orderOut(nil) }  // busy window text  ";
+    position: absolute; inset: 0; color: rgba(255,255,255,0.35); font: 11px/1.6 ui-monospace, Menlo, monospace;
+    white-space: pre-wrap; word-break: break-all; padding: 8px; pointer-events: none;
+  }
+
+  /* The panel's colors per appearance; Glass drops the tint to the bare material. */
+  .panel {
+    --fg: #ececef; --fg2: #9a9ca3; --div: rgba(255,255,255,0.10); --bg: rgba(36,37,41,0.62);
+    --purple: #8F86FF; --onPurple: #16132e; --tint: rgba(143,134,255,0.16);
+    --soft: rgba(255,255,255,0.08); --inbox: rgba(0,0,0,0.28); --line: rgba(255,255,255,0.16); --capsule: rgba(60,62,70,0.72);
+    position: relative; width: 520px; height: 680px; box-sizing: border-box; overflow: hidden;
+    color: var(--fg); background: var(--bg); color-scheme: dark;
+    backdrop-filter: blur(22px) saturate(1.3); -webkit-backdrop-filter: blur(22px) saturate(1.3);
+    border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 20px 50px rgba(0,0,0,0.45);
+  }
+  .panel.light {
+    --fg: #1d1d1f; --fg2: #6e6e73; --div: rgba(0,0,0,0.10); --bg: rgba(246,246,248,0.74);
+    --purple: #4A3DB8; --onPurple: #ffffff; --tint: rgba(74,61,184,0.10);
+    --soft: rgba(0,0,0,0.06); --inbox: rgba(255,255,255,0.55); --line: rgba(0,0,0,0.12); --capsule: rgba(0,0,0,0.07);
+    color-scheme: light;
+  }
+  .panel.glass { --bg: rgba(36,37,41,0.20); }
+  .panel.light.glass { --bg: rgba(246,246,248,0.26); }
+
+  /* #38's zoom: the content scales, the panel keeps its size. */
+  .content {
+    zoom: var(--z); width: calc(520px / var(--z)); height: calc(680px / var(--z));
+    box-sizing: border-box; padding: 12px; display: flex; flex-direction: column; gap: 8px;
+  }
+  .icon { width: 14px; height: 14px; flex: none; display: block; }
+  .ibtn { border: 0; background: none; color: var(--fg2); padding: 3px; display: inline-flex; border-radius: 6px; }
+
+  /* Header: variant C of issue-21.html, drawn the same in all four. */
+  .bar-top { display: flex; align-items: center; gap: 4px; height: 26px; flex: none; font-size: 12px; }
+  .bar-top .title { flex: 1; color: var(--fg2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  /* Transcript: 12.5 pt, line height 1.4, a divider and 12 pt before every exchange but the first. */
+  .transcript { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; font-size: 12.5px; line-height: 1.4; }
+  .transcript .fill { flex: 1; }
+  .exchange { display: flex; flex-direction: column; gap: var(--gap); }
+  .exchange + .exchange { border-top: 1px solid var(--div); padding-top: 12px; }
+  .q { display: grid; grid-template-columns: 44px 1fr; align-items: baseline; position: relative; }
+  .qtext { white-space: pre-wrap; }
+  .shot { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--fg2); margin-top: 2px; }
+  .shot .icon { width: 12px; height: 12px; }
+  .rest { margin-left: 44px; }
+  .answer { position: relative; }
+  .answer p { margin: 0 0 8px; }
+  .answer p:last-child, .answer ul:last-child { margin-bottom: 0; }
+  .answer h3 { font-size: 14px; font-weight: 700; margin: 0 0 8px; }
+  .answer ul { margin: 0 0 8px; padding-left: 16px; }
+  .answer li + li { margin-top: 3px; }
+  .answer code { font: 11px/1 ui-monospace, Menlo, monospace; background: var(--soft); padding: 1px 4px; border-radius: 4px; }
+  .mark { user-select: none; -webkit-user-select: none; }
+
+  /* Input area: variant A of issue-17.html, drawn the same in all four. */
+  .inbox { background: var(--inbox); border: 1px solid var(--line); border-radius: 12px; padding: 10px; display: flex; flex-direction: column; gap: 6px; flex: none; }
+  .inbox .ph { color: var(--fg2); height: 36px; line-height: 18px; }
+  .deck { display: flex; align-items: center; gap: 6px; }
+  .deck .spacer { flex: 1; }
+  .capsule { display: inline-flex; align-items: center; gap: 3px; background: var(--capsule); border-radius: 999px; padding: 0 9px 0 1px; height: 24px; }
+  .capsule .caret { color: var(--fg2); font-size: 10px; margin-left: 2px; }
+  .bars { display: inline-flex; align-items: flex-end; padding: 3px 4px; }
+  .bar { background: var(--line); border-radius: 1px; width: 3px; margin-left: 2px; }
+  .bar:first-child { margin-left: 0; }
+  .bar.on { background: var(--fg); }
+  .level { color: var(--fg2); font-size: 11px; }
+  .orb {
+    width: 32px; height: 32px; border-radius: 50%; flex: none; position: relative; overflow: hidden;
+    background: radial-gradient(circle at 35% 30%, #4d5fb0, #1c2350 60%, #0b0f26);
+    box-shadow: 0 0 0 1px rgba(255,255,255,0.18), 0 2px 8px rgba(0,0,0,0.4);
+  }
+  .orb::after {
+    content: ""; position: absolute; inset: 0;
+    background:
+      radial-gradient(circle at 22% 62%, #fff 0 0.8px, transparent 1.4px),
+      radial-gradient(circle at 70% 28%, #fff 0 0.9px, transparent 1.5px),
+      radial-gradient(circle at 58% 74%, #dfe6ff 0 0.7px, transparent 1.3px),
+      radial-gradient(circle at 40% 40%, #fff 0 0.6px, transparent 1.2px);
+  }
+
+  /* Today's label, kept by A. */
+  .who { font-size: 10.5px; font-weight: 600; letter-spacing: 0.5px; color: var(--fg2); }
+
+  /* A. Tinted band: the whole question row on a faint purple fill; the band reaches 8 pt past the column. */
+  .A .q { background: var(--tint); border-radius: 8px; padding: 6px 8px; margin: 0 -8px; font-weight: 500; }
+
+  /* B. Accent bar: a 2 pt purple bar in the label column, beside every line of the question. */
+  .B .q { font-weight: 500; }
+  .B .q .body { grid-column: 2; }
+  .B .q .rule { position: absolute; left: 32px; width: 2px; top: 2px; bottom: 2px; border-radius: 1px; background: var(--purple); }
+  .B .q.withlabel { grid-template-rows: auto auto; }
+  .B .q.withlabel .who { grid-column: 1 / 3; margin-bottom: 2px; }
+  .B .q.withlabel .rule { top: calc(10.5px * 1.4 + 4px); }
+
+  /* C. Accent ink: the question in the link purple at regular weight; YOU as a small filled pill. */
+  .C .q { align-items: baseline; }
+  .C .pill { justify-self: start; font-size: 9.5px; font-weight: 700; letter-spacing: 0.4px; line-height: 1; padding: 2px 5px; border-radius: 4px; background: var(--purple); color: var(--onPurple); }
+  .C .qtext { color: var(--purple); font-weight: 400; }
+
+  /* D. Two speakers: a person circle beside the question, a small orb beside the answer, a hairline under the question. */
+  .D .q { align-items: start; font-weight: 500; }
+  .D .q .body { border-bottom: 1px solid var(--div); padding-bottom: 6px; }
+  .D .who-mark { width: 18px; height: 18px; border-radius: 50%; border: 1px solid var(--fg2); box-sizing: border-box; display: flex; align-items: center; justify-content: center; color: var(--fg2); }
+  .D .who-mark svg { width: 12px; height: 12px; }
+  .D .answer .orbmark { position: absolute; left: -44px; top: 0; width: 18px; height: 18px; }
+</style>
+</head>
+<body>
+<h1>Your messages and Pauri's answers: four shapes</h1>
+<p class="lede">Issue #39. Each mock is the shipped panel (variant C of issue-21.html: slim header, transcript rows, the
+input area from #17) on glass over a busy desktop, with the same five-exchange chat. The second answer opens with a
+bold line and the third with a heading, the two cases where today's medium-weight question and the answer look alike.
+The fourth question wraps to five lines with a blank line inside, and the last one has a screenshot. All four keep
+the transcript layout: your message stays left-aligned in its row, the 44 pt label column stays, the answer stays
+indented under it, and the divider stays between exchanges. Only the mark on your message differs, plus the gap
+between question and answer (today 4 pt; 10 pt here, a starting guess). Purple is the link tint the answers already
+use. Under each panel: zoom as #38 does it (the content scales, the panel keeps its size), Dark or Light, and Glass
+(the most transparent setting). Labels, pills, bars, and markers are not selectable, so a copy across a question and
+its answer gives plain text. References, for feel and not layout: the ChatGPT window (below; its bubble is a
+reference for its contrast, not its shape) and Raycast AI chat
+(<a href="https://www.raycast.com/core-features/ai">raycast.com</a>). No Raycast screenshot was sent at gate 1, so it
+is named here only.</p>
+<div class="refs">
+  <figure><img src="../docs/reference/chatgpt-window.png" alt="ChatGPT window">ChatGPT window (docs/reference/chatgpt-window.png)</figure>
+</div>
+<div class="row" id="row"></div>
+
+<script>
+const ico = (d, extra = "") => `<svg class="icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" ${extra}>${d}</svg>`;
+const icons = {
+  pencil: ico('<rect x="1.5" y="3" width="10" height="11" rx="2"/><path d="M7 9.5l.4-2L13 2l1.6 1.6L9 9.1z"/>'),
+  gear: ico('<circle cx="8" cy="8" r="2.2"/><path d="M8 1.5v2M8 12.5v2M1.5 8h2M12.5 8h2M3.4 3.4l1.4 1.4M11.2 11.2l1.4 1.4M3.4 12.6l1.4-1.4M11.2 4.8l1.4-1.4"/>'),
+  search: ico('<circle cx="7" cy="7" r="4.3"/><path d="M10.2 10.2l3.6 3.6"/>'),
+  clip: ico('<path d="M13 7.5l-5.2 5.2a3.2 3.2 0 0 1-4.5-4.5L8.8 2.7a2.1 2.1 0 0 1 3 3L6.3 11.2a1 1 0 0 1-1.5-1.5L9.8 4.7"/>', 'style="width:16px;height:16px"'),
+  mic: ico('<rect x="5.5" y="1.5" width="5" height="8.5" rx="2.5"/><path d="M3 8a5 5 0 0 0 10 0M8 13v2"/>', 'style="width:16px;height:16px"'),
+  photo: ico('<rect x="1.5" y="3" width="13" height="10" rx="1.5"/><circle cx="5.5" cy="6.5" r="1.2"/><path d="M2 12l4-3.5 3 2.5 2-1.5 3.5 3"/>'),
+  person: `<svg viewBox="0 0 16 16" fill="currentColor"><circle cx="8" cy="5.2" r="2.9"/><path d="M2.3 14.5c.6-3.1 2.9-4.9 5.7-4.9s5.1 1.8 5.7 4.9z"/></svg>`
+};
+const esc = s => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+const inline = s => esc(s).replace(/`([^`]+)`/g, "<code>$1</code>").replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>");
+
+// A small Markdown reader: headings, paragraphs, bullet lists, bold, inline code.
+function markdown(md) {
+  const out = [], lines = md.split("\n");
+  for (let i = 0; i < lines.length; i++) {
+    const l = lines[i];
+    if (l.startsWith("#")) {
+      out.push(`<h3>${inline(l.replace(/^#+\s*/, ""))}</h3>`);
+    } else if (/^- /.test(l)) {
+      const items = [];
+      for (; i < lines.length && /^- /.test(lines[i]); i++) items.push(`<li>${inline(lines[i].slice(2))}</li>`);
+      i--;
+      out.push(`<ul>${items.join("")}</ul>`);
+    } else if (l.trim()) {
+      out.push(`<p>${inline(l)}</p>`);
+    }
+  }
+  return out.join("");
+}
+
+const shot = ex => ex.hasScreenshot ? `<div class="shot mark">${icons.photo}Screenshot</div>` : "";
+const body = ex => `<div class="body"><div class="qtext">${esc(ex.question)}</div>${shot(ex)}</div>`;
+const answer = (ex, marker = "") => `<div class="rest"><div class="answer">${marker}${markdown(ex.answer)}</div></div>`;
+
+function inputArea() {
+  const m = data.model, i = m.levels.indexOf(m.effort);
+  const bars = m.levels.map((_, k) => `<span class="bar${k <= i ? " on" : ""}" style="height:${Math.round(12 * (0.45 + 0.55 * (k + 1) / m.levels.length))}px"></span>`).join("");
+  return `<div class="inbox"><div class="ph">Ask Pauri</div><div class="deck">
+    <button class="ibtn" title="Attach a screenshot">${icons.clip}</button>
+    <span class="capsule"><svg width="22" height="22" viewBox="0 0 716 716" fill="none" role="img" aria-label="OpenAI">${data.blossom}</svg><span>${esc(m.name)}</span><span class="caret">▾</span></span>
+    <span class="bars">${bars}</span><span class="level">${m.effort}</span>
+    <span class="spacer"></span><button class="ibtn" title="Dictate">${icons.mic}</button><span class="orb" title="Send"></span></div></div>`;
+}
+const header = () => `<div class="bar-top"><span class="title">${esc(data.title)}</span><button class="ibtn" title="Past chats (⌘K)">${icons.search}</button><button class="ibtn" title="New chat">${icons.pencil}</button><button class="ibtn" title="Settings">${icons.gear}</button></div>`;
+
+const variants = [
+  {
+    key: "A", name: "A. Tinted band",
+    note: "The whole question row, YOU label included, sits on a faint purple fill with rounded corners, about the strength of a selected list row. The answer below has no fill, so each question is a block you can find by its color while you scroll.",
+    shape: "Shape: a container. Fill: purple at 16 % (dark) or 10 % (light), radius 8, padding 6 x 8.",
+    exchange: (ex) => `<div class="exchange"><div class="q"><span class="who mark">YOU</span>${body(ex)}</div>${answer(ex)}</div>`
+  },
+  {
+    key: "B", name: "B. Accent bar",
+    note: "A 2 pt purple bar in the label column runs down every line of the question, like a quote rule. The text has no fill. The buttons show it with no label (proposed: the bar alone says whose line it is, and each question keeps its height) and with YOU on a small line above.",
+    shape: "Shape: a margin mark. Bar: 2 pt, purple, 10 pt left of the text.",
+    exchange: (ex, st) => st.label
+      ? `<div class="exchange"><div class="q withlabel"><span class="who mark">YOU</span><span class="rule mark"></span>${body(ex)}</div>${answer(ex)}</div>`
+      : `<div class="exchange"><div class="q"><span class="rule mark"></span>${body(ex)}</div>${answer(ex)}</div>`
+  },
+  {
+    key: "C", name: "C. Accent ink",
+    note: "No container and no bar. The question text itself turns purple, the same purple as links in answers, at regular weight, and YOU becomes a small filled purple pill. Color, not weight, now tells the question from a bold answer line.",
+    shape: "Shape: the text's own color. Question: purple, regular weight. Pill: 9.5 pt, filled purple.",
+    exchange: (ex) => `<div class="exchange"><div class="q"><span class="pill mark">YOU</span>${body(ex)}</div>${answer(ex)}</div>`
+  },
+  {
+    key: "D", name: "D. Two speakers",
+    note: "Both sides get a marker in the label column: a small person circle beside the question and a small static orb beside the answer's first line. A hairline under the question closes it off. Who is talking shows on both sides, as in a chat app, without bubbles.",
+    shape: "Shape: who is talking, on both sides. Markers: 18 pt. Hairline: 1 pt under the question.",
+    exchange: (ex) => `<div class="exchange"><div class="q"><span class="who-mark mark">${icons.person}</span>${body(ex)}</div>${answer(ex, `<span class="orb orbmark mark"></span>`)}</div>`
+  }
+];
+
+const row = document.getElementById("row");
+variants.forEach(v => {
+  const st = { zoom: 1, light: false, glass: false, label: false };
+  const col = document.createElement("div");
+  col.className = "col";
+  const labelButtons = v.key === "B" ? `<span class="sep"></span><button data-label="0">No label</button><button data-label="1">YOU above</button>` : "";
+  col.innerHTML = `<h2>${v.name}</h2><p class="note">${v.note}</p>
+    <div class="desk"><div class="panel ${v.key}"><div class="content"></div></div></div>
+    <div class="states">${[0.8, 1, 1.5, 2].map(z => `<button data-zoom="${z}">${z * 100} %</button>`).join("")}
+      <span class="sep"></span><button data-theme="dark">Dark</button><button data-theme="light">Light</button>
+      <span class="sep"></span><button data-glass>Glass</button>${labelButtons}</div>
+    <p class="shape">${v.shape} Question-to-answer gap: ${shapes[v.key].gap} pt.</p>`;
+  row.appendChild(col);
+  const panel = col.querySelector(".panel"), content = col.querySelector(".content");
+  panel.style.setProperty("--gap", shapes[v.key].gap + "px");
+
+  const draw = () => {
+    panel.classList.toggle("light", st.light);
+    panel.classList.toggle("glass", st.glass);
+    panel.style.setProperty("--z", st.zoom);
+    content.innerHTML = header() +
+      `<div class="transcript"><div class="fill"></div>${data.exchanges.map(ex => v.exchange(ex, st)).join("")}</div>` +
+      inputArea();
+    const t = content.querySelector(".transcript");
+    t.scrollTop = t.scrollHeight;
+    col.querySelectorAll("[data-zoom]").forEach(b => b.classList.toggle("on", +b.dataset.zoom === st.zoom));
+    col.querySelectorAll("[data-theme]").forEach(b => b.classList.toggle("on", (b.dataset.theme === "light") === st.light));
+    col.querySelector("[data-glass]").classList.toggle("on", st.glass);
+    col.querySelectorAll("[data-label]").forEach(b => b.classList.toggle("on", (b.dataset.label === "1") === st.label));
+  };
+  col.querySelector(".states").addEventListener("click", e => {
+    const b = e.target.closest("button");
+    if (!b) return;
+    if (b.dataset.zoom) st.zoom = +b.dataset.zoom;
+    if (b.dataset.theme) st.light = b.dataset.theme === "light";
+    if (b.hasAttribute("data-glass")) st.glass = !st.glass;
+    if (b.dataset.label) st.label = b.dataset.label === "1";
+    draw();
+  });
+  draw();
+});
+</script>
+</body>
+</html>
