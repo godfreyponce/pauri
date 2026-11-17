@@ -3,6 +3,31 @@
 Accepted-work archive. One section per accepted ticket, appended at the accept-time docs commit.
 Newest first.
 
+## #38 Cmd+ and Cmd- zoom the panel's content, not its size (2026-11-17)
+
+- Corrects #37: Cmd+ / Cmd= zoom the panel's content in, Cmd- out, Cmd+0 back to 100%, like a
+  browser, with focus anywhere in the panel. The window's size does not change. Dragging the
+  edges still resizes (#37).
+- `ZoomView` (`PanelController.swift`) sits between the glass and the `NSHostingView`: its bounds
+  are `frame / zoom` and it sets the host's frame to its bounds, so SwiftUI lays out in the
+  smaller room and AppKit draws it `zoom` times as big. Text is a little softer away from 100%
+  (SwiftUI's 2x text bitmaps are stretched); symbols stay sharp.
+- The rules live in `PanelZoom` (`Sources/Pauri/PanelZoom.swift`): 80% to 200%, step 10%, stored
+  as an Int percent under `panelZoom`. Above 100% the smallest window is 280 x 280 times the
+  zoom, and Cmd+ does nothing when the window is too small for the next step.
+  Reset: `defaults delete io.github.godfreyponce.pauri panelZoom`.
+- Removed #37's key-resize code: `PanelSize.step`, `stepped`, `frame(_:resizedTo:within:)`,
+  `direction`, and their six tests.
+- Final review: no code findings. It asked for one more hand check, the header's gap under the
+  title bar at 150% and 200%.
+- Hand check: no per-item results reported; the owner accepted at gate 2 ("accepted, land it").
+- Deferred minors from the final review: `zoomViewGivesContentScaledRoom` uses a plain `NSView`,
+  so it proves the frame math, not that `NSHostingView` lays out again; on a screen smaller than
+  the zoom's smallest window, the window opens below that size (Cmd- still works); a saved size
+  below the zoom's smallest window is raised at launch but not saved back until the next drag.
+- Tests 145/145, twenty live tests skipped (`./scripts/test.sh && ./scripts/build-app.sh`).
+  Commits 2d2c75e, 2adf08a; merge 53eb7f1.
+
 ## #37 Resize the panel by dragging or with Cmd+ and Cmd-, and remember the size (2026-11-17)
 
 - The panel is `.resizable`: drag an edge or a corner. Cmd+ or Cmd= makes it one step bigger,
