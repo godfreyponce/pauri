@@ -3,6 +3,20 @@
 Accepted-work archive. One section per accepted ticket, appended at the accept-time docs commit.
 Newest first.
 
+## #35 Header icons show hover labels (2026-11-17)
+
+- The panel header's search, new chat, and settings icons now use #34's `HoverLabel` in place
+  of `.help`, which never showed because the nonactivating panel never activates Pauri.
+- Words unchanged: "Past chats (⌘K)", "New chat", "Settings". The search label names its
+  shortcut again, which the header lost when #34 removed the `⌘K` text.
+- The new chat label sits outside `.disabled`, so it shows while an answer streams.
+- Final review: no Critical or Important findings. It left one hand check open: whether the
+  "Settings" label stays up after the click opens the popover.
+- The app's other `.help` calls have the same bug; filed as #40, not touched here.
+- No new test: hover has none. Hand check by the owner at gate 2.
+- Tests 145/145, twenty live tests skipped (`./scripts/test.sh && ./scripts/build-app.sh`).
+  Commit abf1e28.
+
 ## #38 Cmd+ and Cmd- zoom the panel's content, not its size (2026-11-17)
 
 - Corrects #37: Cmd+ / Cmd= zoom the panel's content in, Cmd- out, Cmd+0 back to 100%, like a
