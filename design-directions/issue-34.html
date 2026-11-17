@@ -1,0 +1,397 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Pauri #34: four ways to show that Pauri is up to date</title>
+<script>
+// Shared data: every variant below reads only this object.
+const data = {
+  installed: "0.1.1",
+  newer: "0.1.2",
+  devVersion: "0.1.0",
+  checkedAgo: "2 minutes ago",
+  // Decision 6: one copy per state. {v} is the version that runs.
+  copy: {
+    off: "Pauri {v}, updates off",
+    checking: "Checking for updates",
+    upToDate: "Pauri {v} is up to date",
+    checked: "Checked {ago}",
+    couldNot: "Pauri {v}, couldn't check for updates",
+    ready: "Update to Pauri {v} and restart",
+    checkNow: "Check now"
+  },
+  chatTitle: "orderOut and the key window",
+  short: {
+    question: "What does orderOut do to a key window?",
+    answer: "It removes the window from the screen list. If it was key, AppKit makes the next window in order key, or none if the app has no other window."
+  },
+  // The rows of EmptyState.swift.
+  emptyState: {
+    heading: "ASK ABOUT ANYTHING ON YOUR SCREEN.",
+    rows: [
+      { icon: "quote", text: "Select text first, then press the hotkey to quote it.", keys: [] },
+      { icon: "clip",  text: "The paperclip attaches a screenshot of this screen.", keys: [] },
+      { icon: "clock", text: "Open your past chats.", keys: ["⌘", "K"] },
+      { icon: "enter", text: "Bring Pauri back from any app.", keys: ["⌘", "⇧", "Space"] }
+    ]
+  },
+  // The rows of SettingsView.
+  settings: { shortcutLabel: "Show or hide Pauri", shortcut: "⌘⇧Space", transparency: "Transparency", min: "Solid", max: "Glass" },
+  model: { name: "GPT-6.1-Sol Fast", effort: "low", levels: ["low", "medium", "high", "xhigh", "max", "ultra"] },
+  // How long the mock pretends a check takes, and how long C's notice stays. Mock timings, not measured.
+  checkMs: 1200,
+  noticeMs: 4000
+};
+</script>
+<style>
+  :root { color-scheme: dark; }
+  body {
+    margin: 0; padding: 32px; background: #15171c; color: #e8e8ea;
+    font: 13px/1.4 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+  }
+  h1 { font-size: 18px; margin: 0 0 4px; }
+  .lede { color: #9a9ca3; margin: 0 0 24px; max-width: 1000px; }
+  .lede a { color: #8fb4ff; }
+  .row { display: flex; gap: 28px; overflow-x: auto; padding-bottom: 16px; }
+  .col { flex: 0 0 560px; }
+  .col h2 { font-size: 14px; margin: 0 0 2px; }
+  .col p.note { margin: 0 0 10px; color: #9a9ca3; min-height: 54px; }
+  .col p.where { margin: 8px 0 0; color: #c9b98a; font-size: 12px; min-height: 34px; }
+  .col p.cap { margin: 6px 0 0; color: #9a9ca3; font-size: 12px; min-height: 17px; }
+  .states { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
+  .states button { font: inherit; font-size: 11px; color: #c9c9cc; background: #262930; border: 1px solid #353943; border-radius: 6px; padding: 3px 9px; cursor: pointer; }
+  .states button.on { background: #3a4152; border-color: #5a6378; color: #fff; }
+  .states .sep { width: 1px; background: #353943; margin: 0 4px; }
+
+  /* The busy desktop behind the glass panel, as in issue-21.html. */
+  .desk {
+    position: relative; padding: 20px; border-radius: 12px; overflow: hidden;
+    background:
+      radial-gradient(circle at 18% 22%, #ffb347 0 46px, transparent 47px),
+      radial-gradient(circle at 82% 78%, #4fd1c5 0 70px, transparent 71px),
+      repeating-linear-gradient(45deg, rgba(255,255,255,0.10) 0 6px, transparent 6px 18px),
+      linear-gradient(120deg, #c2410c, #7c3aed 45%, #0ea5e9 75%, #16a34a);
+  }
+  .desk::before {
+    content: "func application(_ app: NSApplication) { panel.orderOut(nil) }  // busy window text  ";
+    position: absolute; inset: 0; color: rgba(255,255,255,0.35); font: 11px/1.6 ui-monospace, Menlo, monospace;
+    white-space: pre-wrap; word-break: break-all; padding: 8px; pointer-events: none;
+  }
+  .panel {
+    position: relative; width: 520px; height: 680px; box-sizing: border-box; padding: 12px;
+    display: flex; flex-direction: column; gap: 8px; font-size: 12.5px; line-height: 1.4;
+    background: rgba(36, 37, 41, 0.62); backdrop-filter: blur(22px) saturate(1.3);
+    -webkit-backdrop-filter: blur(22px) saturate(1.3);
+    border: 1px solid rgba(255,255,255,0.14); border-radius: 12px;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.45);
+  }
+  .icon { width: 16px; height: 16px; color: #c9c9cc; flex: none; display: block; }
+  .ibtn { border: 0; background: none; color: #c9c9cc; cursor: pointer; padding: 3px; display: inline-flex; border-radius: 6px; position: relative; }
+  .ibtn:hover:not([disabled]) { background: rgba(255,255,255,0.08); }
+  .ibtn.on { background: rgba(255,255,255,0.14); }
+  .ibtn[disabled] { cursor: default; opacity: .55; }
+  .kc {
+    display: inline-block; min-width: 16px; padding: 0 4px; height: 18px; line-height: 18px; text-align: center;
+    border-radius: 4px; background: rgba(255,255,255,0.10); border: 1px solid rgba(255,255,255,0.16);
+    font-size: 11px; color: #dcdce0; margin-right: 2px; box-sizing: border-box;
+  }
+  .muted { color: #9a9ca3; }
+  .spin { width: 10px; height: 10px; border-radius: 50%; border: 1.5px solid rgba(255,255,255,0.25); border-top-color: #e8e8ea; animation: rot .8s linear infinite; display: inline-block; flex: none; }
+  @keyframes rot { to { transform: rotate(360deg); } }
+
+  /* A macOS-like tooltip: shown on hover, or pinned by the variant. */
+  .tip { display: none; position: absolute; z-index: 9; top: calc(100% + 6px); right: -40px; white-space: nowrap; font-size: 11px; color: #e8e8ea; background: rgba(54,56,62,0.98); border: 1px solid rgba(255,255,255,0.16); border-radius: 5px; padding: 3px 7px; box-shadow: 0 4px 12px rgba(0,0,0,0.4); pointer-events: none; }
+  .ibtn:hover .tip, .tip.pin { display: block; }
+
+  /* The header, variant C of issue-21.html as shipped. */
+  .bar-top { display: flex; align-items: center; gap: 4px; height: 26px; flex: none; font-size: 12px; position: relative; }
+  .bar-top .title { flex: 1; min-width: 0; color: #b9bbc2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bar-top .icon { width: 14px; height: 14px; }
+  .bar-top .k { font-size: 11px; color: #8a8c94; margin-right: 4px; }
+
+  /* The transcript and empty state, shared. */
+  .transcript { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; }
+  .transcript .fill { flex: 1; }
+  .q { display: grid; grid-template-columns: 44px 1fr; color: #ececef; font-weight: 500; }
+  .who { font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: #8a8c94; padding-top: 2px; }
+  .rest { margin-left: 44px; margin-top: 4px; }
+  .empty { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; gap: 2px; padding-bottom: 4px; }
+  .empty .g { color: #8a8c94; font-size: 11px; font-weight: 600; letter-spacing: .04em; padding: 0 8px 6px; }
+  .empty .act { display: flex; align-items: center; gap: 10px; padding: 7px 8px; border-radius: 6px; }
+  .empty .act span.t { flex: 1; }
+
+  /* The input area, drawn the same in all four. */
+  .inbox { background: rgba(0,0,0,0.28); border: 1px solid rgba(255,255,255,0.16); border-radius: 12px; padding: 10px; display: flex; flex-direction: column; gap: 6px; flex: none; }
+  .inbox .ph { color: #7e8088; height: 36px; line-height: 18px; }
+  .deck { display: flex; align-items: center; gap: 6px; }
+  .deck .spacer { flex: 1; }
+  .capsule { display: inline-flex; align-items: center; gap: 6px; color: #e8e8ea; background: rgba(60,62,70,0.72); border-radius: 999px; padding: 0 9px; height: 24px; }
+  .capsule .caret { color: #9a9ca3; font-size: 10px; }
+  .bars { display: inline-flex; align-items: flex-end; padding: 3px 4px; }
+  .bar { background: rgba(255,255,255,0.22); border-radius: 1px; width: 3px; margin-left: 2px; }
+  .bar.on { background: #e8e8ea; }
+  .level { color: #9a9ca3; font-size: 11px; }
+  .orb { width: 32px; height: 32px; border-radius: 50%; flex: none; background: radial-gradient(circle at 35% 30%, #4d5fb0, #1c2350 60%, #0b0f26); box-shadow: 0 0 0 1px rgba(255,255,255,0.18), 0 2px 8px rgba(0,0,0,0.4); }
+
+  /* The settings popover from the gear, as SettingsView draws it. */
+  .pop { position: absolute; z-index: 8; top: 40px; right: 2px; width: 320px; box-sizing: border-box; padding: 14px 16px; border-radius: 10px; background: rgba(44,46,52,0.98); border: 1px solid rgba(255,255,255,0.14); box-shadow: 0 14px 40px rgba(0,0,0,0.55); display: flex; flex-direction: column; gap: 12px; }
+  .pop::before { content: ""; position: absolute; top: -6px; right: 14px; width: 10px; height: 10px; background: rgba(44,46,52,0.98); border-left: 1px solid rgba(255,255,255,0.14); border-top: 1px solid rgba(255,255,255,0.14); transform: rotate(45deg); }
+  .pop .r { display: flex; align-items: center; gap: 8px; }
+  .pop .r .l { flex: 1; }
+  .pbtn { font: inherit; font-size: 12px; color: #e8e8ea; background: rgba(255,255,255,0.14); border: 1px solid rgba(255,255,255,0.12); border-radius: 6px; padding: 2px 10px; cursor: pointer; }
+  .pbtn[disabled] { opacity: .45; cursor: default; }
+  .slider { flex: 1; height: 4px; border-radius: 2px; background: linear-gradient(90deg, #2f6fde 100%, rgba(255,255,255,0.2) 0); position: relative; }
+  .slider::after { content: ""; position: absolute; right: -2px; top: -6px; width: 16px; height: 16px; border-radius: 50%; background: #e8e8ea; }
+  .pop hr { border: 0; border-top: 1px solid rgba(255,255,255,0.1); margin: 0; }
+
+  /* B: the update row in the popover. */
+  .B .upd .l b { font-weight: 500; display: block; }
+  .B .upd .l span { color: #9a9ca3; font-size: 11.5px; display: flex; align-items: center; gap: 6px; }
+
+  /* C: the notice that stands in for the title. */
+  .C .notice { flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; color: #e8e8ea; cursor: pointer; white-space: nowrap; overflow: hidden; animation: fadein .25s ease-out; }
+  .C .notice:hover { color: #fff; }
+  .C .notice .icon { color: #5bd17a; }
+  .C .notice.bad .icon { color: #e6b450; }
+  .C .notice.quiet { color: #9a9ca3; cursor: default; }
+  @keyframes fadein { from { opacity: 0; transform: translateY(-3px); } }
+
+  /* D: the footer line under the empty state. */
+  .D .foot { display: flex; align-items: center; gap: 6px; padding: 10px 8px 0; margin-top: 6px; border-top: 1px solid rgba(255,255,255,0.07); color: #8a8c94; font-size: 11.5px; }
+  .D .foot a { color: #9fb8ef; cursor: pointer; text-decoration: none; }
+  .D .foot a:hover { text-decoration: underline; }
+  .D .foot a.off { color: #6c6e76; cursor: default; text-decoration: none; }
+</style>
+</head>
+<body>
+<h1>Showing that Pauri is up to date: four shapes</h1>
+<p class="lede">Issue #34. Each mock is the shipped 520 x 680 pt panel (variant C of
+<a href="issue-21.html">issue-21.html</a>) over a busy desktop, with the same data. Only where the update status
+lives differs. References, for feel and not layout: Pauri's own header and settings popover as shipped; macOS System
+Settings, General, Software Update, which says the Mac is up to date and names the version; and the ChatGPT Mac app,
+which uses Sparkle and has a Check for Updates command. No screenshot was sent at gate 1, so the last two are named only.
+Under each panel, the buttons set the update state. Update ready draws today's up-arrow the same in all four, and it
+wins over every other state: the status and the check-now control hide. After update relaunch shows the panel just
+opened by itself on the newer version: Checking for a moment, then up to date. Empty chat and Mid-chat switch what the
+panel holds. Hover the icons for their tooltips; the gear opens settings in every variant. A check started from the
+mock takes a moment and finds nothing.</p>
+<div class="row" id="row"></div>
+
+<script>
+const ico = (d, extra = "") => `<svg class="icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" ${extra}>${d}</svg>`;
+const icons = {
+  pencil: ico('<rect x="1.5" y="3" width="10" height="11" rx="2"/><path d="M7 9.5l.4-2L13 2l1.6 1.6L9 9.1z"/>'),
+  gear: ico('<circle cx="8" cy="8" r="2.2"/><path d="M8 1.5v2M8 12.5v2M1.5 8h2M12.5 8h2M3.4 3.4l1.4 1.4M11.2 11.2l1.4 1.4M3.4 12.6l1.4-1.4M11.2 4.8l1.4-1.4"/>'),
+  clock: ico('<path d="M2.2 8a5.8 5.8 0 1 0 1.7-4.1"/><path d="M1.8 2.5v2.3h2.3M8 4.8V8l2.2 1.4"/>'),
+  search: ico('<circle cx="7" cy="7" r="4.3"/><path d="M10.2 10.2l3.6 3.6"/>'),
+  quote: ico('<path d="M2 4h5v4.5c0 2-1.2 3.3-3.3 3.6l-.3-1.2C4.6 10.6 5 10 5 9H2zm7 0h5v4.5c0 2-1.2 3.3-3.3 3.6l-.3-1.2c1.2-.3 1.6-.9 1.6-1.9H9z" fill="currentColor" stroke="none"/>'),
+  clip: ico('<path d="M13 7.5l-5.2 5.2a3.2 3.2 0 0 1-4.5-4.5L8.8 2.7a2.1 2.1 0 0 1 3 3L6.3 11.2a1 1 0 0 1-1.5-1.5L9.8 4.7"/>'),
+  mic: ico('<rect x="5.5" y="1.5" width="5" height="8.5" rx="2.5"/><path d="M3 8a5 5 0 0 0 10 0M8 13v2"/>'),
+  enter: ico('<path d="M13 3v5H4M6.5 5.5L4 8l2.5 2.5"/>'),
+  // SF Symbols stand-ins: arrow.up.circle, checkmark.circle, exclamationmark.circle, minus.circle.
+  up: ico('<circle cx="8" cy="8" r="6.2"/><path d="M8 11.2V5M5.4 7.4L8 4.8l2.6 2.6"/>'),
+  check: ico('<circle cx="8" cy="8" r="6.2"/><path d="M5.2 8.2l2 2 3.6-4"/>'),
+  warn: ico('<circle cx="8" cy="8" r="6.2"/><path d="M8 4.6v4.2M8 10.9v.3"/>'),
+  off: ico('<circle cx="8" cy="8" r="6.2"/><path d="M5.2 8h5.6"/>')
+};
+const esc = s => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+const keys = ks => ks.map(k => `<span class="kc">${k}</span>`).join("");
+const fill = (s, v, ago = "") => s.replace("{v}", v).replace("{ago}", ago);
+const spinner = `<span class="spin"></span>`;
+
+// The words for one state, shared by every variant.
+function words(st) {
+  const c = data.copy;
+  switch (st.status) {
+    case "off": return { line: fill(c.off, data.devVersion) };
+    case "checking": return { line: c.checking };
+    case "upToDate": return { line: fill(c.upToDate, st.version), sub: fill(c.checked, st.version, st.ago) };
+    case "couldNot": return { line: fill(c.couldNot, st.version) };
+    default: return { line: "" };
+  }
+}
+const canCheckNow = st => st.status === "upToDate" || st.status === "couldNot";
+
+// Today's up-arrow: same look, place, and tooltip in all four.
+const upArrow = () => `<button class="ibtn" title="">${icons.up}<span class="tip">${fill(data.copy.ready, data.newer)}</span></button>`;
+
+function settingsPopover(extra) {
+  const s = data.settings;
+  return `<div class="pop" data-keep>
+    <div class="r"><span class="l">${s.shortcutLabel}</span><button class="pbtn">${s.shortcut}</button></div>
+    <div class="r"><span class="l" style="flex:none">${s.transparency}</span><span class="muted">${s.min}</span><span class="slider"></span><span class="muted">${s.max}</span></div>
+    ${extra || ""}</div>`;
+}
+
+function inputArea() {
+  const m = data.model, i = m.levels.indexOf(m.effort);
+  const bars = m.levels.map((_, k) => `<span class="bar${k <= i ? " on" : ""}" style="height:${Math.round(12 * (0.45 + 0.55 * (k + 1) / m.levels.length))}px"></span>`).join("");
+  return `<div class="inbox"><div class="ph">Ask Pauri</div><div class="deck">
+    <button class="ibtn" title="Attach a screenshot">${icons.clip}</button>
+    <span class="capsule"><span>${esc(m.name)}</span><span class="caret">▾</span></span>
+    <span class="bars">${bars}</span><span class="level">${m.effort}</span>
+    <span class="spacer"></span><button class="ibtn" title="Dictate">${icons.mic}</button><span class="orb" title="Send"></span></div></div>`;
+}
+
+function emptyState(footer) {
+  const e = data.emptyState;
+  return `<div class="empty"><div class="g">${e.heading}</div>${e.rows.map(r => `<div class="act">${icons[r.icon]}<span class="t">${esc(r.text)}</span>${keys(r.keys)}</div>`).join("")}${footer || ""}</div>`;
+}
+function body(st, footer) {
+  if (st.empty) return emptyState(footer);
+  return `<div class="transcript"><div class="fill"></div><div class="exchange"><div class="q"><span class="who">You</span><span>${esc(data.short.question)}</span></div><div class="rest">${esc(data.short.answer)}</div></div></div>`;
+}
+
+// The header. `slot` sits left of ⌘K where the up-arrow goes; `title` replaces the chat title when set.
+function header(st, { slot = "", title = null } = {}) {
+  const t = title ?? `<span class="title">${esc(st.empty ? "New chat" : data.chatTitle)}</span>`;
+  const left = st.status === "ready" ? upArrow() : slot;
+  return `<div class="bar-top">${t}${left}<span class="k">⌘K</span><button class="ibtn" title="Past chats (⌘K)">${icons.search}</button><button class="ibtn" title="New chat">${icons.pencil}</button><button class="ibtn${st.settings ? " on" : ""}" data-act="gear" title="Settings">${icons.gear}</button></div>`;
+}
+
+const variants = [
+  {
+    key: "A", name: "A. Header icon",
+    note: "The header keeps its shape. When there is no update, a small status icon takes the up-arrow's slot left of ⌘K: a check when up to date, a spinner while checking, a warning when the check failed, a dim dash when updates are off. The words are in its tooltip. A click on the check or the warning checks now.",
+    where: "Status: the icon left of ⌘K, words in its tooltip. Check now: click the icon. Seen on every panel, empty or mid-chat.",
+    render(st) {
+      const w = words(st);
+      const pin = st.pinTip ? " pin" : "";
+      let slot = "";
+      if (st.status === "upToDate") slot = `<button class="ibtn" data-act="check">${icons.check}<span class="tip${pin}">${w.line}. ${w.sub}.</span></button>`;
+      if (st.status === "checking") slot = `<button class="ibtn" disabled style="opacity:1;padding:5px">${spinner}<span class="tip${pin}">${w.line}</span></button>`;
+      if (st.status === "couldNot") slot = `<button class="ibtn" data-act="check">${icons.warn}<span class="tip${pin}">${w.line}. Click to try again.</span></button>`;
+      if (st.status === "off") slot = `<button class="ibtn" disabled>${icons.off}<span class="tip${pin}">${w.line}</span></button>`;
+      return header(st, { slot }) + body(st) + inputArea() + (st.settings ? settingsPopover() : "");
+    }
+  },
+  {
+    key: "B", name: "B. Settings line",
+    note: "The header does not change. The settings popover gets a last row under a divider: the version that runs, the result of the last check under it, and a Check now button. Like Software Update in System Settings, it is where you go to ask, not something that waits for you.",
+    where: "Status: the last row of the settings popover (the gear). Check now: the button on that row. The panel itself shows nothing until an update is ready.",
+    render(st) {
+      const w = words(st);
+      let row = "";
+      if (st.status !== "ready") {
+        const ver = st.status === "off" ? data.devVersion : st.version;
+        const sub = st.status === "checking" ? `${spinner}${w.line}`
+          : st.status === "upToDate" ? `Up to date, ${w.sub.toLowerCase()}`
+          : st.status === "couldNot" ? "Couldn't check for updates"
+          : "Updates off";
+        const btn = st.status === "off" ? "" : `<button class="pbtn" data-act="check"${canCheckNow(st) ? "" : " disabled"}>${data.copy.checkNow}</button>`;
+        row = `<hr><div class="r upd"><span class="l"><b>Pauri ${ver}</b><span>${sub}</span></span>${btn}</div>`;
+      }
+      return header(st) + body(st) + inputArea() + (st.settings ? settingsPopover(row) : "");
+    }
+  },
+  {
+    key: "C", name: "C. Short notice",
+    note: `After each finished check, the next time the panel shows, the chat title gives way to a one-line notice for ${data.noticeMs / 1000} seconds, then the title comes back. A click on the notice checks again. Nothing stays on screen; to see it again, hide and show the panel after the next check.`,
+    where: `Status: a ${data.noticeMs / 1000}-second notice in the title's place, after each check. Check now: click the notice while it shows. The state buttons replay it.`,
+    render(st) {
+      const w = words(st);
+      let title = null;
+      if (st.notice && st.status !== "ready") {
+        if (st.status === "checking") title = `<span class="notice quiet">${spinner}${w.line}</span>`;
+        if (st.status === "upToDate") title = `<span class="notice" data-act="check" title="Click to check again">${icons.check}${w.line}</span>`;
+        if (st.status === "couldNot") title = `<span class="notice bad" data-act="check" title="Click to try again">${icons.warn}${w.line}</span>`;
+        if (st.status === "off") title = `<span class="notice quiet">${icons.off}${w.line}</span>`;
+      }
+      return header(st, { title }) + body(st) + inputArea() + (st.settings ? settingsPopover() : "");
+    }
+  },
+  {
+    key: "D", name: "D. Empty-state footer",
+    note: "The new-chat screen gets one quiet line at its bottom, under the four rows: the version and the result of the last check, then a Check now link. During a chat the line is not there; Cmd+N or the pencil shows it again.",
+    where: "Status: the last line of the new-chat screen. Check now: the link at its end. Mid-chat: not visible.",
+    render(st) {
+      const w = words(st);
+      let foot = "";
+      if (st.status !== "ready") {
+        const text = st.status === "checking" ? `${spinner}<span>${w.line}</span>`
+          : st.status === "upToDate" ? `${icons.check.replace('class="icon"', 'class="icon" style="width:12px;height:12px;color:#8a8c94"')}<span>${w.line}, ${w.sub.toLowerCase()}.</span>`
+          : `<span>${w.line}.</span>`;
+        const link = st.status === "off" ? "" : `<a data-act="check" class="${canCheckNow(st) ? "" : "off"}">${data.copy.checkNow}</a>`;
+        foot = `<div class="foot">${text}${link}</div>`;
+      }
+      return header(st) + body(st, foot) + inputArea() + (st.settings ? settingsPopover() : "");
+    }
+  }
+];
+
+const stateButtons = [
+  ["upToDate", "Up to date"], ["checking", "Checking"], ["couldNot", "Couldn't check"],
+  ["ready", "Update ready"], ["relaunch", "After update relaunch"], ["off", "Updates off"]
+];
+const captions = {
+  upToDate: `The launch check found nothing newer than ${data.installed}.`,
+  checking: "A check is running: at launch, on Sparkle's 24-hour schedule, or from Check now.",
+  couldNot: "The check failed: offline, or the feed did not answer. Never shown as up to date.",
+  ready: `The feed has ${data.newer}. Today's up-arrow; the status and Check now hide.`,
+  off: `A dev build: no feed, the updater never starts. ${data.devVersion} is the dev version.`,
+  relaunch: `Pauri restarted on ${data.newer} and opened its panel by itself (#32). The launch check runs.`
+};
+
+const row = document.getElementById("row");
+variants.forEach(v => {
+  const st = { status: "upToDate", version: data.installed, ago: data.checkedAgo, empty: true, settings: v.key === "B", notice: true, pinTip: v.key === "A", pressed: "upToDate" };
+  let timers = [];
+  const clear = () => { timers.forEach(clearTimeout); timers = []; };
+  const later = (ms, f) => timers.push(setTimeout(() => { f(); draw(); }, ms));
+
+  const col = document.createElement("div");
+  col.className = "col";
+  col.innerHTML = `<h2>${v.name}</h2><p class="note">${v.note}</p>
+    <div class="desk"><div class="panel ${v.key}"></div></div>
+    <p class="cap"></p>
+    <div class="states">${stateButtons.map(([k, l]) => `<button data-state="${k}">${l}</button>`).join("")}<span class="sep"></span><button data-view="empty">Empty chat</button><button data-view="chat">Mid-chat</button></div>
+    <p class="where">${v.where}</p>`;
+  row.appendChild(col);
+  const panel = col.querySelector(".panel");
+
+  function draw() {
+    panel.innerHTML = v.render(st);
+    col.querySelector(".cap").textContent = captions[st.pressed];
+    col.querySelectorAll("[data-state]").forEach(b => b.classList.toggle("on", b.dataset.state === st.pressed));
+    col.querySelectorAll("[data-view]").forEach(b => b.classList.toggle("on", (b.dataset.view === "empty") === st.empty));
+  }
+  // C: a finished check shows its notice for noticeMs, then the title comes back.
+  function finish() {
+    st.notice = true;
+    if (v.key === "C") later(data.noticeMs, () => { st.notice = false; });
+  }
+  function checkNow() {
+    if (!canCheckNow(st)) return;
+    clear();
+    st.status = "checking"; st.notice = true;
+    later(data.checkMs, () => { st.status = "upToDate"; st.ago = "just now"; finish(); });
+    draw();
+  }
+  function set(state) {
+    clear();
+    st.pressed = state;
+    st.version = data.installed; st.ago = data.checkedAgo;
+    if (state === "relaunch") {
+      st.version = data.newer; st.status = "checking"; st.notice = true;
+      later(data.checkMs, () => { st.status = "upToDate"; st.ago = "just now"; finish(); });
+    } else {
+      st.status = state;
+      if (state === "checking") st.notice = true; else finish();
+    }
+    draw();
+  }
+
+  panel.addEventListener("click", e => {
+    const el = e.target.closest("[data-act]");
+    if (el && el.dataset.act === "gear") { st.settings = !st.settings; return draw(); }
+    if (el && el.dataset.act === "check") { st.pinTip = false; return checkNow(); }
+    if (st.settings && !e.target.closest("[data-keep]")) { st.settings = false; draw(); }
+  });
+  panel.addEventListener("mouseleave", () => { if (st.pinTip) { st.pinTip = false; draw(); } });
+  col.querySelectorAll("[data-state]").forEach(b => b.addEventListener("click", () => set(b.dataset.state)));
+  col.querySelectorAll("[data-view]").forEach(b => b.addEventListener("click", () => { st.empty = b.dataset.view === "empty"; draw(); }));
+  set("upToDate");
+});
+</script>
+</body>
+</html>
