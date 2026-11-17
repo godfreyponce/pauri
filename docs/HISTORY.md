@@ -3,6 +3,28 @@
 Accepted-work archive. One section per accepted ticket, appended at the accept-time docs commit.
 Newest first.
 
+## #32 Show the panel after Pauri relaunches from an update (2026-11-16)
+
+- Just before Sparkle relaunches Pauri, the old process sets the user default
+  `PauriShowPanelAfterUpdate` in `updaterWillRelaunchApplication(_:)` (`Updater.markRelaunching`).
+  The new process reads and removes it at the end of `applicationDidFinishLaunching`
+  (`Updater.takeRelaunchedFromUpdate`) and, if it was set, calls `panel.show()`, the shortcut's
+  call, without reading a selection. Every other launch starts hidden, as before.
+- `showUpdateInstalledAndRelaunched` stays as it was: Sparkle calls it only in the old process,
+  and only if that process is still alive. Sparkle relaunches with a plain `openURL`, so the new
+  process cannot tell an update from an `open` without the note.
+- D1: the old version writes the note, so updating from 0.1.1 to 0.1.2 still relaunches hidden,
+  once. The first public update that shows the panel is 0.1.2 to 0.1.3.
+- D3: the flag is cleared at every launch. If an install fails after the relaunch hook, the next
+  manual launch shows the panel once.
+- Hand check on the local test feed (signed `Pauri Self-Signed`), run by the builder through the
+  Accessibility API: a 0.1.0 build showed `Update to Pauri 0.1.2 and restart`; one press quit it,
+  and a new process at 0.1.2 started 1 s later with its panel on screen and the input field
+  focused, and no shortcut press. The flag was gone after that launch. A later `pkill` and `open`
+  started hidden. Typing into the relaunched panel was left to the owner at gate 2.
+- Tests 121/121, twenty live tests skipped (`./scripts/test.sh && ./scripts/build-app.sh`).
+  Commit b2568e9.
+
 ## #33 Installed 0.1.0 found no update: GitHub served the old appcast (2026-11-16)
 
 - Cause: no fault in Pauri or Sparkle. At 23:26:44 UTC, 63 seconds after `gh release create
