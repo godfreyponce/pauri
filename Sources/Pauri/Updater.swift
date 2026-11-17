@@ -8,11 +8,23 @@ import Sparkle
 final class Updater: NSObject, SPUUserDriver, SPUUpdaterDelegate {
     nonisolated static let releaseKey = "PauriChecksForUpdates"
     nonisolated static let testFeedKey = "PauriTestFeedURL"
+    nonisolated static let showPanelAfterUpdateKey = "PauriShowPanelAfterUpdate"
 
     nonisolated static func feed(infoPlist: [String: Any], testFeed: String?) -> String? {
         if let testFeed { return testFeed }
         guard infoPlist[releaseKey] as? Bool == true else { return nil }
         return infoPlist["SUFeedURL"] as? String
+    }
+
+    /// Sparkle relaunches with a plain `open`, so the new process knows it came from an update only through this note.
+    nonisolated static func markRelaunching(_ defaults: UserDefaults) {
+        defaults.set(true, forKey: showPanelAfterUpdateKey)
+    }
+
+    nonisolated static func takeRelaunchedFromUpdate(_ defaults: UserDefaults) -> Bool {
+        let relaunched = defaults.bool(forKey: showPanelAfterUpdateKey)
+        defaults.removeObject(forKey: showPanelAfterUpdateKey)
+        return relaunched
     }
 
     private(set) var readyVersion: String?
@@ -50,6 +62,10 @@ final class Updater: NSObject, SPUUserDriver, SPUUpdaterDelegate {
     // MARK: SPUUpdaterDelegate
 
     func feedURLString(for updater: SPUUpdater) -> String? { feed }
+
+    func updaterWillRelaunchApplication(_ updater: SPUUpdater) {
+        Self.markRelaunching(.standard)
+    }
 
     // MARK: SPUUserDriver
 

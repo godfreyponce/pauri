@@ -25,6 +25,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self.hotKey = hotKey
         updater.start()
         panel = PanelController(hotKey: hotKey, chat: chat, updater: updater)
+        if Updater.takeRelaunchedFromUpdate(.standard) {
+            panel?.show()
+        }
     }
 
     /// Hides only when the panel has focus; a press while another app has focus brings it back,
