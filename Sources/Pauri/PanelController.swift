@@ -66,6 +66,9 @@ final class FloatingPanel: NSPanel {
         orderOut(nil)
     }
 
+    /// `.resizable` turns on the zoom button and a title-bar double-click; a zoom would move the panel.
+    override func zoom(_ sender: Any?) {}
+
     /// Checked before `super`, so `=` and `-` never reach a focused text field.
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
         guard let direction = PanelSize.direction(characters: event.charactersIgnoringModifiers, flags: event.modifierFlags)

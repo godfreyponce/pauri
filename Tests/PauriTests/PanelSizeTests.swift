@@ -84,4 +84,17 @@ struct PanelSizeTests {
             #expect(PanelSize.saved(in: defaults) == PanelSize.default)
         }
     }
+
+    @MainActor
+    @Test func zoomLeavesPanelFrameAlone() {
+        let panel = FloatingPanel(
+            contentRect: NSRect(x: 0, y: 0, width: 520, height: 680),
+            styleMask: [.nonactivatingPanel, .titled, .fullSizeContentView, .resizable],
+            backing: .buffered,
+            defer: false)
+        let before = NSRect(x: 100, y: 100, width: 520, height: 680)
+        panel.setFrame(before, display: false)
+        panel.zoom(nil)
+        #expect(panel.frame == before)
+    }
 }
