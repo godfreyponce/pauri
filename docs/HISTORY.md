@@ -3,6 +3,31 @@
 Accepted-work archive. One section per accepted ticket, appended at the accept-time docs commit.
 Newest first.
 
+## #37 Resize the panel by dragging or with Cmd+ and Cmd-, and remember the size (2026-11-17)
+
+- The panel is `.resizable`: drag an edge or a corner. Cmd+ or Cmd= makes it one step bigger,
+  Cmd- one step smaller, with focus anywhere in the panel; `FloatingPanel.performKeyEquivalent`
+  takes the three keys before a text field sees them. A key step keeps the top-left corner and
+  moves the panel only as far as needed to stay on the screen. No animation.
+- The rules live in `PanelSize` (`Sources/Pauri/PanelSize.swift`): default 520 x 680, minimum
+  280 x 280 (measured `PanelView` 251 x 156, plus the Blossom logo, an 8-line draft, and an
+  assumed 28 pt title-bar inset), step 52 x 68 (a tenth of the default, a guess), maximum the
+  `visibleFrame` of the panel's screen. All sizes are frame sizes.
+- The size is saved under `panelSize` (`{"width", "height"}`) in `windowDidResize`, which covers
+  a drag and a key step. Only the size is saved: the panel still opens centered on the main
+  screen. At launch a saved size larger than the main screen is cut to fit, and not saved back.
+  Reset: `defaults delete io.github.godfreyponce.pauri panelSize`.
+- Final review found that `.resizable` turned on zoom (the green button and a title-bar
+  double-click), which moved the panel to fill the screen and saved that size.
+  `FloatingPanel.zoom(_:)` now does nothing (test `zoomLeavesPanelFrameAlone`).
+- Hand check: the owner accepted at gate 2 without reporting the results of plan step 7.
+- Deferred minors from the final review: `windowDidResize` writes UserDefaults on every drag
+  frame; Cmd+ can shrink the panel on a screen smaller than its size; the `minimum` comment
+  reads as fully measured; no test for `frame(...)` above the top or left of the screen, or a
+  screen smaller than the minimum.
+- Tests 137/137, twenty live tests skipped (`./scripts/test.sh && ./scripts/build-app.sh`).
+  Commits 6ba200a, 74a41c3, 73f63da; merge 5faf249.
+
 ## #34 Show that Pauri is up to date (2026-11-16)
 
 - Variant A1 of `design-directions/issue-34.html` (the owner picked A, then A1 from four ways
