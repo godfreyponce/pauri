@@ -4,7 +4,7 @@ import SwiftUI
 @MainActor
 final class PanelController: NSObject, NSWindowDelegate {
     private let panel: FloatingPanel
-    private let zoomView: ZoomView
+    private let zoomScale: ZoomScale
     private var zoom: Int
 
     init(hotKey: HotKey, chat: Chat, updater: Updater) {
@@ -26,12 +26,14 @@ final class PanelController: NSObject, NSWindowDelegate {
         // Pauri never becomes the active app; following the active state would draw the flat inactive look.
         glass.state = .active
         panel.contentView = glass
-        zoomView = ZoomView(frame: glass.bounds)
-        zoomView.autoresizingMask = [.width, .height]
-        glass.addSubview(zoomView)
-        zoomView.addSubview(NSHostingView(rootView: PanelView(hotKey: hotKey, chat: chat, updater: updater)))
         zoom = PanelZoom.saved(in: .standard)
-        zoomView.zoom = PanelZoom.scale(zoom)
+        zoomScale = ZoomScale(PanelZoom.scale(zoom))
+        let host = NSHostingView(rootView: ZoomedContent(zoom: zoomScale) {
+            PanelView(hotKey: hotKey, chat: chat, updater: updater)
+        })
+        host.frame = glass.bounds
+        host.autoresizingMask = [.width, .height]
+        glass.addSubview(host)
         let minimum = PanelZoom.minimumFrame(at: zoom)
         panel.minSize = minimum
         let saved = PanelSize.saved(in: .standard)
@@ -49,7 +51,7 @@ final class PanelController: NSObject, NSWindowDelegate {
         let next = PanelZoom.applied(command, to: zoom, frame: panel.frame.size)
         guard next != zoom else { return }
         zoom = next
-        zoomView.zoom = PanelZoom.scale(next)
+        zoomScale.value = PanelZoom.scale(next)
         panel.minSize = PanelZoom.minimumFrame(at: next)
         PanelZoom.save(next, to: .standard)
     }
@@ -95,30 +97,23 @@ final class FloatingPanel: NSPanel {
     }
 }
 
-/// Lays its one subview out in `frame / zoom` points, which AppKit then draws `zoom` times as big.
-/// The subview's frame is set by hand: an `NSHostingView` does not lay SwiftUI out again on a bounds
-/// change alone, and autoresizing inside scaled bounds left it at a stale size (plan for #38, spikes 1-3).
-final class ZoomView: NSView {
-    var zoom: CGFloat = 1 {
-        didSet { fitContent() }
-    }
+@MainActor @Observable
+final class ZoomScale {
+    var value: CGFloat
+    init(_ value: CGFloat) { self.value = value }
+}
 
-    override init(frame: NSRect) {
-        super.init(frame: frame)
-        autoresizesSubviews = false
-    }
+/// The zoom lives in SwiftUI so the hosting view's bounds always equal its frame: AppKit bounds
+/// scaling (#38's `ZoomView`) drew the buttons in one place and hit-tested them in another (#41).
+struct ZoomedContent<Content: View>: View {
+    let zoom: ZoomScale
+    @ViewBuilder let content: Content
 
-    required init?(coder: NSCoder) {
-        fatalError("init(coder:) is not used")
-    }
-
-    override func setFrameSize(_ newSize: NSSize) {
-        super.setFrameSize(newSize)
-        fitContent()
-    }
-
-    private func fitContent() {
-        setBoundsSize(NSSize(width: frame.width / zoom, height: frame.height / zoom))
-        subviews.first?.frame = bounds
+    var body: some View {
+        GeometryReader { proxy in
+            content
+                .frame(width: proxy.size.width / zoom.value, height: proxy.size.height / zoom.value)
+                .scaleEffect(zoom.value, anchor: .topLeading)
+        }
     }
 }

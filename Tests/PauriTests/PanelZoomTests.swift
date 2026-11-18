@@ -1,5 +1,6 @@
 import AppKit
 import Carbon.HIToolbox
+import SwiftUI
 import Testing
 @testable import Pauri
 
@@ -84,17 +85,23 @@ struct PanelZoomTests {
     }
 
     @MainActor
-    @Test func zoomViewGivesContentScaledRoom() {
-        let zoomView = ZoomView(frame: NSRect(x: 0, y: 0, width: 520, height: 680))
-        let content = NSView()
-        zoomView.addSubview(content)
-        zoomView.zoom = 1.25
-        #expect(content.frame.size == CGSize(width: 416, height: 544))
-        zoomView.zoom = 1.5
-        zoomView.setFrameSize(CGSize(width: 600, height: 750))
-        #expect(content.frame.size == CGSize(width: 400, height: 500))
-        zoomView.zoom = 1
-        #expect(content.frame.size == CGSize(width: 600, height: 750))
+    @Test func zoomedContentGivesContentScaledRoom() {
+        final class SizeBox { var size = CGSize.zero }
+        let box = SizeBox()
+        let scale = ZoomScale(1.25)
+        let host = NSHostingView(rootView: ZoomedContent(zoom: scale) {
+            Color.clear.onGeometryChange(for: CGSize.self, of: \.size) { box.size = $0 }
+        })
+        host.frame = NSRect(x: 0, y: 0, width: 520, height: 680)
+        host.layoutSubtreeIfNeeded()
+        #expect(box.size == CGSize(width: 416, height: 544))
+        scale.value = 1.5
+        host.setFrameSize(CGSize(width: 600, height: 750))
+        host.layoutSubtreeIfNeeded()
+        #expect(box.size == CGSize(width: 400, height: 500))
+        scale.value = 1
+        host.layoutSubtreeIfNeeded()
+        #expect(box.size == CGSize(width: 600, height: 750))
     }
 
     @MainActor
