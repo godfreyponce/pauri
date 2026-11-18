@@ -3,6 +3,27 @@
 Accepted-work archive. One section per accepted ticket, appended at the accept-time docs commit.
 Newest first.
 
+## #39 Your messages stand apart from Pauri's answers (2026-11-17)
+
+- The user's message is now a grey rounded bubble on the right, and Pauri's answer runs the
+  full width under it: variant E of `design-directions/issue-39.html`. The owner picked it from a
+  screenshot of a chat app after seeing variants A to D (tinted band, accent bar, accent ink, two
+  speakers), which stay on the page as the record.
+- This replaces #21 variant C's labeled row: the YOU label, the 44 pt label column, the answer's
+  indent, and the divider between exchanges are gone. Header, orb, input area, and model picker
+  are unchanged.
+- `QuestionRow` became `QuestionBubble` (`PanelView.swift`): plain `Text`, regular weight, fill
+  `.primary.opacity(0.10)`, padding 9 x 12, radius 16, at most 75 % of the transcript wide (the
+  same `containerRelativeFrame` chain as #16's bubble). Gaps: 12 pt question to answer, 20 pt
+  between exchanges. All sizes are first guesses judged by eye.
+- The owner's screenshot is not in the repo: it held private chat text.
+- Final review: no Critical or Important findings. Deferred minors: `docs/spec.md:43` still
+  names #16 variant A; the 10 % fill may wash out on the most transparent glass (H3); tool steps
+  and the approval card now start at the left edge.
+- No new test: look only. Hand check H1 to H6 by the owner at gate 2.
+- Tests 145/145, twenty live tests skipped (`./scripts/test.sh && ./scripts/build-app.sh`).
+  Commits 3010e46, 2baf23c, b6b05ba.
+
 ## #35 Header icons show hover labels (2026-11-17)
 
 - The panel header's search, new chat, and settings icons now use #34's `HoverLabel` in place
