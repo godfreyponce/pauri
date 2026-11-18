@@ -96,13 +96,10 @@ struct PanelView: View {
                     EmptyState(shortcut: hotKey.shortcut) { showsHistory = true }
                         .containerRelativeFrame(.vertical, alignment: .bottom)
                 } else {
-                    VStack(alignment: .leading, spacing: 0) {
+                    VStack(alignment: .leading, spacing: 20) {
                         ForEach(Array(chat.exchanges.enumerated()), id: \.element.id) { index, exchange in
-                            if index > 0 {
-                                Divider().padding(.bottom, 12)
-                            }
-                            VStack(alignment: .leading, spacing: 4) {
-                                QuestionRow(question: exchange.question, hasScreenshot: exchange.hasScreenshot)
+                            VStack(alignment: .leading, spacing: 12) {
+                                QuestionBubble(question: exchange.question, hasScreenshot: exchange.hasScreenshot)
                                 VStack(alignment: .leading, spacing: 4) {
                                     ForEach(exchange.steps) { ToolStepRow(step: $0) }
                                     if index == chat.exchanges.count - 1, let request = chat.approvals.first {
@@ -115,7 +112,6 @@ struct PanelView: View {
                                                  isStreaming: chat.isAnswering && index == chat.exchanges.count - 1)
                                         .equatable()
                                 }
-                                .padding(.leading, QuestionRow.labelWidth)
                             }
                         }
                     }
@@ -251,31 +247,26 @@ struct PanelView: View {
     }
 }
 
-/// The user's message as a labeled row, not a bubble: variant C of `design-directions/issue-21.html`.
-/// Plain text, not Markdown, so `2*3*4` stays as typed.
-struct QuestionRow: View {
-    static let labelWidth: CGFloat = 44
-
+/// The user's message as a grey bubble on the right: variant E of `design-directions/issue-39.html`,
+/// the owner's pick. Plain text, not Markdown, so `2*3*4` stays as typed.
+struct QuestionBubble: View {
     let question: String
     let hasScreenshot: Bool
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 0) {
-            Text("YOU")
-                .font(.system(size: 10.5, weight: .semibold))
-                .kerning(0.5)
-                .foregroundStyle(.secondary)
-                .frame(width: Self.labelWidth, alignment: .leading)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(question)
-                    .fontWeight(.medium)
-                if hasScreenshot {
-                    Label("Screenshot", systemImage: "photo")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
-                }
+        VStack(alignment: .leading, spacing: 2) {
+            Text(question)
+            if hasScreenshot {
+                Label("Screenshot", systemImage: "photo")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
             }
         }
+        .padding(.vertical, 9)
+        .padding(.horizontal, 12)
+        .background(.primary.opacity(0.10), in: RoundedRectangle(cornerRadius: 16))
+        .containerRelativeFrame(.horizontal, alignment: .trailing) { width, _ in width * 0.75 }
+        .frame(maxWidth: .infinity, alignment: .trailing)
     }
 }
 
