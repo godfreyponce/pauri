@@ -56,7 +56,10 @@ const shapes = {
   A: { gap: 10, fillDark: "rgba(143,134,255,0.16)", fillLight: "rgba(74,61,184,0.10)", bandPadV: 6, bandPadH: 8, bandRadius: 8 },
   B: { gap: 10, bar: 2, barX: 32 },
   C: { gap: 10, pillFont: 9.5 },
-  D: { gap: 10, marker: 18, hairline: 1 }
+  D: { gap: 10, marker: 18, hairline: 1 },
+  // E: the owner's pick at the stop after Task 1, from a screenshot of a chat app (not kept: it holds private chat text).
+  // Bubble sizes are the screenshot's, scaled from its 15 px text to 12.5 pt; maxWidth 0.75 is #16's bubble.
+  E: { gap: 12, exchangeGap: 20, fillDark: "rgba(255,255,255,0.10)", fillLight: "rgba(0,0,0,0.10)", padV: 9, padH: 12, radius: 16, maxWidth: 0.75 }
 };
 </script>
 <style>
@@ -196,10 +199,17 @@ const shapes = {
   .D .who-mark { width: 18px; height: 18px; border-radius: 50%; border: 1px solid var(--fg2); box-sizing: border-box; display: flex; align-items: center; justify-content: center; color: var(--fg2); }
   .D .who-mark svg { width: 12px; height: 12px; }
   .D .answer .orbmark { position: absolute; left: -44px; top: 0; width: 18px; height: 18px; }
+
+  /* E. The owner's pick: a grey bubble on the right; the answer runs the full width; no label, no divider. */
+  .E .exchange + .exchange { border-top: 0; padding-top: 0; margin-top: 20px; }
+  .E .bubble { align-self: flex-end; max-width: 75%; background: rgba(255,255,255,0.10); border-radius: 16px; padding: 9px 12px; }
+  .E.light .bubble { background: rgba(0,0,0,0.10); }
+  .E .bubble .shot { margin-top: 2px; }
+  .E .rest { margin-left: 0; }
 </style>
 </head>
 <body>
-<h1>Your messages and Pauri's answers: four shapes</h1>
+<h1>Your messages and Pauri's answers: four shapes, and the owner's pick</h1>
 <p class="lede">Issue #39. Each mock is the shipped panel (variant C of issue-21.html: slim header, transcript rows, the
 input area from #17) on glass over a busy desktop, with the same five-exchange chat. The second answer opens with a
 bold line and the third with a heading, the two cases where today's medium-weight question and the answer look alike.
@@ -212,7 +222,8 @@ use. Under each panel: zoom as #38 does it (the content scales, the panel keeps 
 its answer gives plain text. References, for feel and not layout: the ChatGPT window (below; its bubble is a
 reference for its contrast, not its shape) and Raycast AI chat
 (<a href="https://www.raycast.com/core-features/ai">raycast.com</a>). No Raycast screenshot was sent at gate 1, so it
-is named here only.</p>
+is named here only. After seeing A to D, the owner picked a fifth shape from a screenshot of a chat app: E, a grey
+bubble on the right with the answer at full width. It is the last panel in the row.</p>
 <div class="refs">
   <figure><img src="../docs/reference/chatgpt-window.png" alt="ChatGPT window">ChatGPT window (docs/reference/chatgpt-window.png)</figure>
 </div>
@@ -292,6 +303,12 @@ const variants = [
     note: "Both sides get a marker in the label column: a small person circle beside the question and a small static orb beside the answer's first line. A hairline under the question closes it off. Who is talking shows on both sides, as in a chat app, without bubbles.",
     shape: "Shape: who is talking, on both sides. Markers: 18 pt. Hairline: 1 pt under the question.",
     exchange: (ex) => `<div class="exchange"><div class="q"><span class="who-mark mark">${icons.person}</span>${body(ex)}</div>${answer(ex, `<span class="orb orbmark mark"></span>`)}</div>`
+  },
+  {
+    key: "E", name: "E. Bubble (the owner's pick)",
+    note: "Picked by the owner after A to D, from a screenshot of a chat app: your message is a grey rounded bubble on the right, as in the ChatGPT window, and Pauri's answer runs the full width under it. No YOU label, no label column, no divider between exchanges.",
+    shape: "Shape: a bubble. Fill: white at 10 % (dark) or black at 10 % (light), radius 16, padding 9 x 12, at most 75 % wide. Gap between exchanges: 20 pt.",
+    exchange: (ex) => `<div class="exchange"><div class="bubble">${body(ex)}</div>${answer(ex)}</div>`
   }
 ];
 
