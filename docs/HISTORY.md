@@ -3,6 +3,32 @@
 Accepted-work archive. One section per accepted ticket, appended at the accept-time docs commit.
 Newest first.
 
+## #41 The up-arrow click installs the update at any zoom (2026-11-18)
+
+- Cause: #38's `ZoomView` scaled the hosting view's bounds in AppKit. At any zoom other than
+  100 %, SwiftUI hit-tested in other places than it drew: at 110 % a hover on the up-arrow
+  showed the "New chat" label, and no header button reacted to a click. At 100 % the same
+  click installed the update. Copies on 0.1.4 and 0.1.5 still have the bug: Cmd+0, then the
+  up-arrow, or `brew upgrade --cask pauri`.
+- Fix: `ZoomView` is gone. `ZoomedContent` (`PanelController.swift`) lays the panel out in
+  `size / zoom` inside a `GeometryReader` and draws it with `.scaleEffect(zoom, anchor:
+  .topLeading)`; `ZoomScale` is observed, so a zoom change keeps the panel's state. AppKit now
+  sees an unscaled hosting view at every zoom. The zoom's rules (#38) and the resize (#37) are
+  unchanged.
+- Proof: local feed, 0.1.0 to a fixed 0.9.0. The owner's up-arrow click installed at 110, 150,
+  100 and 80 % (four `GET /Pauri-0.9.0.zip`), the check-mark checked at 110 %, and the panel
+  checks at 150 % passed (title bar, drag, popovers, clicks, text selection, live zoom with
+  state, resize, 80 to 200 %).
+- The owner sees softer text when zoomed in; he picked shipping the click fix now. Zoom like
+  ChatGPT classic (bigger chat text in a real font, the header and toolbar fixed) is the
+  follow-up.
+- `zoomViewGivesContentScaledRoom` became `zoomedContentGivesContentScaledRoom`.
+- Final review: no Critical or Important findings. Deferred minors: at 80 to 90 % with low
+  transparency, a thin strip above the header may show no tint; the unit test pins layout, not
+  where a click lands (hand checks only).
+- Tests 145/145, twenty live tests skipped (`./scripts/test.sh && ./scripts/build-app.sh`).
+  Commit 034a29c.
+
 ## #39 Your messages stand apart from Pauri's answers (2026-11-17)
 
 - The user's message is now a grey rounded bubble on the right, and Pauri's answer runs the
