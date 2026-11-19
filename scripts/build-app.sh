@@ -22,7 +22,7 @@ if [ -n "$RELEASE" ]; then
     "$APP/Contents/Info.plist"
 fi
 mkdir -p "$APP/Contents/Resources"
-cp Support/OAI_OpenAI-Blossom_Black.svg Support/OAI_OpenAI-Blossom_White.svg "$APP/Contents/Resources/"
+cp Support/OAI_OpenAI-Blossom_Black.svg Support/OAI_OpenAI-Blossom_White.svg Support/MenuBarIcon.svg "$APP/Contents/Resources/"
 FW="$APP/Contents/Frameworks/Sparkle.framework"
 mkdir -p "$APP/Contents/Frameworks"
 ditto "$(swift build -c release --show-bin-path)/Sparkle.framework" "$FW"

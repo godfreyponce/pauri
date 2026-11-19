@@ -38,7 +38,8 @@ You need Command Line Tools (`xcode-select --install`) or Xcode.
 
 - Build: `./scripts/build-app.sh`. It writes `build/Pauri.app`. It signs the app with the `Pauri Self-Signed` certificate when your login keychain has it, and ad-hoc when it does not, and prints which. A signed build keeps Pauri's macOS permissions when you rebuild. An ad-hoc build loses them on every rebuild; reset them with the commands below. After you change from ad-hoc builds to signed builds, reset all of them once: `tccutil reset All io.github.godfreyponce.pauri && defaults delete io.github.godfreyponce.pauri askedForSelectionAccess`.
 - Run: `open build/Pauri.app`.
-- Show the panel: Cmd+Shift+Space. Press it again, or Esc, to hide the panel.
+- Show the panel: Cmd+Shift+Space, or click the P in the menu bar. Press it again, or Esc, to hide the panel.
+- Quit: right-click (or Control-click) the P in the menu bar, then click Quit Pauri.
 - New chat: Cmd+N, or the pencil button at the top right of the panel.
 - Past chats: Cmd+K, or the search button at the top right of the panel. Type to search by title or text. Click a chat or press Return to reopen it. To delete a chat, click its trash or press Cmd+Delete, then press Delete or Cmd+Delete again to confirm; the chat is gone from Codex for good. Esc goes back. The list shows chats from this version on.
 - Resize: drag an edge or a corner of the panel. Pauri keeps the size after a hide and after a relaunch. Reset it with `defaults delete io.github.godfreyponce.pauri panelSize`.

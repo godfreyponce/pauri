@@ -49,6 +49,9 @@ Reference screenshots (the owner's, from the intake thread), in `docs/reference/
 18. **Visibility and license:** public from the first commit, MIT. Lives at `~/Developer/pauri`. **Check at bootstrap** that the name is free on GitHub and Homebrew.
 19. **Protocol:** bootstrap onto the ticket protocol with `/port-protocol` so it gets STATE.md and the issue queue. Add a PROJECTS.md row.
 
+### Menu bar
+20. **Menu bar item:** the Orbit P glyph (picked 2026-11-18, `Support/MenuBarIcon.svg`) as a template image, 16 pt tall, so macOS colors it for light and dark menu bars. A left click shows or hides the panel exactly as the hotkey does. A right-click or Control-click opens a menu with Quit Pauri only; Settings and Check for Updates stay in the panel, where their results show. Pauri stays `LSUIElement`: no Dock icon.
+
 ## Fog
 
 - History list design (decision 11 defers it).
