@@ -3,6 +3,30 @@
 Accepted-work archive. One section per accepted ticket, appended at the accept-time docs commit.
 Newest first.
 
+## #42 The Orbit P in the menu bar (2026-11-18)
+
+- `AppDelegate` (`PauriApp.swift`) makes one `NSStatusItem`. Its image is
+  `Support/MenuBarIcon.svg` (the owner's Orbit P, `viewBox` cropped to the glyph), loaded by
+  `NSImage` as SVG, 16 pt tall and 16 x 96 / 102 pt wide, `isTemplate`. `build-app.sh` copies
+  it into the bundle.
+- Left click calls `togglePanel()` (was `hotKeyPressed()`), so it hides with focus and
+  otherwise shows with the front app's selection, like the hotkey. A VoiceOver press has no
+  mouse event and toggles too. Right-click or Control-click opens a menu with Quit Pauri only.
+- Hand checks (synthetic clicks on the built app): glyph light on a dark menu bar, no Dock
+  icon; clicks 2 s apart toggled show and hide; right-click and Control-click open the menu
+  without a toggle; Quit Pauri ends Pauri and its codex child; Cmd+Q quits with the panel
+  focused; the relaunch-after-update flag shows the panel at launch. Left to the owner's hand
+  check at gate 2, because synthetic focus results were noisy while the Mac was in use: the
+  light menu bar, the selection on click, and Esc. 1x renders soft at the stem's edges (3.1 px
+  stem); 2x is clean.
+- Plan fix: `NSSize(width: 16 * 96 / 102, ...)` picked the `Int` initializer (width 15), so
+  the code says `16.0 * 96 / 102`.
+- Final review: the VoiceOver press did nothing (a guard on a nil `NSApp.currentEvent`),
+  fixed. Deferred minors: README's "Press it again" reads as the hotkey only; no fallback
+  image if the SVG is missing.
+- No new unit test (AppKit glue only). Tests 145/145, twenty live tests skipped
+  (`./scripts/test.sh && ./scripts/build-app.sh`). Commit eb19a8d.
+
 ## #41 The up-arrow click installs the update at any zoom (2026-11-18)
 
 - Cause: #38's `ZoomView` scaled the hosting view's bounds in AppKit. At any zoom other than
