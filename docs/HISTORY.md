@@ -3,6 +3,23 @@
 Accepted-work archive. One section per accepted ticket, appended at the accept-time docs commit.
 Newest first.
 
+## #31 Pauri's log lines readable in `log show` (2026-11-19)
+
+- `Sources/Pauri/Log.swift` declares `Logger.pauri` (subsystem `io.github.godfreyponce.pauri`,
+  category `app`). The five `NSLog` lines (first token, updater did not start, update failed,
+  two hotkey registration failures) now use it, with every value `privacy: .public`. None of
+  them carries a question, an answer, or a selection. First token is `notice`; the rest are
+  `error`. A Sparkle error's text is public too, so a path with the account name can show.
+- Read them with `/usr/bin/log show --last 5m --predicate 'subsystem == "io.github.godfreyponce.pauri"'`.
+  In zsh, a bare `log` is a builtin and fails.
+- Hand checks (built app, driven through System Events): H1 showed a `Default` line
+  `Pauri: first token after 1867 ms`, with no question text and no `<private>`; H2 (test feed
+  `http://localhost:9/appcast.xml`, click on the update status icon) showed an `Error` line
+  `Pauri: update failed: Error Domain=SUSparkleErrorDomain Code=2001 ...` in readable text. A
+  background check at launch logs nothing; only a clicked check reaches `showUpdaterError`.
+  The hotkey lines have no hand check. No new unit test (an in-process test cannot see the
+  redaction). Tests 145/145 (`./scripts/test.sh && ./scripts/build-app.sh`).
+
 ## #42 The Orbit P in the menu bar (2026-11-18)
 
 - `AppDelegate` (`PauriApp.swift`) makes one `NSStatusItem`. Its image is
