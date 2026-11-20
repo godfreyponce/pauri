@@ -27,14 +27,14 @@ struct SelectionBar: View {
                 Text(text.split(whereSeparator: \.isNewline).first.map(String.init) ?? text)
                     .lineLimit(1)
                     .truncationMode(.tail)
+                    .modifier(HoverLabel(text: text, above: true))
                 Button { chat.selection = nil } label: { Image(systemName: "xmark.circle.fill") }
                     .buttonStyle(.borderless)
-                    .help("Remove")
+                    .modifier(HoverLabel(text: "Remove", above: true))
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 4)
             .background(.quaternary, in: Capsule())
-            .help(text)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
     }

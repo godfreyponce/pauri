@@ -46,7 +46,7 @@ struct ModelPicker: View {
                 }
                 .menuStyle(.borderlessButton)
                 .fixedSize()
-                .help("Model")
+                .modifier(HoverLabel(text: "Model", above: true))
                 .disabled(chat.modelChoices.isEmpty)
             }
             .padding(.leading, 1)
@@ -86,7 +86,7 @@ struct ModelPicker: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .help("Reasoning: \(model.effort). \(description)")
+        .modifier(HoverLabel(text: "Reasoning: \(model.effort). \(description)", above: true))
         .accessibilityLabel("Reasoning effort")
         .accessibilityValue(model.effort)
     }
