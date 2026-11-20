@@ -16,7 +16,7 @@ struct ScreenshotChip: View {
             Text("Screenshot")
             Button(action: remove) { Image(systemName: "xmark.circle.fill") }
                 .buttonStyle(.borderless)
-                .help("Remove")
+                .modifier(HoverLabel(text: "Remove", above: true))
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 4)

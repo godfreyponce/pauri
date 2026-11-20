@@ -182,7 +182,7 @@ struct PanelView: View {
                     Button(action: captureScreenshot) { Image(systemName: "paperclip") }
                         .buttonStyle(.borderless)
                         .disabled(isCapturing)
-                        .help(screenshotProblem?.message ?? "Attach a screenshot")
+                        .modifier(HoverLabel(text: screenshotProblem?.message ?? "Attach a screenshot", above: true))
                         .accessibilityLabel("Attach a screenshot")
                     ModelPicker(chat: chat)
                     Spacer()
@@ -204,7 +204,7 @@ struct PanelView: View {
                         }
                     }
                     .buttonStyle(.borderless)
-                    .help(dictation.isListening ? "Stop dictation" : dictation.problem?.message ?? "Dictate")
+                    .modifier(HoverLabel(text: dictation.isListening ? "Stop dictation" : dictation.problem?.message ?? "Dictate", above: true))
                     SendOrb(sends: sends,
                             isEnabled: !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                                 && !chat.isAnswering && !chat.isWritingHandoff && !chat.isOpening
@@ -214,8 +214,9 @@ struct PanelView: View {
                 }
             }
             .padding(10)
+            // The border goes under the content, or it would draw across the bottom row's tips above the card.
+            .background(RoundedRectangle(cornerRadius: 12).strokeBorder(.separator))
             .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 12))
-            .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(.separator))
         }
         .padding(12)
         .overlay {
@@ -223,6 +224,7 @@ struct PanelView: View {
                 HistoryList(chat: chat) { showsHistory = false }
             }
         }
+        .coordinateSpace(.named(HoverLabel.space))
         .background {
             Color(nsColor: .windowBackgroundColor).opacity(1 - transparency).ignoresSafeArea()
         }
@@ -307,28 +309,67 @@ struct UpdateStatusIcon: View {
     }
 }
 
-/// A tooltip the panel draws itself, under the view. `.help` never shows here: AppKit draws tooltips only for the
-/// active app, and this panel never activates Pauri. `pinned` keeps it up without the pointer.
+/// A tooltip the panel draws itself, under the view, or over it with `above`, and moved sideways to stay inside the
+/// panel. `.help` never shows here: AppKit draws tooltips only for the active app, and this panel never activates
+/// Pauri. `pinned` keeps it up without the pointer.
 struct HoverLabel: ViewModifier {
     let text: String
     var pinned = false
+    var above = false
     @State private var isHovered = false
+    @State private var room = Room(width: 0, panel: .infinite)
+
+    /// The name of `PanelView`'s coordinate space, which the tip stays inside.
+    nonisolated static let space = "panel"
+    /// `PanelView`'s own padding.
+    nonisolated static let margin: CGFloat = 12
+
+    private struct Room: Equatable {
+        var width: CGFloat
+        /// The panel's rect in the control's own coordinates.
+        var panel: CGRect
+    }
 
     func body(content: Content) -> some View {
         content
             .onHover { isHovered = $0 }
-            .overlay(alignment: .topTrailing) {
+            .onGeometryChange(for: Room.self) { proxy in
+                Room(width: proxy.size.width, panel: proxy.bounds(of: .named(Self.space)) ?? .infinite)
+            } action: { room = $0 }
+            .overlay(alignment: .topLeading) {
                 if isHovered || pinned {
-                    Text(text)
-                        .font(.system(size: 11))
-                        .fixedSize()
-                        .padding(.horizontal, 7)
-                        .padding(.vertical, 3)
-                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 5))
-                        .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(.primary.opacity(0.16)))
-                        .offset(y: 22)
-                        .allowsHitTesting(false)
+                    TipWidth(width: room.panel.width - 2 * Self.margin) {
+                        Text(text)
+                            .font(.system(size: 11))
+                            .lineLimit(6)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .padding(.horizontal, 7)
+                            .padding(.vertical, 3)
+                            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 5))
+                            .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(.primary.opacity(0.16)))
+                    }
+                    .alignmentGuide(.top) { d in above ? d.height + 4 : -22 }
+                    .alignmentGuide(.leading) { [room] d in -Self.x(d.width, in: room) }
+                    .allowsHitTesting(false)
                 }
             }
+    }
+
+    /// Trailing-aligned with the control, then clamped inside the panel's margins.
+    nonisolated private static func x(_ tip: CGFloat, in room: Room) -> CGFloat {
+        min(max(room.width - tip, room.panel.minX + Self.margin), room.panel.maxX - Self.margin - tip)
+    }
+}
+
+/// Proposes `width` to its one subview, so a short tip keeps its own width and a long one wraps at `width`.
+private struct TipWidth: Layout {
+    let width: CGFloat
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        subviews.first?.sizeThatFits(ProposedViewSize(width: width, height: nil)) ?? .zero
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        subviews.first?.place(at: bounds.origin, proposal: ProposedViewSize(width: width, height: nil))
     }
 }

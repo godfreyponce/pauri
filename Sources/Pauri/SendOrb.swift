@@ -34,7 +34,7 @@ struct SendOrb: View {
         .buttonStyle(.plain)
         .focusable(false)
         .opacity(isEnabled || isAnswering ? 1 : 0.4)
-        .help(isAnswering ? "Stop" : "Send")
+        .modifier(HoverLabel(text: isAnswering ? "Stop" : "Send", above: true))
         .accessibilityLabel(isAnswering ? "Stop" : "Send")
         .onChange(of: isMoving, initial: true) { _, moving in
             if moving {

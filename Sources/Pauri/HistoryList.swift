@@ -149,6 +149,7 @@ struct HistoryList: View {
         .padding(.horizontal, 8)
         .background(isSelected ? AnyShapeStyle(.primary.opacity(0.08)) : AnyShapeStyle(.clear),
                     in: RoundedRectangle(cornerRadius: 6))
+        .zIndex(isSelected ? 1 : 0)
         .contentShape(Rectangle())
         .id(entry.id)
         .onHover { inside in
@@ -273,7 +274,7 @@ private struct TrashButton: View {
                             in: RoundedRectangle(cornerRadius: 4))
         }
         .buttonStyle(.plain)
-        .help("Delete chat")
+        .modifier(HoverLabel(text: "Delete chat"))
         .onHover { isHovered = $0 }
     }
 }
