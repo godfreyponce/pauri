@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import os
 
 struct Exchange: Equatable, Sendable, Identifiable {
     let id = UUID()
@@ -189,7 +190,7 @@ final class Chat {
                     switch event {
                     case .text(let delta):
                         if exchanges[last].answer.isEmpty {
-                            NSLog("Pauri: first token after %d ms", Int((ContinuousClock.now - sent) / .milliseconds(1)))
+                            Logger.pauri.notice("Pauri: first token after \(Int((ContinuousClock.now - sent) / .milliseconds(1)), privacy: .public) ms")
                         }
                         exchanges[last].answer += delta
                     case .step(let step):

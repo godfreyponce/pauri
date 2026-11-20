@@ -1,6 +1,7 @@
 import AppKit
 import Carbon.HIToolbox
 import Observation
+import os
 
 /// A Carbon virtual key code (`kVK_*`) plus a Carbon modifier mask (`cmdKey`, `shiftKey`, ...).
 struct Shortcut: Equatable, Sendable {
@@ -103,7 +104,7 @@ final class HotKey {
             GetApplicationEventTarget(), hotKeyPressed, 1, &pressed, Unmanaged.passUnretained(self).toOpaque(),
             &handler)
         guard status == noErr else {
-            NSLog("Pauri: hotkey registration failed, OSStatus %d", status)
+            Logger.pauri.error("Pauri: hotkey registration failed, OSStatus \(status, privacy: .public)")
             return
         }
         register(shortcut)
@@ -140,7 +141,7 @@ final class HotKey {
         let status = RegisterEventHotKey(
             shortcut.keyCode, shortcut.modifiers, id, GetApplicationEventTarget(), 0, &ref)
         guard status == noErr else {
-            NSLog("Pauri: hotkey registration failed, OSStatus %d", status)
+            Logger.pauri.error("Pauri: hotkey registration failed, OSStatus \(status, privacy: .public)")
             return false
         }
         return true

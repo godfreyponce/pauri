@@ -1,4 +1,5 @@
 import AppKit
+import os
 import Sparkle
 
 enum UpdateStatus: Equatable {
@@ -64,7 +65,7 @@ final class Updater: NSObject, SPUUserDriver, SPUUpdaterDelegate {
         do {
             try updater.start()
         } catch {
-            NSLog("Pauri: updater did not start: %@", "\(error)")
+            Logger.pauri.error("Pauri: updater did not start: \(String(describing: error), privacy: .public)")
             return
         }
         if updater.automaticallyChecksForUpdates {
@@ -126,7 +127,7 @@ final class Updater: NSObject, SPUUserDriver, SPUUpdaterDelegate {
     }
 
     func showUpdaterError(_ error: any Error, acknowledgement: @escaping () -> Void) {
-        NSLog("Pauri: update failed: %@", "\(error)")
+        Logger.pauri.error("Pauri: update failed: \(String(describing: error), privacy: .public)")
         acknowledgement()
     }
 
