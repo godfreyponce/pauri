@@ -3,6 +3,32 @@
 Accepted-work archive. One section per accepted ticket, appended at the accept-time docs commit.
 Newest first.
 
+## #40 Bottom-row, chip, and history controls show hover labels (2026-11-20)
+
+- `HoverLabel` (`PanelView.swift`) takes `above:`. With it, the tip's bottom sits 4 pt over the
+  control (a guess); without it, the tip keeps #34's 22 pt drop. The tip starts trailing-aligned
+  with the control and slides sideways to stay 12 pt (the panel's padding) inside the panel. It
+  finds the panel through the named coordinate space `"panel"`, read with `onGeometryChange` and
+  `bounds(of:)`. A private `TipWidth` layout wraps a long tip at the panel width minus 24, up to 6
+  lines (a guess) with "..."; a short tip keeps its own width.
+- The paperclip, mic, send/stop orb, model name, effort bars, both chips' Remove (x), and the
+  selection chip's full text show their tip above; the history trash can shows it below. The
+  full-text tip moved from the whole chip to its `Text`, so pointing at the x shows one tip. The
+  selected history row gets `.zIndex(1)`, so its trash tip draws over the next row.
+  `ModelPicker`'s `.help(choice.help)` on the menu items stays (Q2): a menu item takes no
+  SwiftUI overlay.
+- Plan fixes: `.coordinateSpace` sits after `.overlay { HistoryList }`, not before it, because
+  overlay content is not inside the space of the view it covers. `space`, `margin`, and the
+  clamp are `nonisolated`, because the plan's form gave two Swift 6 actor-isolation warnings.
+- Final review: the input card's border, an `.overlay`, drew across tips taller than about 44 pt
+  (the mic's long permission message). It is now a `.background` above the fill. Deferred
+  minors: each history row's trash tip writes state on every scroll frame (the room holds y);
+  chip tips sit flush on the capsule, not 4 pt above it; the ScrollView clips the trash tip of
+  the visible list's bottom row; VoiceOver lost the `.help` strings as hints; the 12 pt margin
+  is written twice.
+- No new unit test (hover has none; the owner checked by hand at gate 2). Tests 145/145, twenty
+  live tests skipped (`./scripts/test.sh && ./scripts/build-app.sh`). Commit bae85bc; merge 64c5800.
+
 ## #31 Pauri's log lines readable in `log show` (2026-11-19)
 
 - `Sources/Pauri/Log.swift` declares `Logger.pauri` (subsystem `io.github.godfreyponce.pauri`,
